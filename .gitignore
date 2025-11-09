@@ -1,0 +1,16 @@
+# Node
+node_modules/
+dist/
+.env
+*.log
+
+# Prisma
+/generated/
+.prisma/
+
+# Next.js
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
