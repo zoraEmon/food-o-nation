@@ -14,7 +14,185 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Try {
-  id       Int    @id @default(autoincrement())
-  logMessage String
+// --- ENUMS ---
+enum Role {
+  ADMIN
+  BENEFICIARY
+  DONOR
 }
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+  DEACTIVATED
+}
+
+enum DonorType {
+  INDIVIDUAL
+  ORGANIZATION
+  BUSINESS
+}
+
+enum DonationStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+// --- 1. CORE USER MANAGEMENT ---
+model User {
+  userId        String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  role          Role
+  status        Status    @default(PENDING)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Profiles
+  beneficiaryProfile Beneficiary?
+  donorProfile       Donor?
+
+  // System-wide logging
+  activityLogs       ActivityLog[]
+}
+
+// --- 2. BENEFICIARY PROFILE ---
+model Beneficiary {
+  beneficiaryId String    @id @default(uuid())
+  
+  // Personal Info
+  firstName     String
+  lastName      String
+  middleInitial String?
+  age           Int
+  civilStatus   String
+  occupation    String?
+  
+  // Economic Info
+  householdNumber       Int
+  householdAnnualSalary Float
+
+  // Relations
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  // Address (Separated)
+  address       Address?
+
+  // Program Participation
+  programRegistrations ProgramRegistration[]
+}
+
+// --- 3. ADDRESS ---
+model Address {
+  addressId            String    @id @default(uuid())
+  
+  streetNumber  String?
+  barangay      String
+  municipality  String
+  region        String?
+  country       String    @default("Philippines")
+  zipCode       String?
+
+  // Foreign Key to Beneficiary
+  beneficiaryId String    @unique
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [beneficiaryId], onDelete: Cascade)
+}
+
+// --- 4. DONOR PROFILE ---
+model Donor {
+  donorId            String    @id @default(uuid())
+  
+  displayName   String
+  donorType     DonorType
+  
+  // Relations
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  donations     Donation[]
+}
+
+// --- 5. OPERATIONAL TABLES ---
+
+// Donation Centers (for the Map & Drop-off logic)
+model DonationCenter {
+  centerId          String   @id @default(uuid())
+  name        String
+  address     String   // Full address string for display
+  latitude    Float?   // For the Map feature
+  longitude   Float?   // For the Map feature
+  contactInfo String?
+
+  donations   Donation[]
+  programs    Program[]
+}
+
+// Donations (Scheduling & History)
+model Donation {
+  id          String   @id @default(uuid())
+  
+  type        String   // e.g., "Canned Goods", "Vegetables"
+  volume      String   // e.g., "5 boxes", "10kg"
+  status      DonationStatus @default(SCHEDULED)
+  scheduledDate DateTime
+
+  // Relations
+  donorId     String
+  donor       Donor    @relation(fields: [donorId], references: [userId])
+  
+  centerId    String
+  center      DonationCenter @relation(fields: [centerId], references: [centerId])
+
+  createdAt   DateTime @default(now())
+}
+
+// Programs (Announcements & Events)
+model Program {
+  id              String   @id @default(uuid())
+  title           String
+  description     String
+  location        String
+  date            DateTime
+  maxParticipants Int
+  
+  // Relations
+  registrations   ProgramRegistration[]
+  
+  createdAt       DateTime @default(now())
+
+  centerId        String
+  center          DonationCenter @relation(fields: [centerId], references: [centerId]) 
+}
+
+// Link Table: Beneficiaries registering for Programs
+model ProgramRegistration {
+  id            String   @id @default(uuid())
+  status        String   // "REGISTERED", "WAITLISTED", "ATTENDED"
+  
+  programId     String
+  program       Program  @relation(fields: [programId], references: [id])
+  
+  beneficiaryId String
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [beneficiaryId])
+
+  registeredAt  DateTime @default(now())
+
+  @@unique([programId, beneficiaryId]) // Prevent double registration
+}
+
+// Activity Log (For transparency/history)
+model ActivityLog {
+  id        String   @id @default(uuid())
+  action    String   // e.g., "Applied for Program", "Donated Goods"
+  details   String?
+  
+  // Relationsg
+  userId    String
+  user      User     @relation(fields: [userId], references: [userId])
+  
+  createdAt DateTime @default(now())
+}
+
