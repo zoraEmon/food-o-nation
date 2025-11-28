@@ -1,20 +1,18 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// FOOD-O-NATION COMPLETE SCHEMA
+// Includes User, Admin, Beneficiary, Donor, Operations, and Logs
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" 
   url      = env("DATABASE_URL")
 }
 
-// --- ENUMS ---
+// =========================================================
+// ENUMS
+// =========================================================
 enum Role {
   ADMIN
   BENEFICIARY
@@ -26,6 +24,19 @@ enum Status {
   APPROVED
   REJECTED
   DEACTIVATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CivilStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
 }
 
 enum DonorType {
@@ -40,9 +51,11 @@ enum DonationStatus {
   CANCELLED
 }
 
-// --- 1. CORE USER MANAGEMENT ---
+// =========================================================
+// 1. CORE USER MANAGEMENT
+// =========================================================
 model User {
-  userId        String    @id @default(uuid())
+  id            String    @id @default(uuid())
   email         String    @unique
   password      String
   role          Role
@@ -50,149 +63,170 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  // Profiles
+  // Profiles (1:1 Relations)
   beneficiaryProfile Beneficiary?
   donorProfile       Donor?
+  adminProfile       Admin?
 
-  // System-wide logging
+  // Logs (1:N Relation)
   activityLogs       ActivityLog[]
 }
 
-// --- 2. BENEFICIARY PROFILE ---
-model Beneficiary {
-  beneficiaryId String    @id @default(uuid())
-  
-  // Personal Info
+//I have just added the table for admins. [28//11/2025]
+// =========================================================
+// 2. ADMIN PROFILE (1:1 with User)
+// =========================================================
+model Admin {
+  id            String    @id @default(uuid())
   firstName     String
   lastName      String
-  middleInitial String?
-  age           Int
-  civilStatus   String
-  occupation    String?
   
-  // Economic Info
+  // Relations
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+// 3. BENEFICIARY PROFILE (1:1 with User)
+// =========================================================
+model Beneficiary {
+  id                    String      @id @default(uuid())
+  firstName             String
+  lastName              String
+  middleName            String?
+  gender                Gender
+  birthDate             DateTime
+  contactNumber         String
+  age                   Int
+  civilStatus           CivilStatus
+  occupation            String
   householdNumber       Int
   householdAnnualSalary Float
 
   // Relations
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
-
-  // Address (Separated)
-  address       Address?
-
-  // Program Participation
-  programRegistrations ProgramRegistration[]
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  address               Address?              // 1:1 relation
+  programRegistrations  ProgramRegistration[] // 1:N relation
 }
 
-// --- 3. ADDRESS ---
+// =========================================================
+// 4. ADDRESS (1:1 with Beneficiary)
+// =========================================================
 model Address {
-  addressId            String    @id @default(uuid())
-  
-  streetNumber  String?
+  id            String    @id @default(uuid())
+  streetNumber  String
   barangay      String
   municipality  String
-  region        String?
+  region        String
   country       String    @default("Philippines")
-  zipCode       String?
+  zipCode       String
 
   // Foreign Key to Beneficiary
   beneficiaryId String    @unique
-  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [beneficiaryId], onDelete: Cascade)
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
 }
 
-// --- 4. DONOR PROFILE ---
+// =========================================================
+// 5. DONOR PROFILE (1:1 with User)
+// =========================================================
 model Donor {
-  donorId            String    @id @default(uuid())
-  
+  id            String    @id @default(uuid())
   displayName   String
   donorType     DonorType
-  
+  totalDonation Float?    // Derived/Optional field
+
   // Relations
   userId        String    @unique
-  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  donations     Donation[]
+  donations     Donation[] // 1:N relation
 }
 
-// --- 5. OPERATIONAL TABLES ---
-
-// Donation Centers (for the Map & Drop-off logic)
+// =========================================================
+// 6. DONATION CENTER (1:N with Program)
+// =========================================================
 model DonationCenter {
-  centerId          String   @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  address     String   // Full address string for display
-  latitude    Float?   // For the Map feature
-  longitude   Float?   // For the Map feature
-  contactInfo String?
+  address     String
+  latitude    Float
+  longitude   Float
+  contactInfo String
 
-  donations   Donation[]
-  programs    Program[]
+  programs    Program[] // 1:N relation
 }
 
-// Donations (Scheduling & History)
+// =========================================================
+// 7. PROGRAM (Events / Campaigns)
+// =========================================================
+model Program {
+  id                  String   @id @default(uuid())
+  title               String
+  description         String
+  location            String
+  date                DateTime
+  maxParticipants     Int
+  currentParticipants Int      @default(0)
+
+  // Relation to Donation Center (N:1)
+  centerId            String
+  center              DonationCenter @relation(fields: [centerId], references: [id])
+
+  // Program Links
+  donations           Donation[]
+  registrations       ProgramRegistration[]
+
+  createdAt           DateTime @default(now())
+}
+
+// =========================================================
+// 8. DONATION (N:1 with Donor, N:1 with Program)
+// =========================================================
 model Donation {
-  id          String   @id @default(uuid())
-  
-  type        String   // e.g., "Canned Goods", "Vegetables"
-  volume      String   // e.g., "5 boxes", "10kg"
-  status      DonationStatus @default(SCHEDULED)
+  id            String          @id @default(uuid())
+  type          String
+  volume        String
+  status        DonationStatus  @default(SCHEDULED)
   scheduledDate DateTime
 
   // Relations
-  donorId     String
-  donor       Donor    @relation(fields: [donorId], references: [userId])
-  
-  centerId    String
-  center      DonationCenter @relation(fields: [centerId], references: [centerId])
+  donorId       String
+  donor         Donor           @relation(fields: [donorId], references: [id])
 
-  createdAt   DateTime @default(now())
-}
-
-// Programs (Announcements & Events)
-model Program {
-  id              String   @id @default(uuid())
-  title           String
-  description     String
-  location        String
-  date            DateTime
-  maxParticipants Int
-  
-  // Relations
-  registrations   ProgramRegistration[]
-  
-  createdAt       DateTime @default(now())
-
-  centerId        String
-  center          DonationCenter @relation(fields: [centerId], references: [centerId]) 
-}
-
-// Link Table: Beneficiaries registering for Programs
-model ProgramRegistration {
-  id            String   @id @default(uuid())
-  status        String   // "REGISTERED", "WAITLISTED", "ATTENDED"
-  
   programId     String
-  program       Program  @relation(fields: [programId], references: [id])
-  
-  beneficiaryId String
-  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [beneficiaryId])
+  program       Program         @relation(fields: [programId], references: [id])
 
-  registeredAt  DateTime @default(now())
-
-  @@unique([programId, beneficiaryId]) // Prevent double registration
+  createdAt     DateTime        @default(now())
 }
 
-// Activity Log (For transparency/history)
+// =========================================================
+// 9. PROGRAM REGISTRATION (M:N junction table)
+// =========================================================
+model ProgramRegistration {
+  id            String    @id @default(uuid())
+  status        String
+  registeredAt  DateTime  @default(now())
+
+  // Relations
+  programId     String
+  program       Program   @relation(fields: [programId], references: [id])
+
+  beneficiaryId String
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id])
+
+  @@unique([programId, beneficiaryId]) // Enforce unique registration per program/beneficiary
+}
+
+// =========================================================
+// 10. ACTIVITY LOG (N:1 with User)
+// =========================================================
 model ActivityLog {
   id        String   @id @default(uuid())
-  action    String   // e.g., "Applied for Program", "Donated Goods"
+  action    String
   details   String?
-  
-  // Relationsg
   userId    String
-  user      User     @relation(fields: [userId], references: [userId])
-  
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 }
-

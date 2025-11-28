@@ -12,7 +12,7 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@prisma/client": ["generated/prisma/client.ts"]
+      "@prisma/client": ["node_modules/@prisma/client"]
     }
   },
   "include": ["src", "generated/prisma/**/*.ts"]
