@@ -146,9 +146,7 @@ export const login = async (req: Request, res: Response) => {
             return res.status(403).json({ message: 'Account is not active. Please contact support.' });
         }
 
-        // --- DYNAMIC ROLE DETECTION ---
-        // Since we removed the 'role' column, we calculate what roles they have
-        // based on which profiles exist in the database.
+        // Users can have multiple roles 
         const roles: string[] = [];
         let displayName = user.email; // Fallback
 
@@ -173,7 +171,7 @@ export const login = async (req: Request, res: Response) => {
             { 
                 userId: user.id, 
                 status: user.status, 
-                roles: roles // The token now holds ['BENEFICIARY', 'DONOR'], etc.
+                roles: roles // now, imbedded na sa tokens yun roles ng user ['BENEFICIARY', 'DONOR'], etc.
             },
             JWT_SECRET,
             { expiresIn: '7d' }
