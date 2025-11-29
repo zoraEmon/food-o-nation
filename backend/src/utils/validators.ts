@@ -6,6 +6,12 @@ import { Gender, CivilStatus, DonorType} from "@prisma/client";
 export const loginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(12, 'Password is too short - required at least 12 characters'),
+
+    // I have updated this part para flexible ang login depende sa login form na su-submit.
+    loginType: z.enum(['BENEFICIARY', 'DONOR', 'ADMIN'], {
+      error: () => ({ message: "Login type is required (ADMIN, BENEFICIARY, or DONOR)" })
+    }),
+
 });
 
 export const registerBeneficiarySchema = z.object({
