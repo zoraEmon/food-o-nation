@@ -22,8 +22,10 @@ export const registerBeneficiarySchema = z.object({
     birthDate: z.string().datetime(),
     age: z.number().int(),
     CivilStatus: z.nativeEnum(CivilStatus),
+    contactNumber: z.string().min(11, 'Contact number is required'),
+    occupation: z.string().min(1, 'Occupation is required'),
     householdNumber: z.number().int().min(1, 'Household number must be at least 1'),
-    householdAnnualIncome: z.number().min(0, 'Household annual income must be at least 0'),
+    householdAnnualSalary: z.number().min(0, 'Household annual income must be at least 0'),
 
     // Address Info
     streetNumber: z.string(),
