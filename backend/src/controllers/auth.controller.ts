@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcryptjs'; // or bcryptjs depending on what you installed
 import { PrismaClient } from '@prisma/client';
-import { loginSchema, registerBeneficiarySchema, registerDonorSchema } from "../utils/validators.js"; // Make sure path is correct
+import { loginSchema, registerBeneficiarySchema, registerDonorSchema } from '../utils/validators.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -10,18 +10,125 @@ dotenv.config();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'foodONationSecret';
 
-//Context aware na pag login.
+// For Beneficiary Registration
+export const registerBeneficiary = async (req: Request, res: Response) => {
+    try {
+        const result = registerBeneficiarySchema.safeParse(req.body);
+        if (!result.success) {
+            return res.status(400).json({ errors: result.error.format() });
+        }
+
+        const data = result.data;
+
+        const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Email already in use' });
+        }
+
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+
+        const newUser = await prisma.user.create({
+            data: {
+                email: data.email,
+                password: hashedPassword,
+                status: 'PENDING',
+                
+                beneficiaryProfile: {
+                    create: {
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        middleName: data.middleName,
+                        gender: data.gender,
+                        civilStatus: data.civilStatus,
+                        occupation: data.occupation,
+                        age: data.age,
+                        birthDate: new Date(data.birthDate),
+                        contactNumber: data.contactNumber,
+                        householdNumber: data.householdNumber,
+                        householdAnnualSalary: data.householdAnnualSalary,
+                        address: {
+                            create: {
+                                streetNumber: data.streetNumber,
+                                barangay: data.barangay,
+                                municipality: data.municipality,
+                                region: data.region,
+                                zipCode: data.zipCode,
+                                country: 'Philippines'
+                            }
+                        }
+                    }
+                }
+            },
+            include: {
+                beneficiaryProfile: true
+            }
+        });
+
+        res.status(201).json({ 
+            message: "Beneficiary application submitted", 
+            userId: newUser.id 
+        });
+
+    } catch (error) {
+        console.error("Register Beneficiary Error:", error);
+        res.status(500).json({ message: 'Failed to register, internal server error.' });
+    }
+
+}
+
+// For Donor Registration
+export const registerDonor = async (req: Request, res: Response) => {
+    try {
+        const result = registerDonorSchema.safeParse(req.body);
+        if (!result.success) {
+            return res.status(400).json({ errors: result.error.format() });
+        }
+
+        const data = result.data;
+
+        const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+        if (existingUser) {
+            return res.status(400).json({ message: "Email already in use." });
+        }
+
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+
+        const newUser = await prisma.user.create({
+            data: {
+                email: data.email,
+                password: hashedPassword,
+                status: 'PENDING',
+                donorProfile: {
+                    create: {
+                        displayName: data.displayName,
+                        donorType: data.donorType,
+                        totalDonation: 0,
+                    }
+                }
+            }
+        });
+
+        res.status(201).json({
+            message: "Donor application submitted",
+            userId: newUser.id,
+        })
+
+    } catch (error) {
+        console.error("Register Donor Error:", error);
+        res.status(500).json({ message: 'Failed to register, internal server error.' });
+    }
+}
+
+//For login i-nupdate ko to handle multiple roles dynamically
 export const login = async (req: Request, res: Response) => {
     try {
-        // 1. Validate Input (Now includes loginType)
         const result = loginSchema.safeParse(req.body);
         if (!result.success) {
             return res.status(400).json({ errors: result.error.format() });
         }
 
-        const { email, password, loginType } = result.data;
+        const { email, password } = result.data;
 
-        // 2. Fetch User and ALL profiles
         const user = await prisma.user.findUnique({ 
             where: { email }, 
             include: {
@@ -31,60 +138,42 @@ export const login = async (req: Request, res: Response) => {
             }
         });
 
-        // 3. Basic Credentials Check
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        // 4. Account Status Check
         if (user.status === 'DEACTIVATED' || user.status === 'REJECTED') {
             return res.status(403).json({ message: 'Account is not active. Please contact support.' });
         }
 
-        // If trying to login on Beneficiary Form...
-        if (loginType === 'BENEFICIARY' && !user.beneficiaryProfile) {
-            return res.status(403).json({ 
-                message: "Access Denied: No Beneficiary account found for this user." 
-            });
-        }
+        // --- DYNAMIC ROLE DETECTION ---
+        // Since we removed the 'role' column, we calculate what roles they have
+        // based on which profiles exist in the database.
+        const roles: string[] = [];
+        let displayName = user.email; // Fallback
 
-        // If trying to login on Donor Form...
-        if (loginType === 'DONOR' && !user.donorProfile) {
-            return res.status(403).json({ 
-                message: "Access Denied: No Donor account found for this user." 
-            });
-        }
-
-        // If trying to login on Admin Form...
-        if (loginType === 'ADMIN' && !user.adminProfile) {
-            return res.status(403).json({ 
-                message: "Access Denied: You are not an Admin." 
-            });
-        }
-
-        // Determine Display Name based strictly on the loginType
-        let displayName = user.email; 
-        if (loginType === 'BENEFICIARY' && user.beneficiaryProfile) {
-            displayName = `${user.beneficiaryProfile.firstName} ${user.beneficiaryProfile.lastName}`;
-        } else if (loginType === 'DONOR' && user.donorProfile) {
-            displayName = user.donorProfile.displayName;
-        } else if (loginType === 'ADMIN' && user.adminProfile) {
+        if (user.adminProfile) {
+            roles.push('ADMIN');
             displayName = `${user.adminProfile.firstName} ${user.adminProfile.lastName}`;
         }
+        if (user.donorProfile) {
+            roles.push('DONOR');
+            // If they are only a donor (not admin), use donor name
+            if(roles.length === 1) displayName = user.donorProfile.displayName;
+        }
+        if (user.beneficiaryProfile) {
+            roles.push('BENEFICIARY');
+             // If they are only a beneficiary, use real name
+            if(roles.length === 1) displayName = `${user.beneficiaryProfile.firstName} ${user.beneficiaryProfile.lastName}`;
+        }
 
-        // Determine Roles (We still calculate all roles, in case you want to allow switching later)
-        const roles: string[] = [];
-        if (user.adminProfile) roles.push('ADMIN');
-        if (user.donorProfile) roles.push('DONOR');
-        if (user.beneficiaryProfile) roles.push('BENEFICIARY');
-
-        // Generate Token
+        // --- GENERATE TOKEN ---
+        // We embed the array of roles into the token
         const token = jwt.sign(
             { 
                 userId: user.id, 
                 status: user.status, 
-                roles: roles,
-                currentContext: loginType // info para makita kung Pano nag login yung user.
+                roles: roles // The token now holds ['BENEFICIARY', 'DONOR'], etc.
             },
             JWT_SECRET,
             { expiresIn: '7d' }
@@ -96,8 +185,7 @@ export const login = async (req: Request, res: Response) => {
                 id: user.id,
                 displayName,
                 status: user.status,
-                roles: roles,
-                loginType: loginType // Send back confirming which mode they are in
+                roles: roles // Send this to frontend so it knows which dashboard to show
             }
         });
 
