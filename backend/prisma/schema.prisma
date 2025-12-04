@@ -46,6 +46,13 @@ enum DonationStatus {
   CANCELLED
 }
 
+enum ProgramStatus {
+  PENDING
+  APPROVED
+  CLAIMED   // <--- Success
+  CANCELED  // <--- User canceled
+  REJECTED  // <--- Admin rejected
+}
 // =========================================================
 // 1. CORE USER MANAGEMENT
 // =========================================================
@@ -53,6 +60,7 @@ model User {
   id            String    @id @default(uuid())
   email         String    @unique
   password      String
+  profileImage  String? //Added profile image field. [02/12/2025]
   status        Status    @default(PENDING)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -200,7 +208,7 @@ model Donation {
 // =========================================================
 model ProgramRegistration {
   id            String    @id @default(uuid())
-  status        String
+  status        ProgramStatus @default(PENDING)
   registeredAt  DateTime  @default(now())
 
   // Relations

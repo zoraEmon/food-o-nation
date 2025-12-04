@@ -19,6 +19,8 @@ export const registerBeneficiarySchema = z.object({
     email: z.string().email(),
     password: z.string().min(12, 'Password is too short - required at least 12 characters'),
 
+    // profileImage: z.string().optional(),
+
     // Personal Info
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
@@ -26,11 +28,11 @@ export const registerBeneficiarySchema = z.object({
     gender: z.nativeEnum(Gender),
     civilStatus: z.nativeEnum(CivilStatus),
     birthDate: z.string().datetime(),
-    age: z.number().int(),
+    age: z.coerce.number().int(),
     contactNumber: z.string().min(11, 'Contact number is required'),
     occupation: z.string().min(1, 'Occupation is required'),
-    householdNumber: z.number().int().min(1, 'Household number must be at least 1'),
-    householdAnnualSalary: z.number().min(0, 'Household annual income must be at least 0'),
+    householdNumber: z.coerce.number().int().min(1, 'Household number must be at least 1'),
+    householdAnnualSalary: z.coerce.number().min(0, 'Household annual income must be at least 0'),
 
     // Address Info
     streetNumber: z.string(),
