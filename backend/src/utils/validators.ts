@@ -35,18 +35,18 @@ export const registerBeneficiarySchema = z.object({
     householdAnnualSalary: z.coerce.number().min(0, 'Household annual income must be at least 0'),
 
     // Address Info
-    streetNumber: z.string(),
-    barangay: z.string(),
-    municipality: z.string(),
-    region: z.string(),
-    zipCode: z.string(),
+    streetNumber: z.string().min(1, 'Street number is required'),
+    barangay: z.string().min(1, 'Barangay is required'),
+    municipality: z.string().min(1, 'Municipality is required'),
+    region: z.string().optional(),
+    zipCode: z.string().optional(),
 });
 
 //Para sa donor registration.
 export const registerDonorSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(12, 'Password is too short - required at least 12 characters'), // Synchronized with loginSchema
   
-  displayName: z.string().min(2),
+  displayName: z.string().min(2, 'Display name is required (min 2 characters)'),
   donorType: z.nativeEnum(DonorType),
 });

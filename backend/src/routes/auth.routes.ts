@@ -3,7 +3,8 @@ import {
     registerBeneficiary,
     registerDonor,
     login,
-    getMe
+    getMe,
+    verifyOTP // Import verifyOTP
 } from '../controllers/auth.controller.js';
 import { AuthRequest, authToken } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/upload.middleware.js';
@@ -38,6 +39,9 @@ router.post('/register/donor',
 
 // 3. Login
 router.post('/login', login);
+
+// 4. Verify OTP (NEW)
+router.post('/verify-otp', verifyOTP);
 
 // Protected route
 router.get('/me', authToken, getMe);

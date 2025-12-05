@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminEmail = 'admin@foodonation.org';
+  const adminEmail = 'foodonation.org@gmail.com';
   const adminPassword = 'secureAdmin123!';
 
   // Check if admin user already exists
