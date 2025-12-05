@@ -158,6 +158,7 @@ model DonationCenter {
   contactInfo String
 
   programs    Program[] // 1:N relation
+  donations   Donation[] // ✅ NEW: Donations dropped off here
 }
 
 // =========================================================
@@ -188,10 +189,9 @@ model Program {
 // =========================================================
 model Donation {
   id            String          @id @default(uuid())
-  type          String
-  volume        String
   status        DonationStatus  @default(SCHEDULED)
   scheduledDate DateTime
+  createdAt     DateTime        @default(now())
 
   // Relations
   donorId       String
@@ -200,7 +200,24 @@ model Donation {
   programId     String
   program       Program         @relation(fields: [programId], references: [id])
 
-  createdAt     DateTime        @default(now())
+  donationCenterId String
+  donationCenter   DonationCenter @relation(fields: [donationCenterId], references: [id])
+
+  // ✅ New Relation: A donation can have many items
+  items         DonationItem[]
+}
+
+// ✅ New Model: Tracks individual items within a donation
+model DonationItem {
+  id          String   @id @default(uuid())
+  name        String   // e.g., "Rice", "Canned Goods", "Cash"
+  category    String   // e.g., "Food", "Hygiene", "Monetary"
+  quantity    Float    // e.g., 50
+  unit        String   // e.g., "kg", "pcs", "PHP"
+  
+  // Relations
+  donationId  String
+  donation    Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
 }
 
 // =========================================================
