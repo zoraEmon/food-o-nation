@@ -145,6 +145,9 @@ model Donor {
   donorType     DonorType
   totalDonation Float?    // Derived/Optional field
 
+  // ✅ NEW: Points Attribute
+  points        Int       @default(0)
+
   // Relations
   userId        String    @unique
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -152,65 +155,80 @@ model Donor {
   donations     Donation[] // 1:N relation
 }
 
-// =========================================================
-// 6. DONATION CENTER (1:N with Program)
-// =========================================================
-model DonationCenter {
-  id          String   @id @default(uuid())
-  name        String
-  address     String
-  latitude    Float
-  longitude   Float
-  contactInfo String
+// ✅ THE SHARED "PLACE" OBJECT
+// A Location record holds the coordinates/address for exactly ONE purpose.
+model Place {
+  id        String   @id @default(uuid())
+  name      String   // e.g., "QC Warehouse" OR "Luneta Grandstand"
+  address   String
+  latitude  Float
+  longitude Float
 
-  programs    Program[] // 1:N relation
-  donations   Donation[] // ✅ NEW: Donations dropped off here
+  // Relations
+  donationCenter DonationCenter?
+  programs        Program[]
 }
 
-// =========================================================
-// 7. PROGRAM (Events / Campaigns)
-// =========================================================
+// ✅ 2. DONATION CENTER (Unchanged, looks good)
+model DonationCenter {
+  id          String     @id @default(uuid())
+  contactInfo String
+  
+  // 1:1 Relation to Place
+  placeId     String     @unique 
+  place       Place      @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  donations   Donation[]
+}
+
+// ✅ 3. PROGRAM (Fixed Relation)
 model Program {
   id                  String   @id @default(uuid())
   title               String
   description         String
-  location            String
   date                DateTime
   maxParticipants     Int
   currentParticipants Int      @default(0)
+  
+  // ⚡ FIX: Removed @unique so multiple programs can share the same venue
+  placeId             String   
+  place               Place    @relation(fields: [placeId], references: [id]) // Removed Cascade to be safe
 
-  // Relation to Donation Center (N:1)
-  centerId            String
-  center              DonationCenter @relation(fields: [centerId], references: [id])
-
-  // Program Links
   donations           Donation[]
   registrations       ProgramRegistration[]
 
   createdAt           DateTime @default(now())
 }
 
-// =========================================================
-// 8. DONATION (N:1 with Donor, N:1 with Program)
-// =========================================================
+// Updated Donation Model to support General Donations and Itemized Tracking [06/12/2025] - 8:00 PM
+// ✅ 4. DONATION (Fixed for General Donations)
 model Donation {
-  id            String          @id @default(uuid())
-  status        DonationStatus  @default(SCHEDULED)
-  scheduledDate DateTime
-  createdAt     DateTime        @default(now())
+  id               String          @id @default(uuid())
+  status           DonationStatus  @default(SCHEDULED)
+  scheduledDate    DateTime
+  createdAt        DateTime        @default(now())
 
-  // Relations
-  donorId       String
-  donor         Donor           @relation(fields: [donorId], references: [id])
+  // Who is donating?
+  donorId          String?
+  donor            Donor?         @relation(fields: [donorId], references: [id])
 
-  programId     String
-  program       Program         @relation(fields: [programId], references: [id])
+  // ⚡ FIX: Made Optional (?) so users can make general donations
+  programId        String?         
+  program          Program?        @relation(fields: [programId], references: [id])
 
+  // ✅ NEW: Guest Details (For non-logged in users)
+  guestName        String?         // e.g., "Good Samaritan"
+  guestEmail       String?         // To email the receipt
+  
+  // ✅ NEW: Payment Tracking (For Monetary Donations)
+  paymentReference String?         // e.g., "PAYID-123456" or "GCASH-Ref-001"
+  paymentMethod    String?         // e.g., "GCash", "PayPal", "Credit Card"
+
+  // Where is it going? (Required - must be dropped off somewhere)
   donationCenterId String
-  donationCenter   DonationCenter @relation(fields: [donationCenterId], references: [id])
+  donationCenter   DonationCenter  @relation(fields: [donationCenterId], references: [id])
 
-  // ✅ New Relation: A donation can have many items
-  items         DonationItem[]
+  items            DonationItem[]
 }
 
 // ✅ New Model: Tracks individual items within a donation
