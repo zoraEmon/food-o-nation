@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+/* 1. Define Brand Colors */
+:root {
+  /* Light Mode (Cream & Green Theme) */
+  --background: #FAF7F0; /* Warm Cream */
+  --foreground: #1c1c1c; /* Soft Black for text */
+  
+  --primary: #004225;    /* Forest Green */
+  --primary-fg: #ffffff;
+  
+  --secondary: #FFB000;  /* Golden Yellow */
+  --secondary-fg: #000000;
+
+  --muted: #eaddcf;      /* Darker cream for borders/cards */
+  --accent: #FFB000;
+}
+
+/* 2. Define Dark Mode (Professional "Dark Luxury" Theme) */
+.dark {
+  --background: #051A10; /* Very Dark Forest Green (Not Pitch Black) */
+  --foreground: #e2e8f0; /* Off-white text */
+  
+  --primary: #004225;    /* Keep brand green, maybe slightly lighter for contrast if needed */
+  --primary-fg: #ffffff;
+  
+  --secondary: #FFB000;  /* Gold pops beautifully on dark green */
+  --secondary-fg: #000000;
+
+  --muted: #0a291a;      /* Lighter dark green for cards */
+  --accent: #FFB000;
+}
+
+/* 3. Wire up Tailwind Variables */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-fg: var(--secondary-fg);
+  
+  --color-muted: var(--muted);
+
+  /* Fonts mapping */
+  --font-sans: var(--font-inter);      /* Default Body Text */
+  --font-heading: var(--font-poppins); /* Headers */
+  --font-hand: var(--font-dancing);    /* Logo/Funky */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans); /* Inter is default */
+}
+
+/* Custom Utilities for Headers */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading); /* Poppins for all headers */
+}
