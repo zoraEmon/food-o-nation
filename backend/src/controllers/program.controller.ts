@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getAllProgramsService, getProgramByIdService,createProgramService  } from '../services/program.service.js';
+import { getAllProgramsService, getProgramByIdService,createProgramService,updateProgramService  } from '../services/program.service.js';
 import { ProgramData } from '../interfaces/interfaces.js';
 
 
@@ -36,3 +36,18 @@ export const getProgramById = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+export const updateProgram = async (req: Request, res: Response) => {
+    try{
+        const programId = req.params.id;
+        const updateData: Partial<ProgramData> = req.body;
+        const updatedProgram = await updateProgramService(programId, updateData);
+        if(!updatedProgram){
+            return res.status(404).json({ success: false, error: 'Program not found' });
+        }
+        res.status(200).json({ success: true, data: updatedProgram });
+    }
+    catch(error){
+        res.status(500).json({ success: false, error: error.message });
+    }   
+}

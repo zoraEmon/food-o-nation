@@ -4,27 +4,28 @@ import { da } from 'zod/locales';
 
 const prisma = new PrismaClient();
 // Service to get all programs
-export const getAllProgramsService = async () => {
-    return await prisma.program.findMany({
+export const getAllBeneficiaryService = async () => {
+    return await prisma.beneficiary.findMany({
         include: {
-            place: true, // Include related Place data
-            donations: true, // Include related Donations
+            user: true, 
+            address: true, 
+            programRegistrations: true, 
         },
     });
 };
 
 // Service to get a program by ID
-export const getProgramByIdService = async (id: string) => {
-    return await prisma.program.findUnique({
+export const getBeneficiaryByIdService = async (id: string) => {
+    return await prisma.beneficiary.findUnique({
         where: { id },
         include: {
-            place: true, // Include related Place data
-            donations: true, // Include related Donations
-            registrations: true, // Include related Registrations
+            user: true, 
+            address: true, 
+            programRegistrations: true, 
         },
     });
 };
-export const createProgramService  = async (data:ProgramData)=>{
+export const createBeneficiaryervice  = async (data:ProgramData)=>{
     try{
         const placeExists = await prisma.place.findUnique({
             where:{id: data.placeId},
@@ -32,11 +33,11 @@ export const createProgramService  = async (data:ProgramData)=>{
         if(!placeExists){
             throw new Error('Invalid placeId: Place does not exist');
         }
-        const newProgram = await prisma.program.create({
+        const newProgram = await prisma.beneficiary.create({
             data:{
                 title: data.title,
                 description: data.description,
-                date:new Date(data.date), // Convert string to Date object
+                date:new Date(data.date),
                 maxParticipants: parseInt(data.maxParticipants.toString()),
                 placeId:data.placeId,
             },
@@ -67,7 +68,7 @@ function validateMaxParticipants(value: number | string): number {
   return parsed;
 }
 
-export const updateProgramService = async (
+export const updateBeneficiaryService = async (
   programId: string,
   updateData: Partial<ProgramData>
 ) => {
