@@ -103,3 +103,21 @@ export const updateProgramService = async (
     throw new Error('Failed to update program: ' + error.message);
   }
 };
+
+export const deleteProgramService = async (programId: string) => {
+  try {
+    const result = await prisma.program.delete({
+      where: { id: programId },
+    });
+
+    return result;
+  } catch (error: any) {
+    console.error('Error in deleteProgramService:', error);
+
+    if (error.code === 'P2025') {
+      throw new Error(`Program with id ${programId} not found.`);
+    }
+
+    throw new Error('Failed to delete program: ' + error.message);
+  }
+}

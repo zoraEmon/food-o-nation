@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getAllProgramsService, getProgramByIdService,createProgramService,updateProgramService  } from '../services/program.service.js';
+import { getAllProgramsService, getProgramByIdService,createProgramService,updateProgramService,deleteProgramService  } from '../services/program.service.js';
 import { ProgramData } from '../interfaces/interfaces.js';
 
 
@@ -50,4 +50,17 @@ export const updateProgram = async (req: Request, res: Response) => {
     catch(error){
         res.status(500).json({ success: false, error: error.message });
     }   
+}
+export const deleteProgram = async (req: Request, res: Response) => {
+    try{
+        const programId = req.params.id;
+        const deletedProgram = await deleteProgramService(programId);
+        if(!deletedProgram){
+            return res.status(404).json({ success: false, error: 'Program not found' });
+        }
+        res.status(200).json({ success: true, data: deletedProgram });
+    }
+    catch(error){
+        res.status(500).json({ success: false, error: error.message });
+    }
 }

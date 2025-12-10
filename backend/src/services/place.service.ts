@@ -104,3 +104,21 @@ export const updatePlaceService = async (
     throw new Error('Failed to update place: ' + error.message);
   }
 };
+
+export const deletePlaceService = async (placeId: string) => {
+  try {
+    const deletedPlace = await prisma.place.delete({
+      where: { id: placeId },
+    });
+
+    return deletedPlace;
+  } catch (error: any) {
+    console.error('Error in deletePlaceService:', error);
+
+    if (error.code === 'P2025') {
+      throw new Error(`Place with id ${placeId} not found.`);
+    }
+
+    throw new Error('Failed to delete place: ' + error.message);
+  }
+}

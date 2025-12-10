@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllPrograms, getProgramById ,createProgram} from '../controllers/program.controller.js';
+import { getAllPrograms, getProgramById ,createProgram,deleteProgram,updateProgram} from '../controllers/program.controller.js';
 import { validateCreateProgram } from '../middleware/program.middleware.js';
 const router = express.Router();
 
@@ -10,5 +10,6 @@ router.get('/', getAllPrograms);
 router.get('/:id', getProgramById);
 
 router.post('/addprogram',validateCreateProgram,createProgram);
-
+router.post('/updateprogram/:id',updateProgram);
+router.post('/deleteprogram/:id',deleteProgram);
 export default router;

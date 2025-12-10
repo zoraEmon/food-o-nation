@@ -1,4 +1,4 @@
-import { Gender, CivilStatus } from '@prisma/client';
+import { Gender, CivilStatus,DonorType } from '@prisma/client';
 export interface ProgramData {
     title: string;
     description: string;
@@ -27,5 +27,12 @@ export interface BeneficiaryData {
   occupation: string;
   householdNumber: number;
   householdAnnualSalary: number;
+  userId: string;
+}
+export interface DonorData {
+  displayName: string;
+  donorType: DonorType;
+  totalDonation: string;
+  points: number;
   userId: string;
 }

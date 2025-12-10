@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getBeneficiaryByIdService, getAllBeneficiaryService,createBeneficiaryervice,updateBeneficiaryService  } from '../services/beneficiary.service.js';
+import { getBeneficiaryByIdService, getAllBeneficiaryService,createBeneficiaryervice,updateBeneficiaryService ,deleteBeneficiaryService } from '../services/beneficiary.service.js';
 import { BeneficiaryData } from '../interfaces/interfaces.js';
 
 
@@ -22,8 +22,8 @@ export const createBeneficiary = async (req: Request, res: Response) => {
 };
 export const getAllBeneficiary = async (req: Request, res: Response) => {
     try {
-        const Places = await getAllBeneficiaryService();
-        res.status(200).json({ success: true, data: Places });
+        const beneficiary = await getAllBeneficiaryService();
+        res.status(200).json({ success: true, data: beneficiary });
     } catch (error) {
         res.status(500).json({ success: false, error: error });
     }
@@ -32,13 +32,13 @@ export const getAllBeneficiary = async (req: Request, res: Response) => {
 export const getBeneficiaryId = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const place = await getBeneficiaryByIdService(id);
+        const beneficiary = await getBeneficiaryByIdService(id);
 
-        if (!place) {
-            return res.status(404).json({ success: false, error: 'Place not found' });
+        if (!beneficiary) {
+            return res.status(404).json({ success: false, error: 'Beneficiary not found' });
         }
 
-        res.status(200).json({ success: true, data: place });
+        res.status(200).json({ success: true, data: beneficiary });
     } catch (error) {
         res.status(500).json({ success: false, error: error });
     }
@@ -46,15 +46,28 @@ export const getBeneficiaryId = async (req: Request, res: Response) => {
 
 export const updateBeneficiary = async (req: Request, res: Response) => {
     try{
-        const placeId = req.params.id;
+        const beneficiaryId = req.params.id;
         const updateData: Partial<BeneficiaryData> = req.body;
-        const updatedPlace = await updateBeneficiaryService(placeId, updateData);
-        if(!updatedPlace){
-            return res.status(404).json({ success: false, error: 'Place not found' });
+        const updatedBeneficiary = await updateBeneficiaryService(beneficiaryId, updateData);
+        if(!updatedBeneficiary){
+            return res.status(404).json({ success: false, error: 'Beneficiary not found' });
         }   
-        res.status(200).json({ success: true, data: updatedPlace });
+        res.status(200).json({ success: true, data: updatedBeneficiary });
     }
     catch(error){
         res.status(500).json({ success: false, error: error.message });
     }
 };
+export const deleteBeneficiary = async (req: Request, res: Response) => {
+    try{
+        const beneficiaryId = req.params.id;
+        const deletedBeneficiary = await deleteBeneficiaryService(beneficiaryId);
+        if(!deletedBeneficiary){
+            return res.status(404).json({ success: false, error: 'Beneficiary not found' });
+        }
+        res.status(200).json({ success: true, data: deletedBeneficiary });
+    }
+    catch(error){
+        res.status(500).json({ success: false, error: error.message });
+    }
+}

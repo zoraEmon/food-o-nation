@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ProgramData } from '../interfaces/interfaces.js';
+import { BeneficiaryData } from '../interfaces/interfaces.js';
 import { da } from 'zod/locales';
 
 const prisma = new PrismaClient();
@@ -25,27 +25,38 @@ export const getBeneficiaryByIdService = async (id: string) => {
         },
     });
 };
-export const createBeneficiaryervice  = async (data:ProgramData)=>{
+export const createBeneficiaryervice  = async (data:BeneficiaryData)=>{
     try{
-        const placeExists = await prisma.place.findUnique({
-            where:{id: data.placeId},
+        const userExists = await prisma.user.findUnique({
+            where:{id: data.userId},
         });
-        if(!placeExists){
-            throw new Error('Invalid placeId: Place does not exist');
+        if(!userExists){
+            throw new Error('Invalid userId: User does not exist');
         }
-        const newProgram = await prisma.beneficiary.create({
+        const newBeneficiary = await prisma.beneficiary.create({
             data:{
-                title: data.title,
-                description: data.description,
-                date:new Date(data.date),
-                maxParticipants: parseInt(data.maxParticipants.toString()),
-                placeId:data.placeId,
+              firstName: data.firstName,
+              lastName: data.lastName,
+              middleName: data.middleName,
+              birthDate: new Date(data.birthDate),
+              gender: data.gender,
+              contactNumber: data.contactNumber,
+              age: parseInt(data.age.toString()),
+              civilStatus: data.civilStatus,
+              occupation: data.occupation,
+              householdNumber: parseInt(data.householdNumber.toString()),
+              householdAnnualSalary:parseFloat(data.householdAnnualSalary.toString()),
+              userId: data.userId,
+
+                // date:new Date(data.date),
+                // maxParticipants: parseInt(data.maxParticipants.toString()),
+                // placeId:data.placeId,
             },
         });
-        return newProgram
+        return newBeneficiary
     }catch(error){
-        console.error('Error in createProgramService:', error);
-        throw new Error('Failed to create program: ' + error);
+        console.error('Error in createBeneficiaryervice:', error);
+        throw new Error('Failed to create beneficiary: ' + error);
     }
     // return await prisma.program.create({
     //     data:programData
@@ -60,7 +71,7 @@ function validateDate(date: string | Date): Date {
   return dateObj;
 }
 
-function validateMaxParticipants(value: number | string): number {
+function validatePositiveNumber(value: number | string): number {
   const parsed = Number(value);
   if (isNaN(parsed) || parsed < 0) {
     throw new Error('maxParticipants must be a valid positive number');
@@ -69,38 +80,55 @@ function validateMaxParticipants(value: number | string): number {
 }
 
 export const updateBeneficiaryService = async (
-  programId: string,
-  updateData: Partial<ProgramData>
+  beneficiaryId: string,
+  updateData: Partial<BeneficiaryData>
 ) => {
   try {
-    if (updateData.placeId) {
-      const placeExists = await prisma.place.findUnique({
-        where: { id: updateData.placeId },
+    if (updateData.userId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: updateData.userId },
       });
-      if (!placeExists) {
-        throw new Error('Invalid placeId: Place does not exist');
+      if (!userExists) {
+        throw new Error('Invalid userId: User does not exist');
       }
     }
 
-    const result = await prisma.program.update({
-      where: { id: programId },
+    const result = await prisma.beneficiary.update({
+      where: { id: beneficiaryId },
       data: {
         ...updateData,
-        date: updateData.date ? validateDate(updateData.date) : undefined,
-        maxParticipants: updateData.maxParticipants !== undefined
-          ? validateMaxParticipants(updateData.maxParticipants)
-          : undefined,
+        birthDate: updateData.birthDate ? validateDate(updateData.birthDate) : undefined,
+        householdNumber: updateData.householdNumber !== undefined
+          ? validatePositiveNumber(updateData.householdNumber) : undefined,
+          age: updateData.age !== undefined ? validatePositiveNumber(updateData.age) : undefined,
+          householdAnnualSalary: updateData.householdAnnualSalary !== undefined? validatePositiveNumber(updateData.householdAnnualSalary) : undefined,
       },
     });
 
     return result;
   } catch (error: any) {
-    console.error('Error in updateProgramService:', error);
+    console.error('Error in updateBeneficiaryService:', error);
 
     if (error.code === 'P2025') {
-      throw new Error(`Program with id ${programId} not found.`);
+      throw new Error(`Beneficiary with id ${beneficiaryId} not found.`);
     }
 
-    throw new Error('Failed to update program: ' + error.message);
+    throw new Error('Failed to update beneficiary: ' + error.message);
   }
 };
+
+export const deleteBeneficiaryService = async (beneficiaryId: string) => {
+  try {
+    const result = await prisma.beneficiary.delete({
+      where: { id: beneficiaryId },
+    });
+
+    return result;
+  } catch (error: any) {
+    console.error('Error in deleteBeneficiaryService:', error);
+
+    if (error.code === 'P2025') {
+      throw new Error(`Beneficiary with id ${beneficiaryId} not found.`);
+    }   throw new Error('Failed to delete beneficiary: ' + error.message);
+  }
+}

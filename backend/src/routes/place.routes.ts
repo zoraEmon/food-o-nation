@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllPlaces, getPlaceById ,createPlace} from '../controllers/place.controller.js';
+import { getAllPlaces, getPlaceById ,createPlace,updatePlace,deletePlace} from '../controllers/place.controller.js';
 import { validateCreatePlace } from '../middleware/place.middleware.js';
 const router = express.Router();
 
@@ -10,5 +10,6 @@ router.get('/', getAllPlaces);
 router.get('/:id', getPlaceById);
 
 router.post('/addplace',validateCreatePlace,createPlace);
-
+router.put('/updateplace/:id',updatePlace);
+router.post('/deleteplace/:id',deletePlace)
 export default router;
