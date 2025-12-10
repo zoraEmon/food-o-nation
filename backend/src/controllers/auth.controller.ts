@@ -5,11 +5,12 @@ import { PrismaClient } from '@prisma/client';
 import { loginSchema, registerBeneficiarySchema, registerDonorSchema } from '../utils/validators.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
-import { sendOTP } from '../services/email.service.js'; // Import sendOTP
+import { EmailService } from '../services/email.service.js';
 
 dotenv.config();
 
 const prisma = new PrismaClient();
+const emailService = new EmailService();
 const JWT_SECRET = process.env.JWT_SECRET || 'foodONationSecret';
 
 // Helper to generate a 6-digit OTP
@@ -117,7 +118,7 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         });
 
         // 7. Send OTP Email
-        await sendOTP(newUser.email, otp);
+        await emailService.sendOTP(newUser.email, otp);
 
         res.status(201).json({ 
             message: "Registration successful! Please check your email (or phone) for your verification code to log in.", 
@@ -189,7 +190,7 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
         });
 
         // 6. Send OTP Email
-        await sendOTP(newUser.email, otp);
+        await emailService.sendOTP(newUser.email, otp);
 
         res.status(201).json({
             message: "Registration successful! Please check your email (or phone) for your verification code to log in.",

@@ -1,0 +1,123 @@
+### Food-O-Nation Donation API Testing
+### Use this file with REST Client extension in VS Code
+### or import into Postman/Thunder Client
+
+@baseUrl = http://localhost:5000/api
+@donorId = a20940e2-5f3e-4466-ad96-3ce06dbf068f
+@donationCenterId = 250c4cb6-55f9-43c0-a15c-1efb65b93add
+###############################################
+# 1. CREATE MONETARY DONATION
+###############################################
+
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 500,
+  "paymentMethod": "GCash",
+  "paymentReference": "GCASH-REF-123456789"
+}
+
+###############################################
+# 2. CREATE PRODUCE DONATION (without images)
+###############################################
+
+POST {{baseUrl}}/donations/produce
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "donationCenterId": "{{donationCenterId}}",
+  "scheduledDate": "2025-12-15T10:00:00.000Z",
+  "items": [
+    {
+      "name": "Rice",
+      "category": "Grains",
+      "quantity": 25,
+      "unit": "kg"
+    },
+    {
+      "name": "Canned Sardines",
+      "category": "Canned Goods",
+      "quantity": 50,
+      "unit": "pcs"
+    },
+    {
+      "name": "Bottled Water",
+      "category": "Beverages",
+      "quantity": 100,
+      "unit": "bottles"
+    }
+  ]
+}
+
+###############################################
+# 3. GET DONATION BY ID
+###############################################
+
+GET {{baseUrl}}/donations/YOUR_DONATION_ID_HERE
+
+###############################################
+# 4. GET ALL DONATIONS (with filters)
+###############################################
+
+GET {{baseUrl}}/donations?limit=10&offset=0
+
+###############################################
+# 5. GET DONATIONS BY DONOR
+###############################################
+
+GET {{baseUrl}}/donations?donorId={{donorId}}&limit=20
+
+###############################################
+# 6. GET DONATIONS BY STATUS
+###############################################
+
+GET {{baseUrl}}/donations?status=SCHEDULED
+
+###############################################
+# 7. GET DONATIONS BY DATE RANGE
+###############################################
+
+GET {{baseUrl}}/donations?fromDate=2025-12-01T00:00:00.000Z&toDate=2025-12-31T23:59:59.999Z
+###############################################
+# 8. UPDATE DONATION STATUS (Admin)
+###############################################
+
+PATCH {{baseUrl}}/donations/YOUR_DONATION_ID_HERE/status
+Content-Type: application/json
+
+{
+  "status": "COMPLETED",
+  "notes": "Donation received and verified"
+}
+
+###############################################
+# 9. VALIDATION TEST - Invalid Monetary Donation
+###############################################
+
+### Create Monetary Donation
+POST http://localhost:5000/api/donations/monetary
+Content-Type: application/json
+
+{
+    "donorId": "30878dc0-4f5b-45cc-8db6-caa18e15cf91",
+    "amount": 1000,
+    "paymentMethod": "GCash",
+    "paymentReference": "GCASH-TEST-001"
+}
+
+###############################################
+# 10. VALIDATION TEST - Invalid Produce Donation
+###############################################
+
+POST {{baseUrl}}/donations/produce
+Content-Type: application/json
+
+{
+  "donorId": "invalid-uuid",
+  "donationCenterId": "invalid-uuid",
+  "scheduledDate": "2020-01-01T00:00:00.000Z",
+  "items": []
+}

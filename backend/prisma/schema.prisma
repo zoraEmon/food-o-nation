@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -206,6 +207,8 @@ model Donation {
   id               String          @id @default(uuid())
   status           DonationStatus  @default(SCHEDULED)
   scheduledDate    DateTime
+  qrCodeRef        String?         // ✅ NEW: Reference to the generated QR code
+  imageUrls        String[]        // ✅ NEW: URLs for produce images (array)
   createdAt        DateTime        @default(now())
 
   // Who is donating?
@@ -225,11 +228,12 @@ model Donation {
   paymentMethod    String?         // e.g., "GCash", "PayPal", "Credit Card"
 
   // Where is it going? (Required - must be dropped off somewhere)
-  donationCenterId String
-  donationCenter   DonationCenter  @relation(fields: [donationCenterId], references: [id])
+  donationCenterId String?
+  donationCenter   DonationCenter?  @relation(fields: [donationCenterId], references: [id])
 
   items            DonationItem[]
 }
+
 
 // ✅ New Model: Tracks individual items within a donation
 model DonationItem {
