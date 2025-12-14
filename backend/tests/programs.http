@@ -1,0 +1,228 @@
+@baseUrl = http://localhost:5000/api
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjMDU5MTcwYi02YzU5LTQxODEtYTQyZS0xNTNiYTlhMzUxZTQiLCJzdGF0dXMiOiJBUFBST1ZFRCIsInJvbGVzIjpbIkFETUlOIl0sImlhdCI6MTc2NTQwODExMSwiZXhwIjoxNzY2MDEyOTExfQ.uo795_W68MdSvk7CG5p8qtlMp-ixyiaEKpOVLeOxt3E
+@placeId = 13b57258-dc3b-46a5-bf61-0e93ffb67e83
+@newProgramId = will-be-set-after-create
+
+### 1. CREATE PROGRAM (Admin Only)
+POST {{baseUrl}}/programs
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Christmas Food Distribution 2025",
+  "description": "Community-wide food distribution program for December holidays. We will distribute rice, canned goods, and hygiene kits to 500 families.",
+  "date": "2025-12-20T10:00:00Z",
+  "maxParticipants": 500,
+  "placeId": "{{placeId}}"
+}
+
+###
+
+### 2. CREATE PROGRAM - MINIMAL DATA
+POST {{baseUrl}}/programs
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Summer Camp",
+  "description": "A fun summer camp for underprivileged children with recreational activities and meals.",
+  "date": "2025-06-15T08:00:00Z",
+  "maxParticipants": 100,
+  "placeId": "{{placeId}}"
+}
+
+###
+
+### 3. CREATE PROGRAM - INVALID (Title too short)
+POST {{baseUrl}}/programs
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "AB",
+  "description": "This is a valid description with more than 10 characters",
+  "date": "2025-06-15T08:00:00Z",
+  "maxParticipants": 100,
+  "placeId": "{{placeId}}"
+}
+
+###
+
+### 4. CREATE PROGRAM - INVALID (Date in past)
+POST {{baseUrl}}/programs
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Old Program",
+  "description": "This program date is in the past which should be rejected",
+  "date": "2020-06-15T08:00:00Z",
+  "maxParticipants": 100,
+  "placeId": "{{placeId}}"
+}
+
+###
+
+### 5. CREATE PROGRAM - INVALID (Missing required field)
+POST {{baseUrl}}/programs
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Missing Description",
+  "date": "2025-06-15T08:00:00Z",
+  "maxParticipants": 100,
+  "placeId": "{{placeId}}"
+}
+
+###
+
+### 6. GET ALL PROGRAMS (Public - no auth required)
+GET {{baseUrl}}/programs
+Content-Type: application/json
+
+###
+
+### 7. GET ALL PROGRAMS - FILTER BY STATUS
+GET {{baseUrl}}/programs?status=APPROVED
+Content-Type: application/json
+
+###
+
+### 8. GET ALL PROGRAMS - FILTER PENDING
+GET {{baseUrl}}/programs?status=PENDING
+Content-Type: application/json
+
+###
+
+### 9. GET ALL PROGRAMS - FILTER CANCELED
+GET {{baseUrl}}/programs?status=CANCELED
+Content-Type: application/json
+
+###
+
+### 10. GET PROGRAM BY ID
+GET {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1
+Content-Type: application/json
+
+###
+
+### 11. GET PROGRAM BY ID - NOT FOUND
+GET {{baseUrl}}/programs/nonexistent-id
+Content-Type: application/json
+
+###
+
+### 12. UPDATE PROGRAM - TITLE AND DESCRIPTION ONLY
+PATCH {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Updated Program Title",
+  "description": "Updated description with more details about the food distribution program"
+}
+
+###
+
+### 13. UPDATE PROGRAM - INVALID (Description too short)
+PATCH {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "description": "Short"
+}
+
+###
+
+### 14. UPDATE PROGRAM - CHANGE PLACE
+PATCH {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "placeId": "clwu50q3i0000y8d8g0g0g0g2"
+}
+
+###
+
+### 15. UPDATE PROGRAM - TRY TO CHANGE MAX PARTICIPANTS (will fail if scheduled)
+PATCH {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "maxParticipants": 250
+}
+
+###
+
+### 16. UPDATE PROGRAM - TRY TO CHANGE DATE (will fail if scheduled)
+PATCH {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "date": "2025-12-25T10:00:00Z"
+}
+
+###
+
+### 17. PUBLISH PROGRAM (Change status PENDING → APPROVED)
+POST {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1/publish
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###
+
+### 18. PUBLISH PROGRAM - INVALID (Already published)
+POST {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1/publish
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###
+
+### 19. CANCEL PROGRAM WITH REASON
+POST {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Unexpected weather conditions prevented the program from proceeding"
+}
+
+###
+
+### 20. CANCEL PROGRAM WITHOUT REASON
+POST {{baseUrl}}/programs/clwu50q3i0000y8d8g0g0g0g1/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{}
+
+###
+
+### 21. CANCEL PROGRAM - INVALID (Not found)
+POST {{baseUrl}}/programs/nonexistent-id/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Testing error handling"
+}
+
+###
+HTTP/1.1 400 Bad Request
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+Content-Type: application/json; charset=utf-8
+Content-Length: 1207
+ETag: W/"4b7-HtiOPwE1ht7SVAKXnu1og4IRyGg"
+Date: Wed, 10 Dec 2025 23:17:58 GMT
+Connection: close
+
+{
+  "success": false,
+  "error": "Failed to create program: \nInvalid `prisma.program.create()` invocation in\nC:\\Users\\Zora\\Desktop\\food-o-nation\\backend\\src\\services\\program.service.v2.ts:170:45\n\n  167 }\n  168 \n  169 // Create program\n→ 170 const newProgram = await prisma.program.create({\n        data: {\n          title: \"Christmas Food Distribution 2025\",\n          description: \"Community-wide food distribution program for December holidays. We will distribute rice, canned goods, and hygiene kits to 500 families.\",\n          date: new Date(\"2025-12-20T10:00:00.000Z\"),\n          maxParticipants: 500,\n          status: \"PENDING\",\n          ~~~~~~\n          placeId: \"13b57258-dc3b-46a5-bf61-0e93ffb67e83\",\n      ?   id?: String,\n      ?   currentParticipants?: Int,\n      ?   createdAt?: DateTime,\n      ?   donations?: DonationUncheckedCreateNestedManyWithoutProgramInput,\n      ?   registrations?: ProgramRegistrationUncheckedCreateNestedManyWithoutProgramInput\n        },\n        include: {\n          place: true,\n          registrations: true,\n          donations: true\n        }\n      })\n\nUnknown argument `status`. Available options are marked with ?."
+}

@@ -1,0 +1,738 @@
+{
+  "info": {
+    "name": "Food-O-Nation Program Management API",
+    "description": "Complete test collection for Program Management endpoints with validation, error handling, and status workflow testing.",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "your-admin-jwt-token-here",
+      "type": "string"
+    },
+    {
+      "key": "placeId",
+      "value": "clwu50q3i0000y8d8g0g0g0g0",
+      "type": "string"
+    },
+    {
+      "key": "programId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Program - Valid",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Christmas Food Distribution 2025\",\n  \"description\": \"Community-wide food distribution program for December holidays. We will distribute rice, canned goods, and hygiene kits to 500 families. This is a comprehensive program designed to help underprivileged families celebrate the holidays with dignity.\",\n  \"date\": \"2025-12-20T10:00:00Z\",\n  \"maxParticipants\": 500,\n  \"placeId\": \"{{placeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Creates a new program with valid data. Program starts in PENDING status. Save the returned ID to {{programId}} variable for use in subsequent requests."
+    },
+    {
+      "name": "2. Create Program - Minimal Required Fields",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Summer Camp\",\n  \"description\": \"A fun summer camp for underprivileged children with recreational activities and meals provided throughout the day.\",\n  \"date\": \"2025-06-15T08:00:00Z\",\n  \"maxParticipants\": 100,\n  \"placeId\": \"{{placeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Creates a program with minimal required fields. All fields are required - no optional fields for creation."
+    },
+    {
+      "name": "3. Create Program - Title Too Short (Validation Error)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"AB\",\n  \"description\": \"This is a valid description with more than 10 characters for the program.\",\n  \"date\": \"2025-06-15T08:00:00Z\",\n  \"maxParticipants\": 100,\n  \"placeId\": \"{{placeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 400 Bad Request. Title must be 3-100 characters. This request will fail validation."
+    },
+    {
+      "name": "4. Create Program - Date in Past (Validation Error)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Old Program\",\n  \"description\": \"This program date is in the past which should be rejected by the system.\",\n  \"date\": \"2020-06-15T08:00:00Z\",\n  \"maxParticipants\": 100,\n  \"placeId\": \"{{placeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 400 Bad Request. Program date must be in the future. Cannot schedule programs in the past."
+    },
+    {
+      "name": "5. Create Program - Missing Description (Validation Error)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Missing Description\",\n  \"date\": \"2025-06-15T08:00:00Z\",\n  \"maxParticipants\": 100,\n  \"placeId\": \"{{placeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 400 Bad Request. Description is required. This request is missing a required field."
+    },
+    {
+      "name": "6. Create Program - Invalid MaxParticipants (Validation Error)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Too Many Participants\",\n  \"description\": \"This program has too many maximum participants which exceeds the allowed limit.\",\n  \"date\": \"2025-06-15T08:00:00Z\",\n  \"maxParticipants\": 50000,\n  \"placeId\": \"{{placeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 400 Bad Request. Max participants must be between 1-10000. This request exceeds the limit."
+    },
+    {
+      "name": "7. Get All Programs (Public - No Auth)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/programs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Fetches all programs. Public endpoint - no authentication required. Returns programs with place information, donation counts, and registration counts."
+    },
+    {
+      "name": "8. Get All Programs - Filter by Status (APPROVED)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/programs?status=APPROVED",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "APPROVED"
+            }
+          ]
+        }
+      },
+      "response": [],
+      "description": "Filters programs by status. Returns only APPROVED (published) programs visible to the public."
+    },
+    {
+      "name": "9. Get All Programs - Filter by Status (PENDING)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/programs?status=PENDING",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "PENDING"
+            }
+          ]
+        }
+      },
+      "response": [],
+      "description": "Returns only PENDING programs (drafts not yet published by admin)."
+    },
+    {
+      "name": "10. Get All Programs - Filter by Status (CANCELED)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/programs?status=CANCELED",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "CANCELED"
+            }
+          ]
+        }
+      },
+      "response": [],
+      "description": "Returns only CANCELED programs (cancelled by admin)."
+    },
+    {
+      "name": "11. Get Program by ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Fetches a single program by ID. Returns complete program details including place, donations, and registrations. Use the ID from a previous create request (save to {{programId}} variable)."
+    },
+    {
+      "name": "12. Get Program by ID - Not Found",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/programs/nonexistent-id-12345",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "nonexistent-id-12345"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 404 Not Found. Tests error handling for non-existent program."
+    },
+    {
+      "name": "13. Update Program - Title and Description",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Updated Program Title 2025\",\n  \"description\": \"Updated description with more comprehensive details about the updated food distribution program and what participants can expect.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Updates program title and/or description. These fields can be updated at any time regardless of status. Partial updates allowed."
+    },
+    {
+      "name": "14. Update Program - Change Place",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"placeId\": \"{{placeId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Changes the program location/venue. Can be changed at any time. PlaceId must reference an existing place."
+    },
+    {
+      "name": "15. Update Program - Invalid Description (Validation Error)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Short\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 400 Bad Request. Description must be 10-1000 characters when provided in update."
+    },
+    {
+      "name": "16. Update Program - Try to Update MaxParticipants (May Fail if Scheduled)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maxParticipants\": 250\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Attempts to update maxParticipants. Success if program is PENDING, fails if APPROVED or date has passed. Tests business rule enforcement."
+    },
+    {
+      "name": "17. Update Program - Try to Update Date (May Fail if Scheduled)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"date\": \"2025-12-25T10:00:00Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Attempts to update program date. Success if PENDING, fails if APPROVED/CLAIMED or date has passed. Tests date update business rules."
+    },
+    {
+      "name": "18. Publish Program (PENDING → APPROVED)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}/publish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}",
+            "publish"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Publishes a PENDING program, making it visible to the public. Status changes from PENDING to APPROVED. Only admin can publish."
+    },
+    {
+      "name": "19. Publish Program - Already Published (Error)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}/publish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}",
+            "publish"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 400 Bad Request. Cannot publish a program that is already APPROVED. Tests status validation."
+    },
+    {
+      "name": "20. Cancel Program - With Reason",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Unexpected weather conditions prevented the program from proceeding as scheduled\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}",
+            "cancel"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Cancels a program with a reason. Status changes to CANCELED. Reason is optional. Only admin can cancel. Cannot cancel CLAIMED programs."
+    },
+    {
+      "name": "21. Cancel Program - Without Reason",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/{{programId}}/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "{{programId}}",
+            "cancel"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Cancels a program without providing a reason. Reason field is optional in the request body."
+    },
+    {
+      "name": "22. Cancel Program - Not Found",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Testing error handling\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/programs/nonexistent-id/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "programs",
+            "nonexistent-id",
+            "cancel"
+          ]
+        }
+      },
+      "response": [],
+      "description": "Expected Result: 404 Not Found. Tests error handling for non-existent program in cancel endpoint."
+    }
+  ]
+}

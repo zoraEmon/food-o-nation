@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../generated/prisma/index.js';
 import { loginSchema, registerBeneficiarySchema, registerDonorSchema } from '../utils/validators.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
@@ -99,16 +99,56 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                         householdNumber: data.householdNumber,
                         householdAnnualSalary: data.householdAnnualSalary,
                         
+                        // Application details
+                        householdPosition: data.householdPosition,
+                        householdPositionDetail: data.householdPositionDetail,
+                        primaryPhone: data.primaryPhone,
+                        activeEmail: data.activeEmail,
+                        governmentIdType: data.governmentIdType,
+                        governmentIdFileUrl: data.governmentIdFileUrl,
+                        
+                        // Household composition
+                        childrenCount: data.childrenCount,
+                        adultCount: data.adultCount,
+                        seniorCount: data.seniorCount,
+                        pwdCount: data.pwdCount,
+                        
+                        // Health/Diet
+                        specialDietRequired: data.specialDietRequired,
+                        specialDietDescription: data.specialDietDescription,
+                        
+                        // Economic
+                        monthlyIncome: data.monthlyIncome,
+                        incomeSources: data.incomeSources,
+                        mainEmploymentStatus: data.mainEmploymentStatus,
+                        receivingAid: data.receivingAid,
+                        receivingAidDetail: data.receivingAidDetail,
+                        
+                        // Consent
+                        declarationAccepted: data.declarationAccepted,
+                        privacyAccepted: data.privacyAccepted,
+                        signatureUrl: data.signatureUrl,
+                        
                         address: {
                             create: {
-                                streetNumber: data.streetNumber,
-                                barangay: data.barangay,
-                                municipality: data.municipality,
-                                region: data.region || '', // Provide a default empty string if undefined
-                                zipCode: data.zipCode || '', // Provide a default empty string if undefined
-                                country: 'Philippines'
+                                streetNumber: data.address.streetNumber,
+                                barangay: data.address.barangay,
+                                municipality: data.address.municipality,
+                                region: data.address.region || '', // Provide a default empty string if undefined
+                                zipCode: data.address.zipCode || '', // Provide a default empty string if undefined
+                                country: data.address.country || 'Philippines'
                             }
-                        }
+                        },
+                        
+                        // Household members
+                        householdMembers: data.householdMembers ? {
+                            create: data.householdMembers.map(member => ({
+                                fullName: member.fullName,
+                                birthDate: new Date(member.birthDate),
+                                age: member.age,
+                                relationship: member.relationship
+                            }))
+                        } : undefined
                     }
                 }
             },

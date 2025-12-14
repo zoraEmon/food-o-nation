@@ -1,0 +1,508 @@
+{
+  "info": {
+    "name": "Program Applications API - Complete",
+    "description": "Complete API collection for Program Application endpoints with QR code functionality, including beneficiary management. Auto-saves IDs for workflow use.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "programId",
+      "value": "8561a524-e92e-4fc6-ba7c-9494cc96edcc",
+      "type": "string"
+    },
+    {
+      "key": "beneficiaryId",
+      "value": "6e194ddf-a5d0-421e-adfd-9fd1acdba4a5",
+      "type": "string"
+    },
+    {
+      "key": "adminId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "applicationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "qrCodeValue",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "📋 BENEFICIARY MANAGEMENT",
+      "item": [
+        {
+          "name": "Get All Beneficiaries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Save first beneficiary ID for later use",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.length > 0) {",
+                  "        pm.collectionVariables.set(\"beneficiaryId\", jsonData.data[0].id);",
+                  "        console.log(\"Saved beneficiaryId: \" + jsonData.data[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/beneficiaries?skip=0&take=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["beneficiaries"],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "take",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get all beneficiaries with pagination. Auto-saves first beneficiaryId for use in other requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Beneficiary by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/beneficiaries/{{beneficiaryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["beneficiaries", "{{beneficiaryId}}"]
+            },
+            "description": "Get specific beneficiary details including address and email information."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Beneficiary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// Save created beneficiary ID",
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"beneficiaryId\", jsonData.data.id);",
+                  "    console.log(\"Created beneficiary with ID: \" + jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phoneNumber\": \"0712345678\",\n  \"activeEmail\": \"john.doe@example.com\",\n  \"idNumber\": \"12345678\",\n  \"idType\": \"NATIONAL_ID\",\n  \"address\": {\n    \"street\": \"123 Main Street\",\n    \"city\": \"Nairobi\",\n    \"state\": \"Nairobi County\",\n    \"postalCode\": \"00100\",\n    \"country\": \"Kenya\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/beneficiaries",
+              "host": ["{{baseUrl}}"],
+              "path": ["beneficiaries"]
+            },
+            "description": "Create a new beneficiary with full details. Auto-saves the new beneficiaryId for immediate use in other requests."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🎯 PROGRAM MANAGEMENT",
+      "item": [
+        {
+          "name": "Get All Programs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has programs array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "});",
+                  "",
+                  "// Save first program ID for later use",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.length > 0) {",
+                  "        pm.collectionVariables.set(\"programId\", jsonData.data[0].id);",
+                  "        console.log(\"Saved programId: \" + jsonData.data[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/programs",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs"]
+            },
+            "description": "Get all published programs. Auto-saves first programId for use in registration and lookup requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Program by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/programs/{{programId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "{{programId}}"]
+            },
+            "description": "Get specific program details including place, beneficiary count, and scheduling info."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📝 PROGRAM APPLICATIONS",
+      "item": [
+        {
+          "name": "Register for Program",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Application created with QR code\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('application');",
+                  "    pm.expect(jsonData.data.application).to.have.property('qrCodeValue');",
+                  "    pm.expect(jsonData.data.application).to.have.property('qrCodeImageUrl');",
+                  "});",
+                  "",
+                  "// Save IDs for later requests",
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"applicationId\", jsonData.data.application.id);",
+                  "    pm.collectionVariables.set(\"qrCodeValue\", jsonData.data.application.qrCodeValue);",
+                  "    console.log(\"Saved applicationId: \" + jsonData.data.application.id);",
+                  "    console.log(\"Saved qrCodeValue: \" + jsonData.data.application.qrCodeValue);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"programId\": \"{{programId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/programs/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "register"]
+            },
+            "description": "Register beneficiary for a program. Creates ProgramRegistration + ProgramApplication with QR code. Sends email notification to beneficiary."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Application by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/programs/application/{{applicationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "application", "{{applicationId}}"]
+            },
+            "description": "Get application details including QR code, status, and full registration info."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Beneficiary Applications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/programs/beneficiary/{{beneficiaryId}}/applications?skip=0&take=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "beneficiary", "{{beneficiaryId}}", "applications"],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "take",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all applications for a specific beneficiary with pagination. Shows all programs they have registered for."
+          },
+          "response": []
+        },
+        {
+          "name": "Scan QR Code (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Application marked as COMPLETED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.application.applicationStatus).to.equal('COMPLETED');",
+                  "    pm.expect(jsonData.data.application).to.have.property('qrCodeScannedAt');",
+                  "    pm.expect(jsonData.data.application).to.have.property('actualDeliveryDate');",
+                  "});",
+                  "",
+                  "pm.test(\"Scan audit record stored\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.scan).to.have.property('id');",
+                  "    pm.expect(jsonData.data.scan).to.have.property('scannedByAdminId');",
+                  "});",
+                  "",
+                  "pm.test(\"Scan record created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('scan');",
+                  "    pm.expect(jsonData.data.scan).to.have.property('scannedByAdminId');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrCodeValue\": \"{{qrCodeValue}}\",\n  \"adminId\": \"{{adminId}}\",\n  \"notes\": \"Verified and distributed at distribution center\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/programs/scan-qr",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "scan-qr"]
+            },
+            "description": "Admin scans QR code during distribution. Updates applicationStatus to COMPLETED, sets qrCodeScannedAt/By and actualDeliveryDate, creates ProgramApplicationScan audit, and sends confirmation email."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Program Applications (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/programs/{{programId}}/applications?status=all&skip=0&take=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "{{programId}}", "applications"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter: PENDING, COMPLETED, CANCELLED, or all"
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "take",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get all applications for a program (admin view) with optional status filter and pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Application Statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Statistics include all fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('total');",
+                  "    pm.expect(jsonData.data).to.have.property('completed');",
+                  "    pm.expect(jsonData.data).to.have.property('pending');",
+                  "    pm.expect(jsonData.data).to.have.property('cancelled');",
+                  "    pm.expect(jsonData.data).to.have.property('scanRate');",
+                  "});",
+                  "",
+                  "pm.test(\"Counts add up to total\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var sum = jsonData.data.completed + jsonData.data.pending + jsonData.data.cancelled;",
+                  "    pm.expect(sum).to.equal(jsonData.data.total);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/programs/{{programId}}/applications/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "{{programId}}", "applications", "stats"]
+            },
+            "description": "Get statistics for program applications: total, completed, pending, cancelled, and scan rate percentage."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Expired Applications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response includes updated count\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('updatedCount');",
+                  "    pm.expect(jsonData.data).to.have.property('expiredApplications');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/programs/admin/update-expired",
+              "host": ["{{baseUrl}}"],
+              "path": ["programs", "admin", "update-expired"]
+            },
+            "description": "Batch job to mark expired applications as CANCELLED. Run daily to clean up applications past scheduled delivery date that were never scanned."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -75,7 +75,9 @@ export class EmailService {
     donorName: string,
     amount: number,
     paymentReference: string,
-    donationId: string
+    donationId: string,
+    provider?: string,
+    receiptUrl?: string
   ): Promise<void> {
     const subject = '✅ Monetary Donation Successful - Thank You!';
     const htmlContent = `
@@ -85,7 +87,9 @@ export class EmailService {
         <div style="background-color: #fff; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Donation ID:</strong> ${donationId}</p>
           <p><strong>Amount:</strong> ₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+          ${provider ? `<p><strong>Provider:</strong> ${provider}</p>` : ''}
           <p><strong>Payment Reference:</strong> ${paymentReference}</p>
+          ${receiptUrl ? `<p><strong>Receipt:</strong> <a href="${receiptUrl}">View receipt</a></p>` : ''}
           <p><strong>Date:</strong> ${new Date().toLocaleString('en-PH')}</p>
           <p><strong>Status:</strong> <span style="color: #28a745;">COMPLETED</span></p>
         </div>

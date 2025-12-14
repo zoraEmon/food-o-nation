@@ -1,0 +1,202 @@
+### Program Application Testing
+### HTTP file for testing program applications with QR code functionality
+
+@baseUrl = http://localhost:5000/api
+
+# =========================================================
+# VARIABLES - Replace with actual IDs from your database
+# =========================================================
+
+@programId = your-program-id-here
+@beneficiaryId = your-beneficiary-id-here
+@adminId = your-admin-id-here
+@applicationId = your-application-id-here
+@qrCodeValue = your-qr-code-value-here
+
+# =========================================================
+# 1. GET ALL PROGRAMS
+# =========================================================
+
+### Get all published programs
+GET {{baseUrl}}/programs
+Content-Type: application/json
+
+# =========================================================
+# 2. GET PROGRAM BY ID
+# =========================================================
+
+### Get specific program details
+GET {{baseUrl}}/programs/{{programId}}
+Content-Type: application/json
+
+# =========================================================
+# 3. REGISTER FOR PROGRAM (Create Registration + Application with QR)
+# =========================================================
+
+### Register beneficiary for a program
+### This creates:
+### - ProgramRegistration
+### - ProgramApplication with QR code
+### - Sends QR code via email
+POST {{baseUrl}}/programs/register
+Content-Type: application/json
+
+{
+  "programId": "{{programId}}",
+  "beneficiaryId": "{{beneficiaryId}}"
+}
+
+# =========================================================
+# 4. GET APPLICATION DETAILS
+# =========================================================
+
+### Get application by ID (shows QR code details)
+GET {{baseUrl}}/programs/application/{{applicationId}}
+Content-Type: application/json
+
+# =========================================================
+# 5. GET ALL APPLICATIONS FOR BENEFICIARY
+# =========================================================
+
+### Get all program applications for a beneficiary
+### Shows all programs they've applied for with their statuses
+GET {{baseUrl}}/programs/beneficiary/{{beneficiaryId}}/applications
+Content-Type: application/json
+
+# =========================================================
+# 6. SCAN QR CODE (ADMIN ENDPOINT)
+# =========================================================
+
+### Admin scans QR code during relief distribution
+### This:
+### - Records scan in audit log
+### - Updates application status to COMPLETED
+### - Sends confirmation email to beneficiary
+### - Updates program registration status to CLAIMED
+POST {{baseUrl}}/programs/scan-qr
+Content-Type: application/json
+
+{
+  "qrCodeValue": "{{qrCodeValue}}",
+  "adminId": "{{adminId}}",
+  "notes": "Verified and distributed on delivery day at 2:30 PM"
+}
+
+# =========================================================
+# 7. GET ALL APPLICATIONS FOR PROGRAM (ADMIN)
+# =========================================================
+
+### Get all applications for a program (admin dashboard)
+### Shows which beneficiaries applied and scan status
+GET {{baseUrl}}/programs/{{programId}}/applications
+Content-Type: application/json
+
+# =========================================================
+# 8. GET APPLICATION STATISTICS (ADMIN)
+# =========================================================
+
+### Get statistics for program applications
+### Shows: total, completed, pending, cancelled, scan rate
+GET {{baseUrl}}/programs/{{programId}}/applications/stats
+Content-Type: application/json
+
+# =========================================================
+# 9. UPDATE EXPIRED APPLICATIONS (ADMIN BATCH JOB)
+# =========================================================
+
+### Update applications past their scheduled delivery date
+### Marks pending applications as CANCELLED if delivery date passed
+### Should be run as a scheduled job (e.g., daily at midnight)
+POST {{baseUrl}}/programs/admin/update-expired
+Content-Type: application/json
+
+# =========================================================
+# TESTING WORKFLOW
+# =========================================================
+# 
+# 1. First, get a program: GET {{baseUrl}}/programs
+#    Copy a program ID and set it as @programId
+#
+# 2. Get a beneficiary ID (from your database):
+#    Set it as @beneficiaryId
+#
+# 3. Get admin ID (from your database):
+#    Set it as @adminId
+#
+# 4. Register for program: POST register
+#    Save the applicationId and qrCodeValue from response
+#
+# 5. Get application details: GET /application/{{applicationId}}
+#    Verify QR code was generated
+#
+# 6. Get beneficiary applications: GET /beneficiary/{{beneficiaryId}}/applications
+#    Verify application appears
+#
+# 7. Scan QR code: POST scan-qr
+#    This simulates admin scanning during delivery
+#
+# 8. Get program applications: GET /{{programId}}/applications
+#    Verify application status changed to COMPLETED
+#
+# 9. Get stats: GET /{{programId}}/applications/stats
+#    Verify scan rate increased
+
+# =========================================================
+# EXPECTED RESPONSES
+# =========================================================
+
+###
+# REGISTER SUCCESS (201):
+# {
+#   "success": true,
+#   "message": "Successfully registered for program and created application",
+#   "data": {
+#     "registration": { id, programId, beneficiaryId, status, registeredAt },
+#     "application": {
+#       "id": "uuid",
+#       "applicationStatus": "PENDING",
+#       "qrCodeValue": "uuid",
+#       "qrCodeImageUrl": "data:image/png;base64,...",
+#       "scheduledDeliveryDate": "2025-12-24T10:00:00Z",
+#       "actualDeliveryDate": null,
+#       "qrCodeScannedAt": null,
+#       "createdAt": "2025-12-14T...",
+#       "programRegistration": { ... }
+#     }
+#   }
+# }
+
+###
+# SCAN QR SUCCESS (200):
+# {
+#   "success": true,
+#   "message": "QR code scanned and application marked as COMPLETED",
+#   "data": {
+#     "application": {
+#       "applicationStatus": "COMPLETED",
+#       "qrCodeScannedAt": "2025-12-24T14:30:00Z",
+#       "qrCodeScannedByAdminId": "admin-uuid",
+#       "actualDeliveryDate": "2025-12-24T14:30:00Z",
+#       ...
+#     },
+#     "scan": {
+#       "id": "scan-uuid",
+#       "scannedAt": "2025-12-24T14:30:00Z",
+#       "scannedByAdminId": "admin-uuid",
+#       "notes": "..."
+#     }
+#   }
+# }
+
+###
+# STATS SUCCESS (200):
+# {
+#   "success": true,
+#   "data": {
+#     "total": 50,
+#     "completed": 45,
+#     "pending": 3,
+#     "cancelled": 2,
+#     "scanRate": "90.00%"
+#   }
+# }

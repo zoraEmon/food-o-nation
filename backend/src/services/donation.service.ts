@@ -1,10 +1,12 @@
-import { PrismaClient, Donation, DonationStatus, DonationItem, Donor } from '../../generated/prisma/index.js';
+import { PrismaClient, Donation, DonationStatus, DonationItem, Donor, PaymentStatus } from '../../generated/prisma/index.js';
 import { QRCodeService } from './qrcode.service.js';
 import { EmailService } from './email.service.js';
+import { PaymentGatewayService } from './paymentGateway.service.js';
 
 const prisma = new PrismaClient();
 const qrcodeService = new QRCodeService();
 const emailService = new EmailService();
+const paymentGatewayService = new PaymentGatewayService();
 
 export class DonationService {
   /**
@@ -26,19 +28,16 @@ export class DonationService {
       throw new Error('Donor not found');
     }
 
-    // Placeholder for actual payment gateway integration
-    // In production, this would call PayPal, GCash, or other payment APIs
-    const paymentSuccessful = await this.processPayment(paymentMethod, amount, paymentReference);
+    const verification = await paymentGatewayService.verifyPayment(paymentMethod, amount, paymentReference);
 
-    if (!paymentSuccessful) {
-      // Notify donor about payment failure
+    if (!verification.success) {
       await emailService.sendPaymentFailureNotification(
         donor.user.email,
         donor.displayName,
         amount,
-        'Payment processing failed. Please verify your payment details.'
+        verification.failureReason || 'Payment verification failed. Please verify your payment details.'
       );
-      throw new Error('Payment processing failed');
+      throw new Error(verification.failureReason || 'Payment verification failed');
     }
 
     // Create donation record
@@ -48,7 +47,12 @@ export class DonationService {
         status: DonationStatus.COMPLETED,
         scheduledDate: new Date(), // Monetary donations are completed immediately
         paymentMethod,
-        paymentReference,
+        paymentReference: verification.transactionId || paymentReference,
+        monetaryAmount: amount,
+        paymentStatus: PaymentStatus.VERIFIED,
+        paymentProvider: verification.provider,
+        paymentVerifiedAt: verification.verifiedAt || new Date(),
+        paymentReceiptUrl: verification.receiptUrl,
         items: {
           create: {
             name: 'Monetary Donation',
@@ -82,8 +86,10 @@ export class DonationService {
       donor.user.email,
       donor.displayName,
       amount,
-      paymentReference,
-      donation.id
+      donation.paymentReference || paymentReference,
+      donation.id,
+      verification.provider,
+      verification.receiptUrl
     );
 
     // Notify all admins
@@ -315,27 +321,4 @@ export class DonationService {
     return updatedDonation;
   }
 
-  /**
-   * Placeholder for payment processing
-   * In production, integrate with actual payment gateway APIs
-   */
-  private async processPayment(
-    paymentMethod: string,
-    amount: number,
-    paymentReference: string
-  ): Promise<boolean> {
-    // TODO: Implement actual payment gateway integration
-    // For now, simulate successful payment
-    console.log(`Processing payment: ${paymentMethod}, Amount: ${amount}, Ref: ${paymentReference}`);
-    
-    // Simulate payment validation
-    if (!paymentReference || paymentReference.length < 5) {
-      return false;
-    }
-
-    // In production, call the appropriate payment API here
-    // Example: await gcashApi.verifyPayment(paymentReference);
-    
-    return true; // Simulate success
-  }
 }

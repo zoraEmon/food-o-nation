@@ -1,0 +1,165 @@
+#!/usr/bin/env node
+/**
+ * Payment Gateway Failure Testing - HTTP Client (REST Client Extension)
+ * 
+ * This file is designed for VS Code REST Client extension
+ * Install: ext install humao.rest-client
+ * 
+ * Usage:
+ * 1. Open this file in VS Code
+ * 2. Click "Send Request" above any request
+ * 3. View response in the output panel
+ * 
+ * Test Cases:
+ * - GCash short reference validation
+ * - GCash valid reference validation
+ * - Stripe PaymentIntent with amount mismatch
+ * - PayPal Order with amount mismatch
+ * - Invalid payment IDs
+ */
+
+@baseUrl = http://localhost:5000/api
+@donorId = 02986c41-a839-4196-8a43-d6bf253a2bc5
+
+### Test 1.1: GCash Reference Too Short (< 5 chars) - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 500,
+  "paymentMethod": "GCash",
+  "paymentReference": "123"
+}
+
+### Test 1.2: GCash Reference Valid (>= 5 chars) - EXPECT SUCCESS
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 500,
+  "paymentMethod": "GCash",
+  "paymentReference": "GCH-12345"
+}
+
+### Test 1.3: Bank Transfer Short Reference - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 500,
+  "paymentMethod": "Bank Transfer",
+  "paymentReference": "BT42"
+}
+
+### Test 1.4: Bank Transfer Valid Reference - EXPECT SUCCESS
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 500,
+  "paymentMethod": "Bank Transfer",
+  "paymentReference": "BT-TRANSFER-2024"
+}
+
+### Test 2.1: Stripe Invalid PaymentIntent ID - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 1000,
+  "paymentMethod": "Stripe",
+  "paymentReference": "pi_invalid123456"
+}
+
+### Test 2.2: Stripe Empty PaymentIntent ID - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 1000,
+  "paymentMethod": "Stripe",
+  "paymentReference": ""
+}
+
+### Test 3.1: PayPal Invalid Order ID - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 1000,
+  "paymentMethod": "PayPal",
+  "paymentReference": "invalid_order_123"
+}
+
+### Test 3.2: Mastercard (Stripe) Invalid Intent - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 1000,
+  "paymentMethod": "Mastercard",
+  "paymentReference": "pi_wrong123"
+}
+
+### Test 4: Unsupported Payment Method - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 1000,
+  "paymentMethod": "BitCoin",
+  "paymentReference": "BC123ABC456"
+}
+
+### Test 5: Negative Amount - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": -500,
+  "paymentMethod": "GCash",
+  "paymentReference": "GCH-12345"
+}
+
+### Test 6: Zero Amount - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 0,
+  "paymentMethod": "GCash",
+  "paymentReference": "GCH-12345"
+}
+
+### Test 7: Missing Donor ID - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "",
+  "amount": 500,
+  "paymentMethod": "GCash",
+  "paymentReference": "GCH-12345"
+}
+
+### Test 8: Missing Payment Reference - EXPECT FAILURE
+POST {{baseUrl}}/donations/monetary
+Content-Type: application/json
+
+{
+  "donorId": "{{donorId}}",
+  "amount": 500,
+  "paymentMethod": "GCash",
+  "paymentReference": ""
+}

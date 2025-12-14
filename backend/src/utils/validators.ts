@@ -74,7 +74,7 @@ export const createMonetaryDonationSchema = z.object({
     .positive('Amount must be greater than 0')
     .min(1, 'Minimum donation amount is ₱1')
     .max(1000000, 'Maximum donation amount is ₱1,000,000'),
-  paymentMethod: z.enum(['GCash', 'PayPal', 'Credit Card', 'Debit Card', 'Bank Transfer'], {
+  paymentMethod: z.enum(['PayPal', 'Stripe', 'Mastercard', 'Visa', 'Credit Card', 'Debit Card', 'GCash', 'Bank Transfer'], {
     error: () => ({ message: 'Invalid payment method' })
   }),
   paymentReference: z.string()
