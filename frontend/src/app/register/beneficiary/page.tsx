@@ -212,17 +212,23 @@ export default function BeneficiaryRegisterPage() {
                 <label className="text-xs font-bold text-gray-500">Applicant’s Household Position (Select 1 Only) <span className="text-red-500">*</span></label>
                 <select name="householdPosition" value={formData.householdPosition} onChange={handleChange} className={inputClass} required>
                   <option value="">Select one...</option>
-                  <option value="parent_mother">Parent/Legal Guardian (Mother)</option>
-                  <option value="parent_father">Parent/Legal Guardian (Father)</option>
-                  <option value="other_relative">Other Adult Relative</option>
-                  <option value="non_relative">Non-Relative Guardian</option>
+                  <option value="MOTHER">Mother</option>
+                  <option value="FATHER">Father</option>
+                  <option value="SON">Son</option>
+                  <option value="DAUGHTER">Daughter</option>
+                  <option value="GRANDMOTHER">Grandmother</option>
+                  <option value="GRANDFATHER">Grandfather</option>
+                  <option value="UNCLE">Uncle</option>
+                  <option value="AUNTIE">Auntie</option>
+                  <option value="OTHER_RELATIVE">Other Relative</option>
+                  <option value="NON_RELATIVE_GUARDIAN">Non-Relative Guardian</option>
                 </select>
               </div>
 
-              {(formData.householdPosition === 'other_relative' || formData.householdPosition === 'non_relative') && (
+              {(formData.householdPosition === 'OTHER_RELATIVE' || formData.householdPosition === 'NON_RELATIVE_GUARDIAN') && (
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500">Specify <span className="text-red-500">*</span></label>
-                  <input name="householdPositionSpecify" value={formData.householdPositionSpecify} onChange={handleChange} className={inputClass} placeholder="Specify relationship" required />
+                  <label className="text-xs font-bold text-gray-500">Specify Relationship <span className="text-red-500">*</span></label>
+                  <input name="householdPositionSpecify" value={formData.householdPositionSpecify} onChange={handleChange} className={inputClass} placeholder="e.g., Cousin, Nephew, Family Friend" required />
                 </div>
               )}
 
