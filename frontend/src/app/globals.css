@@ -50,6 +50,9 @@
   --font-sans: var(--font-inter);      /* Default Body Text */
   --font-heading: var(--font-poppins); /* Headers */
   --font-hand: var(--font-dancing);    /* Logo/Funky */
+
+  --color-leafgreen: #004225;
+  --color-goldenyellow: #FFB000;
 }
 
 body {
