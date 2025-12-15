@@ -31,7 +31,7 @@ interface UserProfile {
   profileImage: string | null;
   createdAt: string;
   beneficiaryProfile?: { firstName: string; lastName: string; address: any; };
-  donorProfile?: { displayName: string; };
+  donorProfile?: { displayName: string; totalDonation?: number | null; points?: number; donorType?: string; };
   adminProfile?: { firstName: string; lastName: string; };
   isVerified?: boolean;
 }
@@ -81,6 +81,45 @@ export const authService = {
   getMe: async (): Promise<UserProfile | null> => {
     const token = localStorage.getItem('token');
     if (!token) return null;
+
+    // Bypass mode - return mock data for development
+    if (token === 'dev-bypass-token') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        const isBeneficiary = userData.role === 'BENEFICIARY';
+        
+        return {
+          id: userData.id || 'dev-user-id',
+          email: userData.email || (isBeneficiary ? 'beneficiary@test.com' : 'donor@test.com'),
+          status: userData.status || 'APPROVED',
+          profileImage: null,
+          createdAt: new Date().toISOString(),
+          isVerified: true,
+          ...(isBeneficiary ? {
+            beneficiaryProfile: {
+              firstName: 'Test',
+              lastName: 'Beneficiary',
+              address: {
+                streetNumber: '123 Test St',
+                barangay: 'Test Barangay',
+                municipality: 'Test City',
+                region: 'NCR',
+                zipCode: '1000'
+              }
+            }
+          } : {
+            donorProfile: {
+              displayName: 'Test Donor',
+              totalDonation: 0,
+              points: 0,
+              donorType: 'INDIVIDUAL'
+            }
+          })
+        };
+      }
+      return null;
+    }
 
     const apiWithToken = axios.create({
         baseURL: API_URL,
