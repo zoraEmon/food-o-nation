@@ -7,51 +7,6 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
 
-// --- MOCK DATA FOR LOCATIONS ---
-interface LocationData {
-  barangays: Record<string, string>;
-}
-
-const MOCK_LOCATIONS: Record<string, LocationData> = {
-  "Quezon City": {
-    barangays: {
-      "Bagumbayan": "1110", "Batasan Hills": "1126", "Commonwealth": "1121", 
-      "Holy Spirit": "1127", "Loyola Heights": "1108", "Pinyahan": "1100", 
-      "San Jose": "1115", "Tandang Sora": "1116"
-    }
-  },
-  "Manila": {
-    barangays: {
-      "Binondo": "1006", "Ermita": "1000", "Intramuros": "1002", "Malate": "1004", 
-      "Paco": "1007", "Pandacan": "1011", "Port Area": "1018", "Quiapo": "1001", 
-      "Sampaloc": "1008", "San Miguel": "1005"
-    }
-  },
-  "Makati": {
-    barangays: {
-      "Bangkal": "1233", "Bel-Air": "1209", "Carmona": "1207", "Dasmarinas": "1222", 
-      "Forbes Park": "1219", "Poblacion": "1210"
-    }
-  },
-  "Taguig": {
-    barangays: {
-      "Fort Bonifacio": "1630", "Upper Bicutan": "1633", "Western Bicutan": "1630", "Pinagsama": "1630"
-    }
-  },
-  "Taytay": {
-    barangays: { "Dolores": "1920", "Muzon": "1920", "San Isidro": "1920", "San Juan": "1920" }
-  }
-};
-
-const PH_REGIONS = [
-  "NCR (National Capital Region)", "CAR (Cordillera Administrative Region)", "Region I (Ilocos Region)",
-  "Region II (Cagayan Valley)", "Region III (Central Luzon)", "Region IV-A (CALABARZON)",
-  "Region IV-B (MIMAROPA)", "Region V (Bicol Region)", "Region VI (Western Visayas)",
-  "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)", "Region IX (Zamboanga Peninsula)",
-  "Region X (Northern Mindanao)", "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)",
-  "Region XIII (Caraga)", "BARMM"
-];
-
 interface HouseholdMember {
   id: string;
   fullName: string;
@@ -64,7 +19,6 @@ export default function BeneficiaryRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [availableBarangays, setAvailableBarangays] = useState<string[]>([]);
   
   const inputClass = "w-full p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:border-[#ffb000] focus:outline-none transition-all";
   const yesterday = new Date();
@@ -80,7 +34,7 @@ export default function BeneficiaryRegisterPage() {
     email: "",
     birthDate: "",
     
-    // Address (Home Address)
+    // Address (Home Address) - Now all manual inputs
     streetNumber: "",
     barangay: "",
     municipality: "",
@@ -100,7 +54,7 @@ export default function BeneficiaryRegisterPage() {
     specialDietSpecify: "",
     
     // Economic Status
-    monthlyIncomeRange: "", // Changed from number to string for Range
+    monthlyIncomeRange: "", 
     incomeSources: [] as string[],
     employmentStatus: "",
     receivingAid: false,
@@ -127,27 +81,8 @@ export default function BeneficiaryRegisterPage() {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
+      // Simple update for all fields
       setFormData(prev => ({ ...prev, [name]: value }));
-
-      // Auto-Populate Logic
-      if (name === 'municipality') {
-        const cityData = MOCK_LOCATIONS[value];
-        if (cityData) {
-            setAvailableBarangays(Object.keys(cityData.barangays));
-            setFormData(prev => ({ ...prev, municipality: value, barangay: "", zipCode: "" }));
-        } else {
-            setAvailableBarangays([]);
-            setFormData(prev => ({ ...prev, municipality: value, barangay: "", zipCode: "" }));
-        }
-      }
-
-      if (name === 'barangay') {
-        const currentCity = formData.municipality;
-        const cityData = MOCK_LOCATIONS[currentCity];
-        if (cityData && cityData.barangays[value]) {
-            setFormData(prev => ({ ...prev, barangay: value, zipCode: cityData.barangays[value] }));
-        }
-      }
     }
     setError("");
   };
@@ -317,33 +252,33 @@ export default function BeneficiaryRegisterPage() {
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs text-gray-500">City / Municipality</label>
-                        <select required name="municipality" value={formData.municipality} onChange={handleChange} className={inputClass}>
-                            <option value="">Select City</option>
-                            {Object.keys(MOCK_LOCATIONS).map(city => <option key={city} value={city}>{city}</option>)}
-                        </select>
+                        <input required name="municipality" value={formData.municipality} onChange={handleChange} className={inputClass} placeholder="Enter City/Municipality" />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <label className="text-xs text-gray-500">Barangay</label>
-                        <select required name="barangay" value={formData.barangay} onChange={handleChange} className={inputClass} disabled={!formData.municipality}>
-                            <option value="">{formData.municipality ? "Select Barangay" : "Select City First"}</option>
-                            {availableBarangays.map((brgy) => <option key={brgy} value={brgy}>{brgy}</option>)}
-                        </select>
+                        <input required name="barangay" value={formData.barangay} onChange={handleChange} className={inputClass} placeholder="Enter Barangay" />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-xs text-gray-500">Zip Code (Auto)</label>
-                        <input name="zipCode" value={formData.zipCode} onChange={handleChange} onKeyDown={preventNonInteger} maxLength={4} className={inputClass} placeholder="e.g. 1101" required />
+                        <label className="text-xs text-gray-500">Zip Code</label>
+                        <input 
+                          name="zipCode" 
+                          value={formData.zipCode} 
+                          onChange={handleChange} 
+                          onKeyDown={preventNonInteger} 
+                          maxLength={4} 
+                          className={inputClass} 
+                          placeholder="e.g. 1101" 
+                          required 
+                        />
                     </div>
                 </div>
 
                 <div className="space-y-2">
                     <label className="text-xs text-gray-500">Region</label>
-                    <select name="region" value={formData.region} onChange={handleChange} className={inputClass} required>
-                        <option value="">Select Region</option>
-                        {PH_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
-                    </select>
+                    <input required name="region" value={formData.region} onChange={handleChange} className={inputClass} placeholder="Enter Region (e.g., NCR)" />
                 </div>
               </div>
 
