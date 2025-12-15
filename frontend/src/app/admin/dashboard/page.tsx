@@ -45,6 +45,7 @@ export default function AdminDashboardPage() {
       } catch (error) {
         console.error("Error fetching user data:", error);
         authService.logout();
+      
         router.push("/");
       } finally {
         setLoading(false);

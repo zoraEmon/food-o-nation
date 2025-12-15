@@ -18,9 +18,21 @@ export default function LoginForm({ role, onBack, onClose }: LoginFormProps) {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   
+  // Pre-fill credentials based on role
+  const defaultCredentials = {
+    BENEFICIARY: {
+      email: "beneficiary@test.com",
+      password: "testpassword123"
+    },
+    DONOR: {
+      email: "donor@test.com",
+      password: "testpassword123"
+    }
+  };
+  
   const [formData, setFormData] = useState({
-    email: "",
-    password: ""
+    email: defaultCredentials[role].email,
+    password: defaultCredentials[role].password
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,7 +51,15 @@ export default function LoginForm({ role, onBack, onClose }: LoginFormProps) {
       
       // 2. Success Actions
       onClose(); // Close the modal
-      router.push("/dashboard"); // Go to dashboard
+      
+      // Redirect based on role
+      if (role === "BENEFICIARY") {
+        router.push("/donor/beneficiarydashboard/beneficiarydashboard");
+      } else if (role === "DONOR") {
+        router.push("/donor/beneficiarydashboard/donordashboard");
+      } else {
+        router.push("/dashboard");
+      }
       
     } catch (err: any) {
       console.error(err);
@@ -48,6 +68,30 @@ export default function LoginForm({ role, onBack, onClose }: LoginFormProps) {
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Quick login bypass - directly navigate to dashboard
+  const handleQuickLogin = () => {
+    // Set mock token and user data for bypass
+    localStorage.setItem('token', 'dev-bypass-token');
+    localStorage.setItem('user', JSON.stringify({
+      id: role === "BENEFICIARY" ? 'dev-beneficiary-id' : 'dev-donor-id',
+      email: formData.email,
+      role: role,
+      status: 'APPROVED',
+      displayName: role === "BENEFICIARY" ? 'Test Beneficiary' : 'Test Donor'
+    }));
+    
+    onClose();
+    
+    // Redirect based on role
+    if (role === "BENEFICIARY") {
+      router.push("/donor/beneficiarydashboard/beneficiarydashboard");
+    } else if (role === "DONOR") {
+      router.push("/donor/beneficiarydashboard/donordashboard");
+    } else {
+      router.push("/dashboard");
     }
   };
 
@@ -130,6 +174,20 @@ export default function LoginForm({ role, onBack, onClose }: LoginFormProps) {
         </Button>
 
       </form>
+
+      {/* Quick Login Bypass Button */}
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
+        <Button 
+          type="button"
+          onClick={handleQuickLogin}
+          className={`w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm h-10 shadow transition-all`}
+        >
+          Quick Login (Bypass)
+        </Button>
+        <p className="text-xs text-gray-500 text-center mt-2">
+          Click to skip login and go directly to dashboard
+        </p>
+      </div>
     </div>
   );
 }
