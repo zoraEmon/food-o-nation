@@ -22,8 +22,8 @@ MONETARY_RESPONSE=$(curl -s -X POST "$BASE_URL/donations/monetary" \
   -d "{
     \"donorId\": \"$DONOR_ID\",
     \"amount\": 1000,
-    \"paymentMethod\": \"GCash\",
-    \"paymentReference\": \"GCASH-TEST-$(date +%s)\"
+      \"paymentMethod\": \"Maya\",
+      \"paymentReference\": \"MAYA-TEST-$(date +%s)\"
   }")
 
 echo "$MONETARY_RESPONSE" | jq .

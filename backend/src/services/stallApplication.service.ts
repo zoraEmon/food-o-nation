@@ -1,11 +1,21 @@
 import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import { QRCodeService } from './qrcode.service.js';
 import { EmailService } from './email.service.js';
 import { v4 as uuidv4 } from 'uuid';
 
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 const qrCodeService = new QRCodeService();
 const emailService = new EmailService();
+
+async function logActivity(userId: string | undefined, action: string, details?: string) {
+  if (!userId || !prisma.activityLog) return;
+  try {
+    await prisma.activityLog.create({ data: { userId, action, details } });
+  } catch (err) {
+    console.error('Failed to log activity', err);
+  }
+}
 
 export class StallApplicationService {
   async createForReservation(stallReservationId: string) {
@@ -117,6 +127,9 @@ export class StallApplicationService {
       where: { id: application.stallReservationId },
       data: { status: 'CHECKED_IN', checkedInAt: now },
     });
+
+    const donorUserId = application.stallReservation?.donor?.user?.id;
+    await logActivity(donorUserId, 'STALL_CLAIMED', `Stall scanned and claimed at ${application.stallReservation?.program?.title}`);
 
     const email = application.stallReservation?.donor.user?.email;
     if (email) {

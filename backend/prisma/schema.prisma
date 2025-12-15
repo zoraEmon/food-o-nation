@@ -35,6 +35,7 @@ model Admin {
   programApplicationScans ProgramApplicationScan[]
   stallApplicationsScanned StallApplication[]       @relation("StallApplicationScanner")
   stallApplicationScans    StallApplicationScan[]   @relation("StallApplicationScanAdmin")
+  newsletters             Newsletter[]
 }
 
 model Beneficiary {
@@ -133,6 +134,7 @@ model Donor {
   reviewReason  String?
   reviewedAt    DateTime?
   totalDonation Float?
+  creditBalance Float      @default(0)
   points        Int        @default(0)
   donations     Donation[]
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -210,6 +212,12 @@ model DonationItem {
   unit       String
   donationId String
   donation   Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+}
+
+model AppMetric {
+  id             String   @id @default("app-metrics")
+  totalMonetary  Float    @default(0)
+  updatedAt      DateTime @updatedAt
 }
 
 model ProgramRegistration {
@@ -416,4 +424,15 @@ enum FoodSecuritySeverity {
   MILD
   MODERATE
   SEVERE
+}
+
+model Newsletter {
+  id        String   @id @default(uuid())
+  headline  String
+  content   String
+  images    String[] @default([])
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

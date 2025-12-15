@@ -1,11 +1,21 @@
 import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import { QRCodeService } from './qrcode.service.js';
 import { EmailService } from './email.service.js';
 import { v4 as uuidv4 } from 'uuid';
 
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 const qrCodeService = new QRCodeService();
 const emailService = new EmailService();
+
+async function logActivity(userId: string | undefined, action: string, details?: string) {
+  if (!userId || !prisma.activityLog) return;
+  try {
+    await prisma.activityLog.create({ data: { userId, action, details } });
+  } catch (err) {
+    console.error('Failed to log activity', err);
+  }
+}
 
 /**
  * Create a program application when a beneficiary registers for a program
@@ -66,6 +76,10 @@ export const createProgramApplicationService = async (
         },
       },
     });
+
+    // Log activity for beneficiary user
+    const beneficiaryUserId = registration.beneficiary?.userId;
+    await logActivity(beneficiaryUserId, 'PROGRAM_APPLICATION_CREATED', `Program ${registration.programId || registration.program?.id}`);
 
     // Send QR code via email
     await sendApplicationQRCodeEmail(
@@ -284,6 +298,9 @@ export const scanApplicationQRCodeService = async (
         qrCodeScannedByAdmin: true,
       },
     });
+
+    const beneficiaryUserId = application.registration?.beneficiary?.userId;
+    await logActivity(beneficiaryUserId, 'PROGRAM_FOOD_CLAIMED', `Food claimed for ${application.registration?.program?.title}`);
 
     // Optionally update the program registration status to CLAIMED if needed
     if (application.registrationId) {

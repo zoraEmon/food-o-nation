@@ -28,6 +28,13 @@ app.get('/', (req, res) => {
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Skip cron jobs in test mode
+  if (process.env.TEST_USE_MEMORY === 'true') {
+    console.log('[Test Mode] Skipping cron jobs');
+    return;
+  }
+  
   // Startup run once
   updateExpiredApplicationStatusesService()
     .then(() => console.log('[Nightly Expiry Job] Startup run complete'))

@@ -1,0 +1,67 @@
+### Get All Newsletters
+GET http://localhost:5000/api/newsletters
+Accept: application/json
+
+###
+
+### Get All Newsletters with Pagination
+GET http://localhost:5000/api/newsletters?page=1&limit=10&orderBy=createdAt&order=desc
+Accept: application/json
+
+###
+
+### Get Latest Newsletters
+GET http://localhost:5000/api/newsletters/latest?limit=5
+Accept: application/json
+
+###
+
+### Get Newsletter by ID
+GET http://localhost:5000/api/newsletters/NEWSLETTER_ID_HERE
+Accept: application/json
+
+###
+
+### Create Newsletter (Admin Only)
+POST http://localhost:5000/api/newsletters
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="headline"
+
+New Food Distribution Program Announced
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="content"
+
+We are excited to announce a new food distribution program starting next month. This program will serve over 500 families in the community and provide weekly food packages including fresh produce, grains, and protein sources.
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="adminId"
+
+YOUR_ADMIN_ID_HERE
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+### Update Newsletter (Admin Only)
+PUT http://localhost:5000/api/newsletters/NEWSLETTER_ID_HERE
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="headline"
+
+Updated: New Food Distribution Program
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="content"
+
+UPDATED: We are excited to announce a new food distribution program starting next month. Registration is now open!
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+### Delete Newsletter (Admin Only)
+DELETE http://localhost:5000/api/newsletters/NEWSLETTER_ID_HERE
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+
+###

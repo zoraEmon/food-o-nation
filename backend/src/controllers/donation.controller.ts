@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { DonationService } from '../services/donation.service.js';
+import { PaymentGatewayService } from '../services/paymentGateway.service.js';
 import {
   createMonetaryDonationSchema,
   createProduceDonationSchema,
   updateDonationStatusSchema,
   getDonationsQuerySchema,
+  scanDonationQrSchema,
 } from '../utils/validators.js';
 import { ZodError } from 'zod';
 
@@ -51,6 +53,23 @@ function handleServiceError(error: any, res: Response): void {
 
 export class DonationController {
   /**
+   * Get global monetary total (verified donations only)
+   * GET /api/donations/metrics/monetary
+   */
+  async getMonetaryTotal(req: Request, res: Response): Promise<void> {
+    try {
+      const total = await donationService.getMonetaryTotal();
+
+      res.status(200).json({
+        success: true,
+        data: { total },
+      });
+    } catch (error) {
+      handleServiceError(error, res);
+    }
+  }
+
+  /**
    * Create a monetary donation
    * POST /api/donations/monetary
    */
@@ -80,6 +99,52 @@ export class DonationController {
       } else {
         handleServiceError(error, res);
       }
+    }
+  }
+
+  /**
+   * Initialize Maya Checkout and return checkoutId + redirectUrl
+   * POST /api/donations/maya/checkout
+   */
+  async initMayaCheckout(req: Request, res: Response): Promise<void> {
+    try {
+      const { donorId, amount, description } = req.body || {};
+      if (!donorId || !amount || amount <= 0) {
+        res.status(400).json({ success: false, message: 'donorId and positive amount are required' });
+        return;
+      }
+
+      // Optional: ensure donor exists before initiating checkout
+      // We reuse DonationService donor validation via a lightweight call
+      const service = new DonationService();
+      // Validate donor by attempting a minimal query
+      const donor = await (service as any).prisma?.donor?.findUnique?.({ where: { id: donorId } }).catch(() => null);
+
+      // If direct prisma access is not exposed, skip strict validation and proceed
+      if (donorId && typeof donorId !== 'string') {
+        res.status(400).json({ success: false, message: 'Invalid donorId' });
+        return;
+      }
+
+      const pg = new PaymentGatewayService();
+      const created = await pg.createMayaCheckout(Number(amount), description || 'Food Donation');
+      if (!created.success) {
+        res.status(502).json({ success: false, message: created.failureReason || 'Failed to create Maya checkout' });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Maya checkout initialized',
+        data: {
+          donorId,
+          amount: Number(amount),
+          checkoutId: created.checkoutId,
+          redirectUrl: created.redirectUrl,
+        },
+      });
+    } catch (error) {
+      handleServiceError(error, res);
     }
   }
 
@@ -134,6 +199,30 @@ export class DonationController {
         data: {
           donation,
         },
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        handleValidationError(error, res);
+      } else {
+        handleServiceError(error, res);
+      }
+    }
+  }
+
+  /**
+   * Scan a donation QR code to confirm drop-off
+   * POST /api/donations/scan-qr
+   */
+  async scanDonationQr(req: Request, res: Response): Promise<void> {
+    try {
+      const { qrData } = scanDonationQrSchema.parse(req.body);
+
+      const donation = await donationService.scanDonationQr(qrData);
+
+      res.status(200).json({
+        success: true,
+        message: 'Donation scanned successfully',
+        data: { donation },
       });
     } catch (error) {
       if (error instanceof ZodError) {

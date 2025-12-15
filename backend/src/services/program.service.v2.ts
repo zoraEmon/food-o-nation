@@ -1,6 +1,7 @@
 import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 
 // Get all programs with optional filters
 export const getAllProgramsService = async (filters = {}) => {

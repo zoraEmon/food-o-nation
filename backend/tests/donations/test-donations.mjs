@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from 'url';
 /**
  * Donation API Test Script
  * 
@@ -19,9 +20,8 @@ const BASE_URL = 'http://localhost:5000/api';
 // ===== CONFIGURE TEST DATA =====
 // Updated with seeded test data (run: npx prisma db seed)
 const TEST_DATA = {
-
-  donorId: 'a20940e2-5f3e-4466-ad96-3ce06dbf068f', // Maria Philanthropist
-  donationCenterId: '250c4cb6-55f9-43c0-a15c-1efb65b93add', // Taguig Donation Hub
+  donorId: process.env.TEST_USE_MEMORY === 'true' ? '00000000-0000-0000-0000-000000000001' : '36400fa7-22f7-4e94-b514-a441e516b9b5',
+  donationCenterId: process.env.TEST_USE_MEMORY === 'true' ? '00000000-0000-0000-0000-000000000002' : process.env.DONATION_CENTER_ID || '422553fa-645c-47ff-96ad-b16c4218ffeb',
 };
 
 // ===== UTILITY FUNCTIONS =====
@@ -68,8 +68,8 @@ async function testCreateMonetaryDonation() {
   const result = await makeRequest('POST', '/donations/monetary', {
     donorId: TEST_DATA.donorId,
     amount: 1000,
-    paymentMethod: 'GCash',
-    paymentReference: `GCASH-${Date.now()}`,
+    paymentMethod: 'Maya',
+    paymentReference: `MAYA-${Date.now()}`,
   });
 
   if (result.data?.success) {
@@ -119,16 +119,44 @@ async function testCreateProduceDonation() {
   if (result.data?.success) {
     console.log('✅ Produce donation created successfully!');
     console.log('📱 QR Code generated:', result.data.data.donation.qrCodeRef ? 'Yes' : 'No');
-    return result.data.data.donation.id;
+    return {
+      id: result.data.data.donation.id,
+      scheduledDate: result.data.data.donation.scheduledDate,
+    };
   } else {
     console.log('❌ Failed to create produce donation');
     return null;
   }
 }
 
+async function testScanDonationQr(produceDonation) {
+  console.log('\n' + '='.repeat(60));
+  console.log('TEST 3: Scan Donation QR');
+  console.log('='.repeat(60));
+
+  const qrPayload = {
+    donationId: produceDonation.id,
+    donorId: TEST_DATA.donorId,
+    scheduledDate: produceDonation.scheduledDate,
+    type: 'PRODUCE_DONATION',
+  };
+
+  const result = await makeRequest('POST', '/donations/scan-qr', {
+    qrData: JSON.stringify(qrPayload),
+  });
+
+  if (result.data?.success) {
+    console.log('✅ Donation QR scanned and marked completed');
+    return true;
+  } else {
+    console.log('❌ Failed to scan donation QR');
+    return false;
+  }
+}
+
 async function testGetDonationById(donationId) {
   console.log('\n' + '='.repeat(60));
-  console.log('TEST 3: Get Donation by ID');
+  console.log('TEST 4: Get Donation by ID');
   console.log('='.repeat(60));
 
   const result = await makeRequest('GET', `/donations/${donationId}`);
@@ -144,7 +172,7 @@ async function testGetDonationById(donationId) {
 
 async function testGetAllDonations() {
   console.log('\n' + '='.repeat(60));
-  console.log('TEST 4: Get All Donations with Pagination');
+  console.log('TEST 5: Get All Donations with Pagination');
   console.log('='.repeat(60));
 
   const result = await makeRequest('GET', '/donations?limit=5&offset=0');
@@ -161,7 +189,7 @@ async function testGetAllDonations() {
 
 async function testGetDonationsByDonor() {
   console.log('\n' + '='.repeat(60));
-  console.log('TEST 5: Get Donations by Donor');
+  console.log('TEST 6: Get Donations by Donor');
   console.log('='.repeat(60));
 
   const result = await makeRequest('GET', `/donations?donorId=${TEST_DATA.donorId}&limit=10`);
@@ -177,7 +205,7 @@ async function testGetDonationsByDonor() {
 
 async function testGetDonationsByStatus() {
   console.log('\n' + '='.repeat(60));
-  console.log('TEST 6: Get Donations by Status');
+  console.log('TEST 7: Get Donations by Status');
   console.log('='.repeat(60));
 
   const result = await makeRequest('GET', '/donations?status=SCHEDULED&limit=10');
@@ -193,7 +221,7 @@ async function testGetDonationsByStatus() {
 
 async function testUpdateDonationStatus(donationId) {
   console.log('\n' + '='.repeat(60));
-  console.log('TEST 7: Update Donation Status (Admin)');
+  console.log('TEST 8: Update Donation Status (Admin)');
   console.log('='.repeat(60));
 
   const result = await makeRequest('PATCH', `/donations/${donationId}/status`, {
@@ -212,14 +240,14 @@ async function testUpdateDonationStatus(donationId) {
 
 async function testValidationErrors() {
   console.log('\n' + '='.repeat(60));
-  console.log('TEST 8: Validation Error Handling');
+  console.log('TEST 9: Validation Error Handling');
   console.log('='.repeat(60));
 
   console.log('\n--- Test 8a: Invalid Amount ---');
   await makeRequest('POST', '/donations/monetary', {
     donorId: TEST_DATA.donorId,
     amount: -100, // Negative amount
-    paymentMethod: 'GCash',
+    paymentMethod: 'Maya',
     paymentReference: 'TEST-REF',
   });
 
@@ -227,7 +255,7 @@ async function testValidationErrors() {
   await makeRequest('POST', '/donations/monetary', {
     donorId: 'invalid-uuid-format',
     amount: 100,
-    paymentMethod: 'GCash',
+    paymentMethod: 'Maya',
     paymentReference: 'TEST-REF',
   });
 
@@ -277,24 +305,25 @@ async function runAllTests() {
   }
 
   let monetaryDonationId = null;
-  let produceDonationId = null;
+  let produceDonation = null;
 
   try {
     // Test creating donations
     monetaryDonationId = await testCreateMonetaryDonation();
-    produceDonationId = await testCreateProduceDonation();
+    produceDonation = await testCreateProduceDonation();
 
     // Test retrieval operations
-    if (produceDonationId) {
-      await testGetDonationById(produceDonationId);
+    if (produceDonation) {
+      await testScanDonationQr(produceDonation);
+      await testGetDonationById(produceDonation.id);
     }
     await testGetAllDonations();
     await testGetDonationsByDonor();
     await testGetDonationsByStatus();
 
     // Test update operations
-    if (produceDonationId) {
-      await testUpdateDonationStatus(produceDonationId);
+    if (produceDonation) {
+      await testUpdateDonationStatus(produceDonation.id);
     }
 
     // Test validation
@@ -305,15 +334,21 @@ async function runAllTests() {
     console.log('✅'.repeat(30));
     console.log('\nCreated Donations:');
     if (monetaryDonationId) console.log(`  - Monetary: ${monetaryDonationId}`);
-    if (produceDonationId) console.log(`  - Produce: ${produceDonationId}`);
+    if (produceDonation?.id) console.log(`  - Produce: ${produceDonation.id}`);
     console.log('\n');
   } catch (error) {
     console.error('\n❌ Test suite failed:', error);
   }
 }
 
-// Run tests if this script is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run tests if this script is executed directly (Windows-friendly check)
+const isDirectRun = (() => {
+  const arg = process.argv[1];
+  if (!arg) return false;
+  return import.meta.url === pathToFileURL(arg).href;
+})();
+
+if (isDirectRun) {
   runAllTests();
 }
 

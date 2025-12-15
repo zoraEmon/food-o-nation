@@ -74,7 +74,7 @@ export const createMonetaryDonationSchema = z.object({
     .positive('Amount must be greater than 0')
     .min(1, 'Minimum donation amount is ₱1')
     .max(1000000, 'Maximum donation amount is ₱1,000,000'),
-  paymentMethod: z.enum(['PayPal', 'Stripe', 'Mastercard', 'Visa', 'Credit Card', 'Debit Card', 'GCash', 'Bank Transfer'], {
+  paymentMethod: z.enum(['PayPal', 'Stripe', 'Mastercard', 'Visa', 'Credit Card', 'Debit Card', 'Maya', 'Bank Transfer'], {
     error: () => ({ message: 'Invalid payment method' })
   }),
   paymentReference: z.string()
@@ -127,4 +127,11 @@ export const getDonationsQuerySchema = z.object({
   toDate: z.string().datetime('Invalid to date format').optional(),
   limit: z.coerce.number().int().positive().max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * Schema for scanning donation QR codes
+ */
+export const scanDonationQrSchema = z.object({
+  qrData: z.string().min(1, 'qrData is required'),
 });

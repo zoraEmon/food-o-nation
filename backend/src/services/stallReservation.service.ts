@@ -1,9 +1,19 @@
 import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import QRCode from 'qrcode';
 import { StallApplicationService } from './stallApplication.service.ts';
 
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 const stallApplicationService = new StallApplicationService();
+
+async function logActivity(userId: string | undefined, action: string, details?: string) {
+  if (!userId || !prisma.activityLog) return;
+  try {
+    await prisma.activityLog.create({ data: { userId, action, details } });
+  } catch (err) {
+    console.error('Failed to log activity', err);
+  }
+}
 
 export class StallReservationService {
   async listByProgram(programId: string) {
@@ -83,6 +93,9 @@ export class StallReservationService {
     // Create application record with email + QR
     await stallApplicationService.createForReservation(reservation.id);
 
+    const donor = await prisma.donor.findUnique({ where: { id: donorId }, include: { user: true } });
+    await logActivity(donor?.user?.id, 'STALL_RESERVATION_CREATED', `Program ${programId} slot ${reservation.slotNumber}`);
+
     return reservation;
   }
 
@@ -110,10 +123,15 @@ export class StallReservationService {
   }
 
   async checkIn(reservationId: string) {
-    return prisma.stallReservation.update({
+    const updated = await prisma.stallReservation.update({
       where: { id: reservationId },
       data: { status: 'CHECKED_IN', checkedInAt: new Date() }
     });
+    const donor = updated.donorId
+      ? await prisma.donor.findUnique({ where: { id: updated.donorId }, include: { user: true } })
+      : null;
+    await logActivity(donor?.user?.id, 'STALL_RESERVATION_CLAIMED', `Reservation ${reservationId} checked in`);
+    return updated;
   }
 
   async scanByQr(qrCodeRef: string) {

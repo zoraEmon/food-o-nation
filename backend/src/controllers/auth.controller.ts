@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import { loginSchema, registerBeneficiarySchema, registerDonorSchema } from '../utils/validators.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
@@ -9,7 +10,7 @@ import { EmailService } from '../services/email.service.js';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 const emailService = new EmailService();
 const JWT_SECRET = process.env.JWT_SECRET || 'foodONationSecret';
 

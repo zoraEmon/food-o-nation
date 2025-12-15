@@ -226,6 +226,37 @@ Create a monetary donation
 - Sends confirmation email to donor
 - Notifies all admins via email
 
+### POST `/api/donations/maya/checkout`
+Initialize a Maya Checkout and get `checkoutId` + `redirectUrl`.
+
+Request Body:
+```json
+{
+  "donorId": "uuid",
+  "amount": 500,
+  "description": "Food Donation"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Maya checkout initialized",
+  "data": {
+    "donorId": "uuid",
+    "amount": 500,
+    "checkoutId": "04f5f163-a662-46d8-a124-3c19d4dfc1ad",
+    "redirectUrl": "https://payments-sandbox.maya.ph/checkout?id=..."
+  }
+}
+```
+
+Flow Tips:
+- Call this endpoint from your frontend to get `redirectUrl` and send the donor to Maya.
+- Keep the returned `checkoutId` in your app state; after payment, call `POST /api/donations/monetary` with `paymentMethod: "Maya"` and `paymentReference: checkoutId`.
+- In production, prefer Maya webhooks to auto-confirm payments without manual follow-up.
+
 ---
 
 ### POST `/api/donations/produce`

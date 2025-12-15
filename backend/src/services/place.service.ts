@@ -1,7 +1,8 @@
 import { PrismaClient, Prisma } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import { PlaceData } from '../interfaces/interfaces.js';
 import { da } from 'zod/locales';
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 
 // Service to get all programs
 export const getAllPlacesService = async () => {

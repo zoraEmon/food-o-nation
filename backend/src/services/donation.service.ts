@@ -1,14 +1,55 @@
 import { PrismaClient, Donation, DonationStatus, DonationItem, Donor, PaymentStatus } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import { QRCodeService } from './qrcode.service.js';
 import { EmailService } from './email.service.js';
 import { PaymentGatewayService } from './paymentGateway.service.js';
 
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 const qrcodeService = new QRCodeService();
 const emailService = new EmailService();
 const paymentGatewayService = new PaymentGatewayService();
+const APP_METRIC_ID = 'app-metrics';
+
+async function logActivity(userId: string | undefined, action: string, details?: string) {
+  if (!userId || !prisma.activityLog) return;
+  try {
+    await prisma.activityLog.create({ data: { userId, action, details } });
+  } catch (err) {
+    console.error('Failed to log activity', err);
+  }
+}
 
 export class DonationService {
+  /**
+   * Recompute and store the global total of verified monetary donations.
+   */
+  async syncAppMonetaryTotal(): Promise<void> {
+    const aggregate = await prisma.donation.aggregate({
+      where: {
+        monetaryAmount: { not: null },
+        paymentStatus: PaymentStatus.VERIFIED,
+      },
+      _sum: { monetaryAmount: true },
+    });
+
+    const total = aggregate._sum.monetaryAmount || 0;
+
+    await prisma.appMetric.upsert({
+      where: { id: APP_METRIC_ID },
+      update: { totalMonetary: total },
+      create: { id: APP_METRIC_ID, totalMonetary: total },
+    });
+  }
+
+  /**
+   * Get the global total of verified monetary donations (deduplicated at the DB layer).
+   */
+  async getMonetaryTotal(): Promise<number> {
+    await this.syncAppMonetaryTotal();
+    const metric = await prisma.appMetric.findUnique({ where: { id: APP_METRIC_ID } });
+    return metric?.totalMonetary || 0;
+  }
+
   /**
    * Create a monetary donation with payment processing
    */
@@ -68,11 +109,16 @@ export class DonationService {
       },
     });
 
-    // Update donor's total donation and points
+    await logActivity(donor.user.id, 'DONATION_MONETARY_CREATED', `Monetary donation PHP ${amount}`);
+
+    // Update donor's total donation, credit, and points
     await prisma.donor.update({
       where: { id: donorId },
       data: {
         totalDonation: {
+          increment: amount,
+        },
+        creditBalance: {
           increment: amount,
         },
         points: {
@@ -80,6 +126,9 @@ export class DonationService {
         },
       },
     });
+
+    // Sync global monetary total from all verified monetary donations
+    await this.syncAppMonetaryTotal();
 
     // Send confirmation email to donor
     await emailService.sendMonetaryDonationConfirmation(
@@ -180,6 +229,8 @@ export class DonationService {
       },
     });
 
+    await logActivity(donor.user.id, 'DONATION_PRODUCE_SCHEDULED', `Produce donation scheduled for ${scheduledDate.toISOString()}`);
+
     // Send confirmation email to donor with QR code
     await emailService.sendProduceDonationConfirmation(
       donor.user.email,
@@ -201,6 +252,61 @@ export class DonationService {
       donation.id,
       items
     );
+
+    return updatedDonation;
+  }
+
+  /**
+   * Scan a donation QR code (used at donation center to confirm drop-off)
+   */
+  async scanDonationQr(qrData: string): Promise<Donation> {
+    let payload: any;
+    try {
+      payload = JSON.parse(qrData);
+    } catch (err) {
+      throw new Error('Invalid QR data');
+    }
+
+    if (!payload?.donationId) {
+      throw new Error('Invalid QR payload - donationId missing');
+    }
+
+    const donation = await prisma.donation.findUnique({
+      where: { id: payload.donationId as string },
+      include: {
+        donor: { include: { user: true } },
+        donationCenter: { include: { place: true } },
+        items: true,
+      },
+    });
+
+    if (!donation) {
+      throw new Error('Donation not found');
+    }
+
+    if (donation.status === DonationStatus.CANCELLED) {
+      throw new Error('Donation is cancelled');
+    }
+
+    // If already completed, return as-is to keep idempotency for repeated scans
+    if (donation.status === DonationStatus.COMPLETED) {
+      return donation;
+    }
+
+    // Basic guard to ensure QR belongs to the same donor when data is present
+    if (payload.donorId && donation.donorId && payload.donorId !== donation.donorId) {
+      throw new Error('QR does not match the donor of this donation');
+    }
+
+    const updatedDonation = await prisma.donation.update({
+      where: { id: donation.id },
+      data: { status: DonationStatus.COMPLETED },
+      include: {
+        donor: { include: { user: true } },
+        donationCenter: { include: { place: true } },
+        items: true,
+      },
+    });
 
     return updatedDonation;
   }

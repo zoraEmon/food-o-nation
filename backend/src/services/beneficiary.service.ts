@@ -1,11 +1,12 @@
 import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import {
   BeneficiaryData,
   HouseholdMemberInput,
   AddressInput,
 } from '../interfaces/interfaces.js';
 
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 
 const toDate = (value: string | Date): Date => {
   const d = new Date(value);

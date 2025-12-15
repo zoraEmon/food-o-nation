@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Donor" ADD COLUMN     "creditBalance" DOUBLE PRECISION NOT NULL DEFAULT 0;
