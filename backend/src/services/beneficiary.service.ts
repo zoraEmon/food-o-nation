@@ -124,6 +124,62 @@ export const updateBeneficiaryService = async (
   }
 };
 
+export const reviewBeneficiaryService = async (
+  beneficiaryId: string,
+  approved: boolean,
+  reason?: string
+) => {
+  const status = approved ? 'APPROVED' : 'REJECTED';
+  const userStatus = approved ? 'APPROVED' : 'REJECTED';
+  try {
+    return await prisma.beneficiary.update({
+      where: { id: beneficiaryId },
+      data: {
+        status,
+        reviewReason: reason ?? null,
+        reviewedAt: new Date(),
+        user: {
+          update: {
+            status: userStatus,
+          },
+        },
+      },
+      include: {
+        user: true,
+        address: true,
+        householdMembers: true,
+      },
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      const notFound: any = new Error(`Beneficiary with id ${beneficiaryId} not found.`);
+      notFound.code = 'P2025';
+      throw notFound;
+    }
+    throw new Error('Failed to review beneficiary: ' + error.message);
+  }
+};
+
+export const deleteRejectedBeneficiariesOlderThan = async (days: number) => {
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const stale = await prisma.beneficiary.findMany({
+    where: { status: 'REJECTED', reviewedAt: { lt: cutoff } },
+    select: { id: true, userId: true },
+  });
+
+  if (!stale.length) return { deleted: 0 };
+
+  await prisma.beneficiary.deleteMany({ where: { id: { in: stale.map(s => s.id) } } });
+
+  const userIds = stale.map(s => s.userId).filter(Boolean) as string[];
+  if (userIds.length) {
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+  }
+
+  return { deleted: stale.length };
+};
+
 const mapMember = (m: HouseholdMemberInput) => ({
   fullName: m.fullName,
   birthDate: toDate(m.birthDate),

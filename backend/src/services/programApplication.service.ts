@@ -49,10 +49,12 @@ export const createProgramApplicationService = async (
         qrCodeValue,
         qrCodeImageUrl,
         scheduledDeliveryDate,
-        programRegistrationId,
+        // set both for backward compatibility with legacy column
+        registrationId: programRegistrationId,
+        programRegistrationId: programRegistrationId,
       },
       include: {
-        programRegistration: {
+        registration: {
           include: {
             program: {
               include: { place: true },
@@ -147,7 +149,7 @@ export const getProgramApplicationService = async (applicationId: string) => {
     const application = await prisma.programApplication.findUnique({
       where: { id: applicationId },
       include: {
-        programRegistration: {
+        registration: {
           include: {
             program: {
               include: { place: true },
@@ -181,15 +183,18 @@ export const getBeneficiaryApplicationsService = async (beneficiaryId: string) =
   try {
     const applications = await prisma.programApplication.findMany({
       where: {
-        programRegistration: {
+        registration: {
           beneficiaryId,
         },
       },
       include: {
-        programRegistration: {
+        registration: {
           include: {
             program: {
               include: { place: true },
+            },
+            beneficiary: {
+              include: { address: true },
             },
           },
         },
@@ -224,7 +229,7 @@ export const scanApplicationQRCodeService = async (
     const application = await prisma.programApplication.findUnique({
       where: { qrCodeValue },
       include: {
-        programRegistration: {
+        registration: {
           include: {
             program: true,
             beneficiary: true,
@@ -264,7 +269,7 @@ export const scanApplicationQRCodeService = async (
         actualDeliveryDate: now,
       },
       include: {
-        programRegistration: {
+        registration: {
           include: {
             program: true,
             beneficiary: true,
@@ -281,19 +286,19 @@ export const scanApplicationQRCodeService = async (
     });
 
     // Optionally update the program registration status to CLAIMED if needed
-    await prisma.programRegistration.update({
-      where: { id: application.programRegistrationId },
-      data: {
-        status: 'CLAIMED',
-      },
-    });
+    if (application.registrationId) {
+      await prisma.programRegistration.update({
+        where: { id: application.registrationId },
+        data: { status: 'CLAIMED' },
+      });
+    }
 
     // Send confirmation email to beneficiary
-    if (application.programRegistration.beneficiary.activeEmail) {
+    if (application.registration?.beneficiary.activeEmail) {
       await sendScanConfirmationEmail(
-        application.programRegistration.beneficiary.activeEmail,
-        application.programRegistration.beneficiary.firstName,
-        application.programRegistration.program.title
+        application.registration.beneficiary.activeEmail,
+        application.registration.beneficiary.firstName,
+        application.registration.program.title
       );
     }
 
@@ -369,10 +374,12 @@ export const updateExpiredApplicationStatusesService = async () => {
 
     // Also update related program registrations to CANCELED
     for (const app of expiredApplications) {
-      await prisma.programRegistration.update({
-        where: { id: app.programRegistrationId },
-        data: { status: 'CANCELED' },
-      });
+      if (app.registrationId) {
+        await prisma.programRegistration.update({
+          where: { id: app.registrationId },
+          data: { status: 'CANCELED' },
+        });
+      }
     }
 
     console.log(`Updated ${updateResult.count} expired applications to CANCELLED`);
@@ -390,12 +397,12 @@ export const getProgramApplicationsService = async (programId: string) => {
   try {
     const applications = await prisma.programApplication.findMany({
       where: {
-        programRegistration: {
+        registration: {
           programId,
         },
       },
       include: {
-        programRegistration: {
+        registration: {
           include: {
             beneficiary: {
               include: { address: true },
@@ -427,7 +434,7 @@ export const getProgramApplicationStatsService = async (programId: string) => {
   try {
     const applications = await prisma.programApplication.findMany({
       where: {
-        programRegistration: {
+        registration: {
           programId,
         },
       },

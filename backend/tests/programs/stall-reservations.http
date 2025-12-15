@@ -1,0 +1,64 @@
+### List reservations for a program
+
+@PROGRAM_ID = c9c4183f-da12-4428-846a-ffd434a75bed
+@DONOR_ID = 02986c41-a839-4196-8a43-d6bf253a2bc5
+@RESERVATION_ID = 0e768895-5ad7-4846-82a6-450dcee61cea
+GET http://localhost:5000/api/programs/{{PROGRAM_ID}}/stalls
+
+### Reserve a stall for a donor
+POST http://localhost:5000/api/programs/{{PROGRAM_ID}}/stalls/reserve
+Content-Type: application/json
+
+{
+  "donorId": "{{DONOR_ID}}"
+}
+
+### Set stall capacity (admin)
+POST http://localhost:5000/api/programs/{{PROGRAM_ID}}/stalls/capacity
+Content-Type: application/json
+
+{
+  "capacity": 12
+}
+
+### Cancel a stall reservation
+POST http://localhost:5000/api/stalls/{{RESERVATION_ID}}/cancel
+
+### Check-in a stall reservation
+POST http://localhost:5000/api/stalls/{{RESERVATION_ID}}/check-in
+
+### Scan QR to check-in (admin)
+POST http://localhost:5000/api/stalls/scan-qr
+Content-Type: application/json
+
+{
+  "qrCodeRef": "STALL-{{PROGRAM_ID}}-3"
+}
+
+### Cancel expired stalls (admin)
+POST http://localhost:5000/api/stalls/admin/update-expired
+
+### Get stall application by ID
+GET http://localhost:5000/api/stalls/applications/{{APPLICATION_ID}}
+
+### List stall applications for program (admin)
+GET http://localhost:5000/api/programs/{{PROGRAM_ID}}/stalls/applications
+
+### Stall application stats (admin)
+GET http://localhost:5000/api/programs/{{PROGRAM_ID}}/stalls/applications/stats
+
+### Scan stall application QR (admin)
+POST http://localhost:5000/api/stalls/applications/scan-qr
+Content-Type: application/json
+
+{
+  "qrCodeValue": "{{QR_CODE_VALUE}}",
+  "adminId": "{{ADMIN_ID}}",
+  "notes": "Checked in at gate"
+}
+
+### Cancel expired stall applications (admin)
+POST http://localhost:5000/api/stalls/applications/admin/update-expired
+
+### Get reservation (includes QR fields)
+GET http://localhost:5000/api/stalls/{{RESERVATION_ID}}

@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:5000/api
+@donorId = 90541273-469b-44b5-90ed-8ca9e7ab87f1
+
+### List donors
+GET {{baseUrl}}/donors
+Accept: application/json
+
+### Get donor by id
+GET {{baseUrl}}/donors/{{donorId}}
+Accept: application/json
+
+### Approve donor
+POST {{baseUrl}}/donors/{{donorId}}/review
+Content-Type: application/json
+Accept: application/json
+
+{
+  "approved": true,
+  "reason": "Verified donor profile"
+}
+
+### Reject donor
+POST {{baseUrl}}/donors/{{donorId}}/review
+Content-Type: application/json
+Accept: application/json
+
+{
+  "approved": false,
+  "reason": "Invalid contact details"
+}

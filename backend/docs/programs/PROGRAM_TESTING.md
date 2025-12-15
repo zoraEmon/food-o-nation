@@ -109,6 +109,46 @@ curl -Uri "$baseUrl/programs" -Headers $headers -Method Post -Body $body
 
 ## Test Scenarios
 
+### Scenario 0: Stall Reservations (Donors)
+Use the VS Code REST client file `backend/tests/programs/stall-reservations.http` or curl. Seed creates program "Community Market Day - Quezon City" with sample stalls.
+
+**Steps:**
+1) List stalls for the seeded program
+```
+GET /api/programs/{{PROGRAM_ID}}/stalls
+```
+2) Reserve a stall for a donor (uses donorId; generates QR)
+```
+POST /api/programs/{{PROGRAM_ID}}/stalls/reserve
+Body: { "donorId": "{{DONOR_ID}}" }
+```
+3) Verify QR fields in response
+    - `qrCodeUrl` (Data URL image)
+    - `qrCodeRef` (reference string)
+4) Get reservation by id to retrieve QR again
+```
+GET /api/stalls/{{RESERVATION_ID}}
+```
+5) Set stall capacity (admin)
+```
+POST /api/programs/{{PROGRAM_ID}}/stalls/capacity
+Body: { "capacity": 12 }
+```
+6) Cancel a reservation
+```
+POST /api/stalls/{{RESERVATION_ID}}/cancel
+```
+7) Check-in a reservation
+```
+POST /api/stalls/{{RESERVATION_ID}}/check-in
+```
+
+**Expected:**
+- Reservations respect `stallCapacity`; duplicate active reservations per donor are blocked.
+- Reservation responses include QR fields (`qrCodeUrl`, `qrCodeRef`).
+- Cancel decrements `reservedStalls`; check-in sets status to `CHECKED_IN`.
+
+
 ### Scenario 1: Happy Path - Create and Publish Program
 
 **Steps:**

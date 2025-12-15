@@ -51,6 +51,16 @@ Alternative paths:
 
 ## API Endpoints
 
+### Stall Reservation Endpoints (Donors)
+| Action | Method & Path | Notes |
+| --- | --- | --- |
+| List reservations for a program | `GET /api/programs/:programId/stalls` | Returns reservations with donor and QR info |
+| Reserve a stall | `POST /api/programs/:programId/stalls/reserve` | Body: `{ donorId }`; generates `qrCodeUrl` and `qrCodeRef`; prevents duplicate active reservations per donor per program; enforces `stallCapacity` |
+| Set stall capacity (admin) | `POST /api/programs/:programId/stalls/capacity` | Body: `{ capacity }`; rejects values below current `reservedStalls` |
+| Cancel a reservation | `POST /api/stalls/:reservationId/cancel` | Sets status to CANCELLED and decrements `reservedStalls` |
+| Check-in a reservation | `POST /api/stalls/:reservationId/check-in` | Sets status to CHECKED_IN |
+| Get reservation by id | `GET /api/stalls/:reservationId` | Includes `qrCodeUrl` and `qrCodeRef` |
+
 ### 1. Create Program (Admin)
 ```http
 POST /api/programs

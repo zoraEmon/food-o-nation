@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import router from './routes/index.js';
 import { updateExpiredApplicationStatusesService } from './services/programApplication.service.js';
+import { deleteRejectedBeneficiariesOlderThan } from './services/beneficiary.service.js';
+import { DonorService } from './services/donor.service.js';
 import cron from 'node-cron';
 
 dotenv.config();
@@ -39,6 +41,29 @@ app.listen(PORT, () => {
       console.log('[Nightly Expiry Job] Completed');
     } catch (e: any) {
       console.error('[Nightly Expiry Job] Error:', e?.message || e);
+    }
+  });
+
+  // Schedule cleanup for rejected beneficiaries after 30 days at 02:10
+  cron.schedule('10 2 * * *', async () => {
+    try {
+      console.log('[Nightly Beneficiary Cleanup] Running...');
+      const result = await deleteRejectedBeneficiariesOlderThan(30);
+      console.log(`[Nightly Beneficiary Cleanup] Deleted: ${result.deleted}`);
+    } catch (e: any) {
+      console.error('[Nightly Beneficiary Cleanup] Error:', e?.message || e);
+    }
+  });
+
+  // Schedule cleanup for rejected donors after 30 days at 02:15
+  cron.schedule('15 2 * * *', async () => {
+    try {
+      console.log('[Nightly Donor Cleanup] Running...');
+      const donorService = new DonorService();
+      const result = await donorService.deleteRejectedOlderThan(30);
+      console.log(`[Nightly Donor Cleanup] Deleted: ${result.deleted}`);
+    } catch (e: any) {
+      console.error('[Nightly Donor Cleanup] Error:', e?.message || e);
     }
   });
 });

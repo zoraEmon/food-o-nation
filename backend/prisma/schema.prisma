@@ -33,6 +33,8 @@ model Admin {
   user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   programApplications     ProgramApplication[]
   programApplicationScans ProgramApplicationScan[]
+  stallApplicationsScanned StallApplication[]       @relation("StallApplicationScanner")
+  stallApplicationScans    StallApplicationScan[]   @relation("StallApplicationScanAdmin")
 }
 
 model Beneficiary {
@@ -49,6 +51,9 @@ model Beneficiary {
   id                      String                @id @default(uuid())
   middleName              String?
   civilStatus             CivilStatus
+  status                  Status                @default(PENDING)
+  reviewReason            String?
+  reviewedAt              DateTime?
   activeEmail             String?
   adultCount              Int                   @default(0)
   childrenCount           Int                   @default(0)
@@ -124,10 +129,14 @@ model Donor {
   donorType     DonorType
   userId        String     @unique
   id            String     @id @default(uuid())
+  status        Status     @default(PENDING)
+  reviewReason  String?
+  reviewedAt    DateTime?
   totalDonation Float?
   points        Int        @default(0)
   donations     Donation[]
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stallReservations StallReservation[]
 }
 
 model Place {
@@ -162,6 +171,10 @@ model Program {
   donations           Donation[]
   place               Place                 @relation(fields: [placeId], references: [id])
   registrations       ProgramRegistration[]
+  // Stall reservation capacity for donor stalls
+  stallCapacity       Int?                  @default(0)
+  reservedStalls      Int                   @default(0)
+  stallReservations   StallReservation[]
 }
 
 model Donation {
@@ -212,6 +225,62 @@ model ProgramRegistration {
   @@unique([programId, beneficiaryId])
 }
 
+model StallReservation {
+  id            String            @id @default(uuid())
+  programId     String
+  donorId       String
+  slotNumber    Int
+  status        ReservationStatus @default(PENDING)
+  reservedAt    DateTime          @default(now())
+  canceledAt    DateTime?
+  checkedInAt   DateTime?
+  qrCodeUrl     String?
+  qrCodeRef     String?
+  notes         String?
+
+  program       Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  donor         Donor             @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  application   StallApplication? @relation("StallReservationApplication")
+
+  @@unique([programId, slotNumber])
+  @@index([donorId, programId])
+}
+
+model StallApplication {
+  id                     String             @id @default(uuid())
+  stallReservationId     String             @unique
+  qrCodeValue            String             @unique
+  qrCodeImageUrl         String?
+  applicationStatus      ApplicationStatus  @default(PENDING)
+  scheduledDate          DateTime?
+  qrCodeScannedAt        DateTime?
+  qrCodeScannedByAdminId String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  stallReservation       StallReservation   @relation("StallReservationApplication", fields: [stallReservationId], references: [id], onDelete: Cascade)
+  scans                  StallApplicationScan[]
+  qrCodeScannedByAdmin   Admin?             @relation("StallApplicationScanner", fields: [qrCodeScannedByAdminId], references: [id])
+}
+
+model StallApplicationScan {
+  id                 String            @id @default(uuid())
+  stallApplicationId String
+  scannedAt          DateTime          @default(now())
+  notes              String?
+  scannedByAdminId   String?
+
+  application        StallApplication  @relation(fields: [stallApplicationId], references: [id], onDelete: Cascade)
+  scannedByAdmin     Admin?            @relation("StallApplicationScanAdmin", fields: [scannedByAdminId], references: [id])
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  CANCELLED
+  CHECKED_IN
+}
+
 model ProgramApplication {
   id                     String                   @id @default(uuid())
   applicationStatus      ApplicationStatus        @default(PENDING)
@@ -255,6 +324,7 @@ model ActivityLog {
 enum Status {
   PENDING
   APPROVED
+  VERIFIED
   REJECTED
   DEACTIVATED
 }
@@ -308,6 +378,12 @@ enum ApplicationStatus {
 enum HouseholdPosition {
   MOTHER
   FATHER
+  SON
+  DAUGHTER
+  GRANDMOTHER
+  GRANDFATHER
+  UNCLE
+  AUNTIE
   OTHER_RELATIVE
   NON_RELATIVE_GUARDIAN
 }

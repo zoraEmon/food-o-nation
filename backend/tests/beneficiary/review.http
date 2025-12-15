@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:5000/api
+@beneficiaryId = 6e194ddf-a5d0-421e-adfd-9fd1acdba4a5
+
+### List beneficiaries
+GET {{baseUrl}}/beneficiaries
+Accept: application/json
+
+### Get beneficiary by id
+GET {{baseUrl}}/beneficiaries/{{beneficiaryId}}
+Accept: application/json
+
+### Approve beneficiary
+POST {{baseUrl}}/beneficiaries/{{beneficiaryId}}/review
+Content-Type: application/json
+Accept: application/json
+
+{
+  "approved": true,
+  "reason": "Verified documents and eligibility"
+}
+
+### Reject beneficiary
+POST {{baseUrl}}/beneficiaries/{{beneficiaryId}}/review
+Content-Type: application/json
+Accept: application/json
+
+{
+  "approved": false,
+  "reason": "Incomplete documentation"
+}
