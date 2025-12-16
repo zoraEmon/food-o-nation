@@ -29,7 +29,7 @@ export const getAllProgramsService = async (filters = {}) => {
       data: programs,
       count: programs.length
     };
-  } catch (error) {
+  } catch (error:any) {
     return {
       success: false,
       error: `Failed to fetch programs: ${error.message}`
@@ -38,7 +38,7 @@ export const getAllProgramsService = async (filters = {}) => {
 };
 
 // Get single program by ID
-export const getProgramByIdService = async (id) => {
+export const getProgramByIdService = async (id:any) => {
   try {
     if (!id || typeof id !== 'string') {
       return {
@@ -84,7 +84,7 @@ export const getProgramByIdService = async (id) => {
       success: true,
       data: program
     };
-  } catch (error) {
+  } catch (error:any) {
     return {
       success: false,
       error: `Failed to fetch program: ${error.message}`
@@ -93,7 +93,7 @@ export const getProgramByIdService = async (id) => {
 };
 
 // Create new program
-export const createProgramService = async (data) => {
+export const createProgramService = async (data:any) => {
   try {
     // Validate required fields
     if (!data.title || !data.title.trim()) {
@@ -193,7 +193,7 @@ export const createProgramService = async (data) => {
       data: newProgram,
       message: 'Program created successfully'
     };
-  } catch (error) {
+  } catch (error:any) {
     return {
       success: false,
       error: `Failed to create program: ${error.message}`
@@ -202,7 +202,7 @@ export const createProgramService = async (data) => {
 };
 
 // Update program (can't update maxParticipants or date if already started)
-export const updateProgramService = async (id, updateData) => {
+export const updateProgramService = async (id:any, updateData:any) => {
   try {
     if (!id || typeof id !== 'string') {
       return {
@@ -360,7 +360,7 @@ export const updateProgramService = async (id, updateData) => {
       data: updatedProgram,
       message: 'Program updated successfully'
     };
-  } catch (error) {
+  } catch (error:any) {
     if (error.code === 'P2025') {
       return {
         success: false,
@@ -377,7 +377,7 @@ export const updateProgramService = async (id, updateData) => {
 };
 
 // Publish/approve program (make visible to public)
-export const publishProgramService = async (id) => {
+export const publishProgramService = async (id:any) => {
   try {
     const program = await prisma.program.findUnique({
       where: { id }
@@ -413,7 +413,7 @@ export const publishProgramService = async (id) => {
       data: updated,
       message: 'Program published successfully'
     };
-  } catch (error) {
+  } catch (error:any) {
     return {
       success: false,
       error: `Failed to publish program: ${error.message}`
@@ -422,7 +422,7 @@ export const publishProgramService = async (id) => {
 };
 
 // Cancel program
-export const cancelProgramService = async (id, reason = '') => {
+export const cancelProgramService = async (id:any, reason = '') => {
   try {
     const program = await prisma.program.findUnique({
       where: { id }
@@ -458,7 +458,7 @@ export const cancelProgramService = async (id, reason = '') => {
       data: updated,
       message: `Program canceled successfully${reason ? ': ' + reason : ''}`
     };
-  } catch (error) {
+  } catch (error:any) {
     return {
       success: false,
       error: `Failed to cancel program: ${error.message}`

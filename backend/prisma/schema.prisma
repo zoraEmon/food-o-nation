@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
+  engineType = "binary"
 }
 
 datasource db {
@@ -435,4 +436,38 @@ model Newsletter {
   admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// =========================================================
+// 11. PAGE DETAILS
+// =========================================================
+
+model PageLogo {
+  id        String   @id @default(uuid())
+  logoUrl   String
+  updatedAt DateTime @updatedAt
+}
+
+model PageAbout {
+  id        String   @id @default(uuid())
+  aboutUs   String   @db.VarChar(3000)
+  updatedAt DateTime @updatedAt
+}
+
+model PageSocialMedia {
+  id           String   @id @default(uuid())
+  facebookUrl  String?
+  instagramUrl String?
+  youtubeUrl   String?
+  linkedinUrl  String?
+  updatedAt    DateTime @updatedAt
+}
+
+model PageContact {
+  id              String   @id @default(uuid())
+  contactNumber   String?
+  contactEmail    String?
+  location        String?
+  serviceSchedule String?
+  updatedAt       DateTime @updatedAt
 }

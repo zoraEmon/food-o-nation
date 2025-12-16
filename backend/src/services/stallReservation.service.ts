@@ -23,7 +23,7 @@ export class StallReservationService {
     });
 
     // Backfill QR codes for any legacy reservations without QR data
-    return Promise.all(reservations.map((reservation) => this.ensureQr(reservation)));
+    return Promise.all(reservations.map((reservation:any) => this.ensureQr(reservation)));
   }
 
   async reserveSlot(programId: string, donorId: string) {
@@ -51,7 +51,7 @@ export class StallReservationService {
     while (taken.has(next) && next <= capacity) next++;
     if (next > capacity) throw new Error('No available slot numbers');
 
-    const reservation = await prisma.$transaction(async (tx) => {
+    const reservation = await prisma.$transaction(async (tx:any) => {
       const created = await tx.stallReservation.create({
         data: {
           programId,
@@ -183,7 +183,7 @@ export class StallReservationService {
 
     let cancelled = 0;
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx:any) => {
       for (const res of expiring) {
         await tx.stallReservation.update({
           where: { id: res.id },
