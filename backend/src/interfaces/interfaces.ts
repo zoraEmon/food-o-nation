@@ -171,3 +171,31 @@ export interface DonorData {
   points: number;
   userId: string;
 }
+
+// ========================================================
+// PAGE DETAIL INTERFACES
+// ========================================================
+
+// Interface.ts - Updated to match Prisma schema
+
+export interface UpdateLogoData {
+  logoUrl: string;
+}
+
+export interface UpdateAboutUsData {
+  aboutUs: string; // max 3000 characters (validated in controller)
+}
+
+export interface UpdateSocialLinksData {
+  facebookUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
+  linkedinUrl?: string;
+}
+
+export interface UpdateContactInfoData {
+  contactNumber?: string;
+  contactEmail?: string;
+  location?: string;
+  serviceSchedule?: string;
+}

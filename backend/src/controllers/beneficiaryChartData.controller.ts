@@ -34,13 +34,13 @@ export const getBeneficiaryWithTheSameHouseholdNumber = async (req: Request, res
         const beneificaries = await getAllBeneficiaryService();
         const householdNumberMap: Record<string, number> = {};
         beneificaries.forEach((beneficiary:any) => {
-            const householdNumber = beneficiary.householdNumber;
+            const householdNumber = beneficiary.adultCount + beneficiary.childrenCount ;
             if (householdNumber) {
                 householdNumberMap[householdNumber] = (householdNumberMap[householdNumber] || 0) + 1;
             }
         });
-        const data = Object.entries(householdNumberMap).map(([householdNumber, count]) => ({
-            householdNumber,
+        const data = Object.entries(householdNumberMap).map(([houseHoldPplCount, count]) => ({
+            houseHoldPplCount,
             count,
         }));
         res.status(200).json({ success: true, data });
@@ -53,7 +53,7 @@ export const getBeneficiaryMonthlyIncomeCount = async (req:Request,res:Response)
         const beneficiary = await getAllBeneficiaryService();
         const incomeMap: Record<string, number>={};
         beneficiary.forEach((beneficiary:any)=>{
-            const MonthlyIncome = beneficiary.householdAnnualSalary/12;
+            const MonthlyIncome = beneficiary.monthlyIncome;
             if(MonthlyIncome <= 5000){
                 incomeMap["0-5,000"] = (incomeMap["0-5,000"] || 0) + 1;
             } else if(MonthlyIncome <= 13100){
@@ -79,7 +79,7 @@ export const getBeneficiaryEmpoymentStatus = async (req:Request,res:Response)=>{
         const beneficiary = await getAllBeneficiaryService();
         const employmentStatusMap: Record<string, number>={};
         beneficiary.forEach((beneficiary:any)=>{
-            const employmentStatus = beneficiary.occupation || "Unemployed";
+            const employmentStatus = beneficiary.mainEmploymentStatus || "Unemployed";
             employmentStatusMap[employmentStatus] = (employmentStatusMap[employmentStatus] || 0) + 1;
         });
         const data = Object.entries(employmentStatusMap).map(([employmentStatus, count]) => ({
