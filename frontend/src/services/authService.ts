@@ -38,16 +38,48 @@ interface UserProfile {
 
 export const authService = {
   
-  // 1. Register Beneficiary (FormData for Image)
+  // 1. Register Beneficiary (FormData for all files and data)
   registerBeneficiary: async (data: any): Promise<RegisterResponse> => {
     const formData = new FormData();
+    
+    // Handle all file uploads
+    if (data.profileImage instanceof File) {
+      formData.append('profileImage', data.profileImage);
+    }
+    if (data.governmentIdFile instanceof File) {
+      formData.append('governmentIdFile', data.governmentIdFile);
+    }
+    if (data.signature instanceof File) {
+      formData.append('signature', data.signature);
+    }
+    
+    // Handle arrays (stringify for FormData)
+    if (Array.isArray(data.householdMembers)) {
+      formData.append('householdMembers', JSON.stringify(data.householdMembers));
+    }
+    if (Array.isArray(data.incomeSources)) {
+      formData.append('incomeSources', JSON.stringify(data.incomeSources));
+    }
+    
+    // Handle all other non-file fields
     Object.keys(data).forEach((key) => {
-      if (key === 'profileImage' && data[key] instanceof File) {
-        formData.append(key, data[key]);
-      } else if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, String(data[key]));
+      // Skip files and arrays (already handled above)
+      if (key === 'profileImage' || key === 'governmentIdFile' || key === 'signature' || 
+          key === 'householdMembers' || key === 'incomeSources') {
+        return;
+      }
+      
+      // Skip null/undefined
+      if (data[key] !== null && data[key] !== undefined) {
+        // Convert booleans and numbers properly
+        if (typeof data[key] === 'boolean') {
+          formData.append(key, data[key] ? 'true' : 'false');
+        } else {
+          formData.append(key, String(data[key]));
+        }
       }
     });
+    
     const response = await api.post<RegisterResponse>('/register/beneficiary', formData);
     return response.data;
   },

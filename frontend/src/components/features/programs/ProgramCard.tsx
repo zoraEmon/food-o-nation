@@ -4,9 +4,12 @@ interface ProgramCardProps {
   title: string;
   description: string;
   status: "Active" | "Completed";
+  allowApply?: boolean;
+  onApply?: () => void;
+  onBlocked?: () => void;
 }
 
-export default function ProgramCard({ title, description, status }: ProgramCardProps) {
+export default function ProgramCard({ title, description, status, allowApply = false, onApply, onBlocked }: ProgramCardProps) {
   return (
     <div className="group flex flex-col h-full bg-white dark:bg-[#0a291a] border border-primary/20 hover:border-secondary shadow-sm hover:shadow-xl transition-all duration-300 rounded-xl overflow-hidden">
       
@@ -40,7 +43,15 @@ export default function ProgramCard({ title, description, status }: ProgramCardP
         <div className="grid grid-cols-2 gap-3 mt-auto">
           <Button 
             className="w-full bg-primary text-white hover:bg-[#00331f] disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={status !== 'Active'}
+            disabled={status !== 'Active' || !allowApply}
+            onClick={() => {
+              if (status !== 'Active') return;
+              if (!allowApply) {
+                onBlocked?.();
+                return;
+              }
+              onApply?.();
+            }}
           >
             {status === 'Active' ? 'Apply' : 'Closed'}
           </Button>

@@ -12,13 +12,17 @@ const transporter = nodemailer.createTransport({
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@foodonation.org').split(',');
 
 export class EmailService {
-  async sendEmail(to: string, subject: string, htmlContent: string): Promise<void> {
-    const mailOptions = {
+  async sendEmail(to: string, subject: string, htmlContent: string, attachments?: any[]): Promise<void> {
+    const mailOptions: any = {
       from: '"Food-O-Nation" <foodonation.org@gmail.com>',
       to: to,
       subject: subject,
       html: htmlContent,
     };
+
+    if (attachments && attachments.length > 0) {
+      mailOptions.attachments = attachments;
+    }
 
     try {
       await transporter.sendMail(mailOptions);

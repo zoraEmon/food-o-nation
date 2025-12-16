@@ -20,8 +20,8 @@ export default function DonateSelectionPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
-            {/* LINK TO PRODUCE PAGE */}
-            <Link href="/donate/produce" className="group">
+            {/* LINK TO SCHEDULE DONATION PAGE */}
+            <Link href="/donate/schedule" className="group">
               <div className="bg-white rounded-3xl p-10 border-2 border-transparent hover:border-[#ffb000] shadow-xl hover:shadow-2xl transition-all h-full flex flex-col items-center gap-6 text-center transform hover:-translate-y-1">
                 <div className="bg-green-100 p-8 rounded-full group-hover:bg-[#004225] transition-colors duration-300">
                   <Package className="w-16 h-16 text-[#004225] group-hover:text-[#ffb000]" />

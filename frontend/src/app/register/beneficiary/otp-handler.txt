@@ -1,0 +1,20 @@
+  const handleOtpVerification = async () => {
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP");
+      return;
+    }
+    
+    setOtpLoading(true);
+    setError("");
+    
+    try {
+      await authService.verifyOTP({ userId: registeredUserId, otp });
+      alert("Verification successful! Please log in.");
+      setShowOtpModal(false);
+      router.push("/login");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Invalid OTP. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };

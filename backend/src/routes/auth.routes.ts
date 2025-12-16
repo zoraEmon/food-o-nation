@@ -14,7 +14,11 @@ const router = express.Router();
 // 1. Beneficiary Registration (Correct)
 router.post(
     '/register/beneficiary', 
-    upload.single('profileImage'), 
+    upload.fields([
+        { name: 'profileImage', maxCount: 1 },
+        { name: 'governmentIdFile', maxCount: 1 },
+        { name: 'signature', maxCount: 1 }
+    ]), 
     registerBeneficiary
 );
 

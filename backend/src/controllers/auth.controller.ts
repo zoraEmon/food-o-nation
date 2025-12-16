@@ -37,21 +37,34 @@ interface MulterRequest extends Request {
 // ✅ 2. Use 'MulterRequest' here instead of 'Request'
 export const registerBeneficiary = async (req: MulterRequest, res: Response) => {
     try {
-        // 1. Handle Profile Image Path
-        let profileImagePath = null;
+        console.log('📥 Received registration request');
+        console.log('Body keys:', Object.keys(req.body));
+        console.log('Files:', req.files);
         
-        if (req.file) {
-            profileImagePath = req.file.path.replace(/\\/g, "/");
+        // 1. Handle Multiple File Paths
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        let profileImagePath = null;
+        let governmentIdPath = null;
+        let signaturePath = null;
+        
+        if (files?.profileImage?.[0]) {
+            profileImagePath = files.profileImage[0].path.replace(/\\/g, "/");
+        }
+        if (files?.governmentIdFile?.[0]) {
+            governmentIdPath = files.governmentIdFile[0].path.replace(/\\/g, "/");
+        }
+        if (files?.signature?.[0]) {
+            signaturePath = files.signature[0].path.replace(/\\/g, "/");
         }
 
         // 2. Validate Text Data
         const result = registerBeneficiarySchema.safeParse(req.body);
         
         if (!result.success) {
-            // Cleanup: Delete uploaded file if validation fails
-            if (req.file) {
-                fs.unlinkSync(req.file.path);
-            }
+            // Cleanup: Delete uploaded files if validation fails
+            if (files?.profileImage?.[0]) fs.unlinkSync(files.profileImage[0].path);
+            if (files?.governmentIdFile?.[0]) fs.unlinkSync(files.governmentIdFile[0].path);
+            if (files?.signature?.[0]) fs.unlinkSync(files.signature[0].path);
             return res.status(400).json({ errors: result.error.format() });
         }
 
@@ -60,7 +73,10 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         // 3. Check for Existing Email
         const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
         if (existingUser) {
-            if (req.file) fs.unlinkSync(req.file.path); // Cleanup
+            // Cleanup uploaded files
+            if (files?.profileImage?.[0]) fs.unlinkSync(files.profileImage[0].path);
+            if (files?.governmentIdFile?.[0]) fs.unlinkSync(files.governmentIdFile[0].path);
+            if (files?.signature?.[0]) fs.unlinkSync(files.signature[0].path);
             return res.status(400).json({ message: 'Email already in use' });
         }
 
@@ -106,7 +122,7 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                         primaryPhone: data.primaryPhone,
                         activeEmail: data.activeEmail,
                         governmentIdType: data.governmentIdType,
-                        governmentIdFileUrl: data.governmentIdFileUrl,
+                        governmentIdFileUrl: governmentIdPath,
                         
                         // Household composition
                         childrenCount: data.childrenCount,
@@ -128,16 +144,16 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                         // Consent
                         declarationAccepted: data.declarationAccepted,
                         privacyAccepted: data.privacyAccepted,
-                        signatureUrl: data.signatureUrl,
+                        signatureUrl: signaturePath,
                         
                         address: {
                             create: {
-                                streetNumber: data.address.streetNumber,
-                                barangay: data.address.barangay,
-                                municipality: data.address.municipality,
-                                region: data.address.region || '', // Provide a default empty string if undefined
-                                zipCode: data.address.zipCode || '', // Provide a default empty string if undefined
-                                country: data.address.country || 'Philippines'
+                                streetNumber: data.streetNumber,
+                                barangay: data.barangay,
+                                municipality: data.municipality,
+                                region: data.region || 'NCR',
+                                zipCode: data.zipCode || '0000',
+                                country: 'Philippines'
                             }
                         },
                         

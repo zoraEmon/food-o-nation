@@ -6,6 +6,7 @@ import { Upload, Plus, X } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
+import { authService } from "@/services/authService";
 
 interface HouseholdMember {
   id: string;
@@ -19,6 +20,13 @@ export default function BeneficiaryRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [registeredUserId, setRegisteredUserId] = useState("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   const inputClass = "w-full p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:border-[#ffb000] focus:outline-none transition-all";
   const yesterday = new Date();
@@ -27,11 +35,15 @@ export default function BeneficiaryRegisterPage() {
 
   const [formData, setFormData] = useState({
     // Personal
-    applicantName: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     householdPosition: "",
     householdPositionSpecify: "",
     contactNumber: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     birthDate: "",
     
     // Address (Home Address) - Now all manual inputs
@@ -54,7 +66,7 @@ export default function BeneficiaryRegisterPage() {
     specialDietSpecify: "",
     
     // Economic Status
-    monthlyIncomeRange: "", 
+    annualSalary: "", 
     incomeSources: [] as string[],
     employmentStatus: "",
     receivingAid: false,
@@ -84,6 +96,7 @@ export default function BeneficiaryRegisterPage() {
       // Simple update for all fields
       setFormData(prev => ({ ...prev, [name]: value }));
     }
+    setHasUnsavedChanges(true);
     setError("");
   };
 
@@ -134,42 +147,161 @@ export default function BeneficiaryRegisterPage() {
     else setFormData({ ...formData, incomeSources: formData.incomeSources.filter(s => s !== source) });
   };
 
+  // Navigation warning
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    
+    // Validate passwords
+    if (!formData.password || formData.password.length < 12) {
+      setError("Password must be at least 12 characters long");
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
 
     // Basic Validation
     if (!formData.applicantName || !formData.contactNumber || !formData.email || !formData.birthDate || 
         !formData.householdPosition || !formData.streetNumber || !formData.barangay || !formData.municipality ||
-        !formData.region || !formData.zipCode || !formData.monthlyIncomeRange || 
+        !formData.region || !formData.zipCode || !formData.annualSalary || 
         !formData.employmentStatus || !formData.declarationAccepted || !formData.privacyAccepted || 
         !formData.signature || !formData.governmentIdFile) {
       return setError("Please fill in all required fields and upload necessary documents.");
     }
 
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
     
     try {
-      const nameParts = formData.applicantName.split(',');
-      const lastName = nameParts[0]?.trim() || '';
-      const firstName = nameParts[1]?.trim().split(' ')[0] || '';
+      // Calculate age from birthDate
+      const birthDate = new Date(formData.birthDate);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
 
-      localStorage.setItem('token', 'dev-bypass-token');
-      localStorage.setItem('user', JSON.stringify({
-        id: `beneficiary-${Date.now()}`,
+      // Map annual salary range to numeric value (convert to float)
+      const salaryMap: Record<string, number> = {
+        'below_60000': 50000.0,
+        '60000_120000': 90000.0,
+        '120000_200000': 160000.0,
+        '200000_above': 200000.0,
+      };
+      const householdAnnualSalary = salaryMap[formData.annualSalary] || parseFloat(formData.annualSalary) || 0.0;
+
+      // Prepare household members with proper date formatting
+      const householdMembers = formData.householdMembers
+        .filter(member => member.fullName && member.dateOfBirth)
+        .map(member => ({
+          fullName: member.fullName,
+          birthDate: new Date(member.dateOfBirth).toISOString(),
+          age: member.age,
+          relationship: member.relationship
+        }));
+
+      // Prepare payload matching backend validator
+      const payload = {
+        // Required by registerBeneficiarySchema
         email: formData.email,
-        role: 'BENEFICIARY',
-        status: 'PENDING',
-        displayName: `${firstName} ${lastName}`
-      }));
-      
-      alert("Application Submitted! Redirecting to your dashboard...");
-      router.push("/donor/beneficiarydashboard/beneficiarydashboard");
+        password: formData.password,
+        
+        // Personal
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        middleName: formData.middleName || '',
+        birthDate: birthDate.toISOString(),
+        age,
+        contactNumber: formData.contactNumber,
+        gender: 'OTHER',
+        civilStatus: 'SINGLE',
+        occupation: 'Applicant',
+        
+        // Household
+        householdNumber: Number(formData.householdNumber),
+        householdAnnualSalary,
+        householdPosition: formData.householdPosition,
+        primaryPhone: formData.contactNumber,
+        householdMembers: householdMembers.length > 0 ? householdMembers : undefined,
+        
+        // Household counts
+        childrenCount: formData.childrenCount || 0,
+        adultCount: formData.adultsCount || 0,
+        seniorCount: formData.seniorsCount || 0,
+        pwdCount: formData.pwdCount || 0,
+        
+        // Diet
+        specialDietRequired: formData.hasSpecialDiet || false,
+        specialDietDescription: formData.specialDietSpecify || '',
+        
+        // Economic
+        monthlyIncome: householdAnnualSalary / 12,
+        incomeSources: formData.incomeSources || [],
+        mainEmploymentStatus: formData.employmentStatus || 'UNEMPLOYED',
+        receivingAid: formData.receivingAid || false,
+        receivingAidDetail: formData.receivingAidSpecify || '',
+        
+        // Consent
+        declarationAccepted: formData.declarationAccepted,
+        privacyAccepted: formData.privacyAccepted,
+        
+        // Address
+        streetNumber: formData.streetNumber,
+        barangay: formData.barangay,
+        municipality: formData.municipality,
+        region: formData.region || 'NCR',
+        zipCode: formData.zipCode || '0000',
+        
+        // Files
+        governmentIdFile: formData.governmentIdFile,
+        signature: formData.signature,
+      };
+
+      // Call backend API
+      const response = await authService.registerBeneficiary(payload);
+      setRegisteredUserId(response.userId);
+      setShowOtpModal(true);
+      setHasUnsavedChanges(false);
     } catch (err: any) {
-      setError("Application failed. Please try again.");
+      console.error('Registration error:', err);
+      setError(err.response?.data?.message || err.message || "Application failed. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOtpVerification = async () => {
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP");
+      return;
+    }
+
+    setOtpLoading(true);
+    setError("");
+
+    try {
+      await authService.verifyOtp({ email: formData.email, otp });
+      alert("Verification successful! Please log in.");
+      setShowOtpModal(false);
+      router.push("/login");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Invalid OTP. Please try again.");
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -201,11 +333,19 @@ export default function BeneficiaryRegisterPage() {
                 PERSONAL INFORMATION
               </h2>
               
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-500">
-                  Applicant Name: [Surname, First Name, Middle Name] <span className="text-red-500">*</span>
-                </label>
-                <input required name="applicantName" value={formData.applicantName} onChange={handleChange} className={inputClass} placeholder="Dela Cruz, Juan Santos" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500">First Name <span className="text-red-500">*</span></label>
+                  <input required name="firstName" value={formData.firstName} onChange={handleChange} className={inputClass} placeholder="Juan" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500">Middle Name</label>
+                  <input name="middleName" value={formData.middleName} onChange={handleChange} className={inputClass} placeholder="Santos" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500">Last Name <span className="text-red-500">*</span></label>
+                  <input required name="lastName" value={formData.lastName} onChange={handleChange} className={inputClass} placeholder="Dela Cruz" />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -240,6 +380,52 @@ export default function BeneficiaryRegisterPage() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500">Active Email Address <span className="text-red-500">*</span></label>
                 <input required type="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="hellopuh@gmail.com" />
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-gray-500">Password (minimum 12 characters) <span className="text-red-500">*</span></label>
+                              <div className="relative">
+                                <input 
+                                  required 
+                                  type={showPassword ? "text" : "password"} 
+                                  name="password" 
+                                  value={formData.password} 
+                                  onChange={handleChange} 
+                                  minLength={12}
+                                  className={inputClass} 
+                                  placeholder="Enter strong password" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                >
+                                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-gray-500">Confirm Password <span className="text-red-500">*</span></label>
+                              <div className="relative">
+                                <input 
+                                  required 
+                                  type={showConfirmPassword ? "text" : "password"} 
+                                  name="confirmPassword" 
+                                  value={formData.confirmPassword} 
+                                  onChange={handleChange} 
+                                  minLength={12}
+                                  className={inputClass} 
+                                  placeholder="Re-enter password" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                >
+                                  {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                                </button>
+                              </div>
+                            </div>
               </div>
 
               <div className="space-y-2">
@@ -327,7 +513,21 @@ export default function BeneficiaryRegisterPage() {
                           <td className="border border-gray-300 p-2"><input type="text" value={member.fullName} onChange={(e) => updateHouseholdMember(member.id, 'fullName', e.target.value)} className="w-full p-1 rounded border border-gray-300 text-sm" /></td>
                           <td className="border border-gray-300 p-2"><input type="date" value={member.dateOfBirth} onChange={(e) => updateHouseholdMember(member.id, 'dateOfBirth', e.target.value)} className="w-full p-1 rounded border border-gray-300 text-sm" /></td>
                           <td className="border border-gray-300 p-2"><input type="number" value={member.age || ''} readOnly className="w-full p-1 rounded border border-gray-300 bg-gray-50 text-sm" /></td>
-                          <td className="border border-gray-300 p-2"><input type="text" value={member.relationship} onChange={(e) => updateHouseholdMember(member.id, 'relationship', e.target.value)} className="w-full p-1 rounded border border-gray-300 text-sm" /></td>
+                          <td className="border border-gray-300 p-2">
+                            <select value={member.relationship} onChange={(e) => updateHouseholdMember(member.id, 'relationship', e.target.value)} className="w-full p-1 rounded border border-gray-300 text-sm">
+                              <option value="">Select...</option>
+                              <option value="MOTHER">Mother</option>
+                              <option value="FATHER">Father</option>
+                              <option value="SON">Son</option>
+                              <option value="DAUGHTER">Daughter</option>
+                              <option value="GRANDMOTHER">Grandmother</option>
+                              <option value="GRANDFATHER">Grandfather</option>
+                              <option value="UNCLE">Uncle</option>
+                              <option value="AUNTIE">Auntie</option>
+                              <option value="OTHER_RELATIVE">Other Relative</option>
+                              <option value="NON_RELATIVE_GUARDIAN">Non-Relative Guardian</option>
+                            </select>
+                          </td>
                           <td className="border border-gray-300 p-2 text-center">{formData.householdMembers.length > 1 && (<button type="button" onClick={() => removeHouseholdMember(member.id)} className="text-red-500 hover:text-red-700"><X className="w-4 h-4" /></button>)}</td>
                         </tr>
                       ))}
@@ -367,20 +567,20 @@ export default function BeneficiaryRegisterPage() {
               
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500">
-                  A. What is the total combined gross monthly income of all household members from all sources? <span className="text-red-500">*</span>
+                  A. What is the total combined gross annual income of all household members from all sources? <span className="text-red-500">*</span>
                 </label>
                 <select 
-                  name="monthlyIncomeRange" 
-                  value={formData.monthlyIncomeRange} 
+                  name="annualSalary" 
+                  value={formData.annualSalary} 
                   onChange={handleChange} 
                   className={inputClass} 
                   required
                 >
                   <option value="">Select Range</option>
-                  <option value="P5,000 and Below">P5,000 and Below</option>
-                  <option value="P5,001 to P13,100">P5,001 to P13,100</option>
-                  <option value="P13,101 to P19,650">P13,101 to P19,650</option>
-                  <option value="P19,651 and Above">P19,651 and Above</option>
+                  <option value="below_60000">Below ₱60,000</option>
+                  <option value="60000_120000">₱60,000 - ₱120,000</option>
+                  <option value="120000_200000">₱120,000 - ₱200,000</option>
+                  <option value="200000_above">₱200,000 and Above</option>
                 </select>
               </div>
 
@@ -481,6 +681,54 @@ export default function BeneficiaryRegisterPage() {
           </form>
         </div>
       </main>
+      {/* OTP Verification Modal */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#0a291a] rounded-2xl p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-[#004225] dark:text-white mb-4">Verify Your Email</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              We've sent a 6-digit verification code to <strong>{formData.email}</strong>. Please enter it below.
+            </p>
+
+            {error && (
+              <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <input
+              type="text"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              placeholder="Enter 6-digit OTP"
+              className={`${inputClass} text-center text-2xl tracking-widest mb-6`}
+            />
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                onClick={handleOtpVerification}
+                disabled={otpLoading || otp.length !== 6}
+                className="flex-1 bg-[#ffb000] text-black hover:bg-[#ffc107]"
+              >
+                {otpLoading ? "Verifying..." : "Verify"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowOtpModal(false);
+                  setOtp("");
+                  setError("");
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <Footer />
     </div>
   );

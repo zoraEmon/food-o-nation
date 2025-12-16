@@ -1,5 +1,5 @@
 import { email, string, z } from 'zod';
-import { Gender, CivilStatus, DonorType, DonationStatus} from "@prisma/client";
+import { Gender, CivilStatus, DonorType, DonationStatus, HouseholdPosition } from "../../generated/prisma/index.js";
 
 // Common Login Schema
 
@@ -33,6 +33,8 @@ export const registerBeneficiarySchema = z.object({
     occupation: z.string().min(1, 'Occupation is required'),
     householdNumber: z.coerce.number().int().min(1, 'Household number must be at least 1'),
     householdAnnualSalary: z.coerce.number().min(0, 'Household annual income must be at least 0'),
+    householdPosition: z.nativeEnum(HouseholdPosition),
+    primaryPhone: z.string().min(11, 'Primary phone is required'),
 
     // Address Info
     streetNumber: z.string().min(1, 'Street number is required'),
@@ -69,24 +71,32 @@ export const donationItemSchema = z.object({
  * Schema for monetary donation creation
  */
 export const createMonetaryDonationSchema = z.object({
-  donorId: z.string().uuid('Invalid donor ID format'),
+  donorId: z.string().uuid('Invalid donor ID format').optional(),
   amount: z.number()
     .positive('Amount must be greater than 0')
     .min(1, 'Minimum donation amount is ₱1')
     .max(1000000, 'Maximum donation amount is ₱1,000,000'),
-  paymentMethod: z.enum(['PayPal', 'Stripe', 'Mastercard', 'Visa', 'Credit Card', 'Debit Card', 'Maya', 'Bank Transfer'], {
-    error: () => ({ message: 'Invalid payment method' })
+  paymentMethod: z.string().trim().transform((val, ctx) => {
+    const allowed = ['PayPal', 'Stripe', 'Mastercard', 'Visa', 'Credit Card', 'Debit Card', 'Maya', 'Bank Transfer'];
+    const match = allowed.find(method => method.toLowerCase() === val.toLowerCase());
+    if (!match) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid payment method' });
+      return z.NEVER;
+    }
+    return match;
   }),
   paymentReference: z.string()
     .min(5, 'Payment reference must be at least 5 characters')
     .max(100, 'Payment reference is too long'),
+  guestName: z.string().min(2, 'Guest name must be at least 2 characters').optional(),
+  guestEmail: z.string().email('Invalid guest email').optional(),
 });
 
 /**
  * Schema for produce donation creation
  */
 export const createProduceDonationSchema = z.object({
-  donorId: z.string().uuid('Invalid donor ID format'),
+  donorId: z.string().uuid('Invalid donor ID format').optional(),
   donationCenterId: z.string().uuid('Invalid donation center ID format'),
   scheduledDate: z.string()
     .datetime('Invalid date format, expected ISO 8601')
@@ -103,6 +113,8 @@ export const createProduceDonationSchema = z.object({
   items: z.array(donationItemSchema)
     .min(1, 'At least one donation item is required')
     .max(50, 'Maximum 50 items per donation'),
+  guestName: z.string().min(2, 'Guest name must be at least 2 characters').optional(),
+  guestEmail: z.string().email('Invalid guest email').optional(),
   // imageUrls will be handled by multer middleware
 });
 
