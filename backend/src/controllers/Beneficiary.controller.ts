@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getBeneficiaryByIdService, getAllBeneficiaryService, createBeneficiaryService, updateBeneficiaryService  } from '../services/beneficiary.service.js';
+import { getBeneficiaryByIdService, getAllBeneficiaryService, createBeneficiaryService, updateBeneficiaryService,deleteBeneficiaryService  } from '../services/beneficiary.service.js';
 import { BeneficiaryData } from '../interfaces/interfaces.js';
 
 
@@ -51,7 +51,21 @@ export const updateBeneficiary = async (req: Request, res: Response) => {
         }
         res.status(200).json({ success: true, data: updatedBeneficiary });
     }
-    catch(error){
+    catch(error:any){
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+export const deleteBeneficiary = async (req: Request, res: Response) => {
+    try{
+        const beneficiaryId = req.params.id;
+        const deletedBeneficiary = await deleteBeneficiaryService(beneficiaryId);
+        if(!deletedBeneficiary){
+            return res.status(404).json({ success: false, error: 'Beneficiary not found' });
+        }
+        res.status(200).json({ success: true, data: deletedBeneficiary });
+    }
+    catch(error:any){
+        res.status(500).json({ success: false, error: error.message });
+    }
+}

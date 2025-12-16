@@ -158,7 +158,7 @@ export class StallApplicationService {
     });
 
     let cancelled = 0;
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx:any) => {
       for (const app of expiring) {
         await tx.stallApplication.update({
           where: { id: app.id },
@@ -188,9 +188,9 @@ export class StallApplicationService {
       where: { stallReservation: { programId } },
     });
     const total = apps.length;
-    const pending = apps.filter((a) => a.applicationStatus === 'PENDING').length;
-    const completed = apps.filter((a) => a.applicationStatus === 'COMPLETED').length;
-    const cancelled = apps.filter((a) => a.applicationStatus === 'CANCELLED').length;
+    const pending = apps.filter((a:any) => a.applicationStatus === 'PENDING').length;
+    const completed = apps.filter((a:any) => a.applicationStatus === 'COMPLETED').length;
+    const cancelled = apps.filter((a:any) => a.applicationStatus === 'CANCELLED').length;
     return {
       total,
       pending,

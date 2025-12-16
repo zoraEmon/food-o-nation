@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getPlaceByIdService, getAllPlacesService,createPlaceService,updatePlaceService  } from '../services/place.service.js';
+import { getPlaceByIdService, getAllPlacesService,createPlaceService,updatePlaceService,deletePlaceService  } from '../services/place.service.js';
 import { PlaceData } from '../interfaces/interfaces.js';
 
 
@@ -54,7 +54,20 @@ export const updatePlace = async (req: Request, res: Response) => {
         }   
         res.status(200).json({ success: true, data: updatedPlace });
     }
-    catch(error){
+    catch(error:any){
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+export const deletePlace = async (req: Request, res: Response) => {
+    try{
+        const placeId = req.params.id;
+        const deletedPlace = await deletePlaceService(placeId);
+        if(!deletedPlace){
+            return res.status(404).json({ success: false, error: 'Place not found' });
+        }
+        res.status(200).json({ success: true, data: deletedPlace });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error });
+    }
+}

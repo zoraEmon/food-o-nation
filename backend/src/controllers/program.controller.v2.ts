@@ -1,7 +1,7 @@
 import { createProgramService, getAllProgramsService, getProgramByIdService, updateProgramService, publishProgramService, cancelProgramService } from '../services/program.service.v2.js';
-
+import { Request, Response } from 'express';
 // Create new program
-export const createProgram = async (req, res) => {
+export const createProgram = async (req: Request, res: Response) => {
   try {
     const result = await createProgramService(req.body);
     
@@ -18,7 +18,7 @@ export const createProgram = async (req, res) => {
       message: result.message,
       data: result.data
     });
-  } catch (error) {
+  } catch (error:any) {
     console.error('Controller error:', error);
     return res.status(500).json({
       success: false,
@@ -29,7 +29,7 @@ export const createProgram = async (req, res) => {
 };
 
 // Get all programs
-export const getAllPrograms = async (req, res) => {
+export const getAllPrograms = async (req: Request, res: Response) => {
   try {
     const status = req.query.status;
     const filters = status ? { status } : {};
@@ -48,7 +48,7 @@ export const getAllPrograms = async (req, res) => {
       count: result.count,
       data: result.data
     });
-  } catch (error) {
+  } catch (error:any) {
     console.error('Controller error:', error);
     return res.status(500).json({
       success: false,
@@ -59,7 +59,7 @@ export const getAllPrograms = async (req, res) => {
 };
 
 // Get program by ID
-export const getProgramById = async (req, res) => {
+export const getProgramById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await getProgramByIdService(id);
@@ -76,7 +76,7 @@ export const getProgramById = async (req, res) => {
       success: true,
       data: result.data
     });
-  } catch (error) {
+  } catch (error:any) {
     console.error('Controller error:', error);
     return res.status(500).json({
       success: false,
@@ -87,7 +87,7 @@ export const getProgramById = async (req, res) => {
 };
 
 // Update program
-export const updateProgram = async (req, res) => {
+export const updateProgram = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await updateProgramService(id, req.body);
@@ -106,7 +106,7 @@ export const updateProgram = async (req, res) => {
       message: result.message,
       data: result.data
     });
-  } catch (error) {
+  } catch (error:any) {
     console.error('Controller error:', error);
     return res.status(500).json({
       success: false,
@@ -117,7 +117,7 @@ export const updateProgram = async (req, res) => {
 };
 
 // Publish program (set status to APPROVED)
-export const publishProgram = async (req, res) => {
+export const publishProgram = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await publishProgramService(id);
@@ -135,7 +135,7 @@ export const publishProgram = async (req, res) => {
       message: result.message,
       data: result.data
     });
-  } catch (error) {
+  } catch (error:any) {
     console.error('Controller error:', error);
     return res.status(500).json({
       success: false,
@@ -146,7 +146,7 @@ export const publishProgram = async (req, res) => {
 };
 
 // Cancel program
-export const cancelProgram = async (req, res) => {
+export const cancelProgram = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -166,7 +166,7 @@ export const cancelProgram = async (req, res) => {
       message: result.message,
       data: result.data
     });
-  } catch (error) {
+  } catch (error:any) {
     console.error('Controller error:', error);
     return res.status(500).json({
       success: false,

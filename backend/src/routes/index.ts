@@ -8,7 +8,10 @@ import donorRoutes from './donor.routes.js';
 import stallReservationRoutes from './stallReservation.routes.js';
 import paymentRoutes from './payment.routes.js';
 import newsletterRoutes from './newsletter.routes.js';
-
+import programRigerstationRoutes from './programRegisteration.routes.js';
+import donationItemRoutes from './donationItem.routes.js';
+import donationCenterRoutes from './donationCenter.routes.js';
+import benificaryAddressCountRoutes from './beneficiaryChartData.routes.js';
 // ruta for auth related endpoints [29/11/2025]
 const router = express.Router();
 
@@ -18,8 +21,11 @@ router.use('/places', placeRoutes);
 router.use('/donations', donationRoutes);
 router.use('/beneficiaries', beneficiaryRoutes);
 router.use('/donors', donorRoutes);
+router.use('/donationCenter', donationCenterRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/newsletters', newsletterRoutes);
 router.use('/', stallReservationRoutes);
-
+router.use('/programRegistration', programRigerstationRoutes);
+router.use('/donationItem', donationItemRoutes);
+router.use('/beneficiaryChartData', benificaryAddressCountRoutes);
 export default router;
