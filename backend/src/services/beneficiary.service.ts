@@ -196,3 +196,18 @@ const mapAddress = (a: AddressInput) => ({
   country: a.country ?? 'Philippines',
   zipCode: a.zipCode ?? '',
 });
+export const deleteBeneficiaryService = async (beneficiaryId: string) => {
+  try {
+    const result = await prisma.beneficiary.delete({
+      where: { id: beneficiaryId },
+    });
+
+    return result;
+  } catch (error: any) {
+    console.error('Error in deleteBeneficiaryService:', error);
+
+    if (error.code === 'P2025') {
+      throw new Error(`Beneficiary with id ${beneficiaryId} not found.`);
+    }   throw new Error('Failed to delete beneficiary: ' + error.message);
+  }
+}

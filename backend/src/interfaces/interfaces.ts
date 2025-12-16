@@ -6,6 +6,9 @@ import {
   MainEmploymentStatus,
   FoodFrequency,
   FoodSecuritySeverity,
+  ProgramStatus,
+  DonationStatus,
+  DonorType
 } from '../../generated/prisma/index.js';
 export interface ProgramData {
     title: string;
@@ -100,4 +103,99 @@ export interface FoodSecuritySurveyInput {
   totalScore?: number;
   severity?: FoodSecuritySeverity;
   notes?: string;
+}
+
+export interface DonationItemData {
+  name: string;        // "Rice", "Canned Goods", "Cash"
+  category: string;    // "Food", "Hygiene", "Monetary"
+  quantity: number;    // 50
+  unit: string;        // "kg", "pcs", "PHP"
+  donationId?: string;  // Parent donation ID
+}
+
+export interface ProgramRegistrationData {
+  status: ProgramStatus;
+  registeredAt: Date;
+  programId: string;
+  beneficiaryId: string;
+}
+export interface DonationCenterData {
+  contactInfo: string;
+  placeId: string;
+}
+export interface AddressData {
+  streetNumber: string;
+  barangay: string;
+  municipality: string;
+  region: string;
+  country: string;
+  zipCode: string;
+  beneficiaryId: string;
+}
+export enum PaymentMethod {
+  GCASH = "GCASH",
+  PAYPAL = "PAYPAL",
+  CREDIT_CARD = "CREDIT_CARD",
+  CASH = "CASH",
+  BANK_TRANSFER = "BANK_TRANSFER",
+}
+export interface Donation {
+  status: DonationStatus;
+  scheduledDate: Date;
+  createdAt: Date;
+
+  // Donor (logged-in user)
+  donorId?: string | null;
+
+
+  // Program (optional / general donation)
+  programId?: string | null;
+
+
+  // Guest donor (non-logged-in)
+  guestName?: string | null;
+  guestEmail?: string | null;
+
+  // Payment info (monetary donations)
+  paymentReference?: string | null;
+  paymentMethod?: PaymentMethod | null;
+
+  // Destination (required)
+  donationCenterId: string;
+
+}
+export interface DonorData {
+  displayName: string;
+  donorType: DonorType;
+  totalDonation: string;
+  points: number;
+  userId: string;
+}
+
+// ========================================================
+// PAGE DETAIL INTERFACES
+// ========================================================
+
+// Interface.ts - Updated to match Prisma schema
+
+export interface UpdateLogoData {
+  logoUrl: string;
+}
+
+export interface UpdateAboutUsData {
+  aboutUs: string; // max 3000 characters (validated in controller)
+}
+
+export interface UpdateSocialLinksData {
+  facebookUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
+  linkedinUrl?: string;
+}
+
+export interface UpdateContactInfoData {
+  contactNumber?: string;
+  contactEmail?: string;
+  location?: string;
+  serviceSchedule?: string;
 }

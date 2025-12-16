@@ -18,7 +18,7 @@ export const createProgram = async (req: Request, res: Response) =>{
         const programData: ProgramData = req.body;
         const newProgram = await createProgramService(programData);
         res.status(201).json({success:true,data:newProgram});
-    } catch(error){
+    } catch(error:any){
         res.status(500).json({success:false,error:error.message})
     }
 }
@@ -26,7 +26,7 @@ export const getAllPrograms = async (req: Request, res: Response) => {
     try {
         const programs = await getAllProgramsService();
         res.status(200).json({ success: true, data: programs });
-    } catch (error) {
+    } catch (error:any) {
         res.status(500).json({ success: false, error: error.message });
     }
 };
@@ -41,7 +41,7 @@ export const getProgramById = async (req: Request, res: Response) => {
         }
 
         res.status(200).json({ success: true, data: program });
-    } catch (error) {
+    } catch (error:any) {
         res.status(500).json({ success: false, error: error.message });
     }
 };
@@ -56,7 +56,7 @@ export const updateProgram = async (req: Request, res: Response) => {
         }
         res.status(200).json({ success: true, data: updatedProgram });
     }
-    catch(error){
+    catch(error:any){
         res.status(500).json({ success: false, error: error.message });
     }   
 }

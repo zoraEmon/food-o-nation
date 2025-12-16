@@ -381,7 +381,7 @@ export const updateExpiredApplicationStatusesService = async () => {
     const updateResult = await prisma.programApplication.updateMany({
       where: {
         id: {
-          in: expiredApplications.map((app) => app.id),
+          in: expiredApplications.map((app:any) => app.id),
         },
       },
       data: {
@@ -459,11 +459,11 @@ export const getProgramApplicationStatsService = async (programId: string) => {
 
     const stats = {
       total: applications.length,
-      pending: applications.filter((app) => app.applicationStatus === 'PENDING').length,
-      completed: applications.filter((app) => app.applicationStatus === 'COMPLETED').length,
-      cancelled: applications.filter((app) => app.applicationStatus === 'CANCELLED').length,
+      pending: applications.filter((app:any) => app.applicationStatus === 'PENDING').length,
+      completed: applications.filter((app:any) => app.applicationStatus === 'COMPLETED').length,
+      cancelled: applications.filter((app:any) => app.applicationStatus === 'CANCELLED').length,
       scanRate: applications.length > 0
-        ? ((applications.filter((app) => app.applicationStatus === 'COMPLETED').length / applications.length) * 100).toFixed(2) + '%'
+        ? ((applications.filter((app:any) => app.applicationStatus === 'COMPLETED').length / applications.length) * 100).toFixed(2) + '%'
         : '0%',
     };
 
