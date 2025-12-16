@@ -45,7 +45,13 @@ export default function MonetaryCallbackPage() {
           }
         } catch {}
 
-        const result = await finalizeMonetaryDonation(donorId, amount, provider || 'maya', ref, guestName, guestEmail);
+        // Determine payment method from provider
+        let paymentMethod = provider || 'maya';
+        if (provider === 'paypal') paymentMethod = 'PayPal';
+        else if (provider === 'maya') paymentMethod = 'Maya';
+        else if (provider === 'stripe') paymentMethod = 'Credit Card';
+
+        const result = await finalizeMonetaryDonation(donorId, amount, paymentMethod, ref, guestName, guestEmail);
         if (!result.success) {
           setState({ loading: false, error: result.message || 'Failed to finalize donation.' });
           return;

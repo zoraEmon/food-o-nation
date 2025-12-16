@@ -33,6 +33,17 @@ router.post(
 );
 
 /**
+ * @route   POST /api/donations/paypal/checkout
+ * @desc    Initialize PayPal Checkout and return redirectUrl
+ * @access  Private (Donor)
+ */
+router.post(
+  '/paypal/checkout',
+  // authenticateToken, // Uncomment when auth middleware is ready
+  (req, res) => donationController.initPayPalCheckout(req, res)
+);
+
+/**
  * @route   POST /api/donations/produce
  * @desc    Create a produce donation with scheduled drop-off
  * @access  Private (Donor)

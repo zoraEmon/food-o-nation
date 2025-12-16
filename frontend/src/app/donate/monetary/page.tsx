@@ -7,7 +7,7 @@ import { ArrowLeft, CheckCircle, Mail, CreditCard, Smartphone, Globe, Lock, Hear
 import { Button } from "@/components/ui/Button";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { initMayaCheckout } from "@/services/monetaryService";
+import { initMayaCheckout, initPayPalCheckout } from "@/services/monetaryService";
 
 // --- CONSTANTS ---
 const PRESET_AMOUNTS = [100, 250, 500, 1000, 2000, 5000];
@@ -143,7 +143,7 @@ export default function MonetaryDonationPage() {
         } catch {}
       }
 
-      // For Maya/GCash or PayPal: initiate checkout and redirect to provider
+      // For Maya: initiate checkout and redirect to provider
       if (paymentMethod === 'GCASH') {
         const data = await initMayaCheckout(donorId, parseFloat(amount), `Donation - ${frequency}`);
         // Redirect to Maya payment page
@@ -151,19 +151,21 @@ export default function MonetaryDonationPage() {
         return;
       }
 
-      // For credit card, we would call a different backend or simulate
-      // For now, just show success modal for CARD method (simulated)
+      // For PayPal: initiate checkout and redirect to provider
+      if (paymentMethod === 'PAYPAL') {
+        const data = await initPayPalCheckout(donorId, parseFloat(amount), `Donation - ${frequency}`);
+        // Redirect to PayPal payment page
+        window.location.href = data.redirectUrl!;
+        return;
+      }
+
+      // For credit card: simulate processing or call backend
       if (paymentMethod === 'CARD') {
+        // In production, this would call a backend Stripe endpoint
+        // For now, simulate processing
         await new Promise(resolve => setTimeout(resolve, 2000));
         setLoading(false);
         setShowSuccess(true);
-      }
-
-      // PayPal flow can be similar (initiate backend PayPal checkout and redirect)
-      if (paymentMethod === 'PAYPAL') {
-        // TODO: Implement PayPal backend checkout initiation
-        alert('PayPal integration coming soon!');
-        setLoading(false);
       }
     } catch (e: any) {
       alert(e?.message || 'Payment initiation failed.');
@@ -357,10 +359,10 @@ export default function MonetaryDonationPage() {
                     <span className="font-bold text-lg">Credit Card</span>
                   </div>
 
-                  {/* Maya Option (was GCash) */}
+                  {/* Maya Option */}
                   <div onClick={() => setPaymentMethod('GCASH')} className={`cursor-pointer p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${paymentMethod === 'GCASH' ? 'border-[#004225] bg-[#004225] text-white shadow-lg' : 'border-gray-200 bg-white text-gray-600 hover:border-[#004225]'}`}>
                     <Smartphone className="w-6 h-6" />
-                    <span className="font-bold text-lg">Maya / GCash</span>
+                    <span className="font-bold text-lg">Maya</span>
                   </div>
 
                   {/* PayPal Option */}

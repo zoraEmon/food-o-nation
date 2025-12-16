@@ -150,6 +150,54 @@ export class DonationController {
   }
 
   /**
+   * Initialize PayPal Checkout and return redirectUrl
+   * POST /api/donations/paypal/checkout
+   */
+  async initPayPalCheckout(req: Request, res: Response): Promise<void> {
+    try {
+      const { donorId, amount, description } = req.body || {};
+      const numericAmount = Number(amount);
+      if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
+        res.status(400).json({ success: false, message: 'Positive amount is required' });
+        return;
+      }
+
+      // Optional: ensure donor exists only when donorId is provided
+      if (donorId) {
+        const service = new DonationService();
+        const donor = await (service as any).prisma?.donor?.findUnique?.({ where: { id: donorId } }).catch(() => null);
+        if (!donor) {
+          res.status(404).json({ success: false, message: 'Donor not found' });
+          return;
+        }
+      }
+
+      const pg = new PaymentGatewayService();
+      const appBase = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
+      
+      // Generate a reference for tracking
+      const reference = `PAYPAL-${Date.now()}`;
+      
+      // For sandbox testing, use a mock redirect URL or use PayPal's test mode
+      // In production, call PayPal Orders API to create an order first
+      const redirectUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${reference}`;
+
+      res.status(200).json({
+        success: true,
+        message: 'PayPal checkout initialized',
+        data: {
+          donorId,
+          amount: numericAmount,
+          paymentReference: reference,
+          redirectUrl,
+        },
+      });
+    } catch (error) {
+      handleServiceError(error, res);
+    }
+  }
+
+  /**
    * Create a produce donation
    * POST /api/donations/produce
    */

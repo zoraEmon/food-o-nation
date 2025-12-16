@@ -13,6 +13,27 @@ export type InitMayaCheckoutResponse = {
   };
 };
 
+export type InitPayPalCheckoutResponse = {
+  success: boolean;
+  message?: string;
+  data?: {
+    donorId?: string;
+    amount?: number;
+    paymentReference?: string;
+    redirectUrl?: string;
+  };
+};
+
+export type InitCreditCardCheckoutResponse = {
+  success: boolean;
+  message?: string;
+  data?: {
+    donorId?: string;
+    amount?: number;
+    clientSecret?: string;
+  };
+};
+
 export async function initMayaCheckout(donorId: string | null, amount: number, description?: string) {
   const res = await axios.post<InitMayaCheckoutResponse>(`${API_BASE}/maya/checkout`, {
     donorId: donorId || undefined,
@@ -21,6 +42,18 @@ export async function initMayaCheckout(donorId: string | null, amount: number, d
   });
   if (!res.data.success || !res.data.data?.redirectUrl) {
     throw new Error(res.data.message || 'Failed to initialize Maya checkout');
+  }
+  return res.data.data;
+}
+
+export async function initPayPalCheckout(donorId: string | null, amount: number, description?: string) {
+  const res = await axios.post<InitPayPalCheckoutResponse>(`${API_BASE}/paypal/checkout`, {
+    donorId: donorId || undefined,
+    amount,
+    description,
+  });
+  if (!res.data.success || !res.data.data?.redirectUrl) {
+    throw new Error(res.data.message || 'Failed to initialize PayPal checkout');
   }
   return res.data.data;
 }
