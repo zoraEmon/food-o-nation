@@ -12,6 +12,96 @@ export type PaymentVerification = {
 
 export class PaymentGatewayService {
   /**
+   * Create a PayPal Order and return its ID and approval URL
+   */
+  async createPayPalOrder(amount: number, description?: string): Promise<{
+    success: boolean;
+    orderId?: string;
+    redirectUrl?: string;
+    raw?: unknown;
+    failureReason?: string;
+  }> {
+    const base = process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com';
+    const clientId = process.env.PAYPAL_CLIENT_ID;
+    const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+    const appBase = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
+
+    if (!clientId || !clientSecret) {
+      return { success: false, failureReason: 'Missing PayPal credentials (PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET)' };
+    }
+
+    try {
+      // Get access token
+      const creds = `${clientId}:${clientSecret}`;
+      const tokenRes = await fetch(`${base}/v1/oauth2/token`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(creds).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'grant_type=client_credentials',
+      });
+
+      if (!tokenRes.ok) {
+        const text = await tokenRes.text().catch(() => '');
+        return { success: false, failureReason: `PayPal auth failed: ${tokenRes.status} ${text}` };
+      }
+
+      const { access_token: token } = (await tokenRes.json()) as { access_token: string };
+
+      // Create order
+      const orderBody = {
+        intent: 'CAPTURE',
+        purchase_units: [
+          {
+            amount: {
+              currency_code: 'PHP',
+              value: amount.toFixed(2),
+            },
+            description: description || 'Food Donation',
+          },
+        ],
+        application_context: {
+          brand_name: 'Food-O-Nation',
+          return_url: `${appBase}/donate/monetary/callback?provider=paypal&status=success`,
+          cancel_url: `${appBase}/donate/monetary/callback?provider=paypal&status=cancel`,
+        },
+      };
+
+      const orderRes = await fetch(`${base}/v2/checkout/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderBody),
+      });
+
+      if (!orderRes.ok) {
+        const text = await orderRes.text().catch(() => '');
+        return { success: false, failureReason: `PayPal order creation failed: ${orderRes.status} ${text}` };
+      }
+
+      const order = await orderRes.json();
+      const orderId = order.id;
+      const approveLink = order.links?.find((link: any) => link.rel === 'approve');
+
+      if (!orderId || !approveLink?.href) {
+        return { success: false, failureReason: 'PayPal order created but missing approval link', raw: order };
+      }
+
+      return {
+        success: true,
+        orderId,
+        redirectUrl: approveLink.href,
+        raw: order,
+      };
+    } catch (err: any) {
+      return { success: false, failureReason: `PayPal error: ${err?.message || err}` };
+    }
+  }
+
+  /**
    * Create a Maya sandbox Checkout and return its ID and redirect URL
    */
   async createMayaCheckout(amount: number, description?: string): Promise<{
@@ -280,53 +370,116 @@ export class PaymentGatewayService {
       return { success: false, provider: 'PayPal', failureReason: 'Missing PayPal credentials' };
     }
 
-    const creds = `${clientId}:${clientSecret}`;
-    const tokenRes = await fetch(`${base}/v1/oauth2/token`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(creds).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: 'grant_type=client_credentials',
-    });
+    try {
+      const creds = `${clientId}:${clientSecret}`;
+      const tokenRes = await fetch(`${base}/v1/oauth2/token`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(creds).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'grant_type=client_credentials',
+      });
 
-    if (!tokenRes.ok) {
-      return { success: false, provider: 'PayPal', failureReason: 'Unable to authenticate with PayPal' };
-    }
+      if (!tokenRes.ok) {
+        return { success: false, provider: 'PayPal', failureReason: 'Unable to authenticate with PayPal' };
+      }
 
-    const { access_token: token } = (await tokenRes.json()) as { access_token: string };
+      const { access_token: token } = (await tokenRes.json()) as { access_token: string };
 
-    const orderRes = await fetch(`${base}/v2/checkout/orders/${orderId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      // First, get the order details to check its status
+      const orderRes = await fetch(`${base}/v2/checkout/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    if (!orderRes.ok) {
-      return { success: false, provider: 'PayPal', failureReason: 'Order not found or unauthorized' };
-    }
+      if (!orderRes.ok) {
+        return { success: false, provider: 'PayPal', failureReason: 'Order not found or unauthorized' };
+      }
 
-    const order = await orderRes.json();
-    const statusOk = order.status === 'COMPLETED';
-    const orderAmount = parseFloat(order.purchase_units?.[0]?.amount?.value || '0');
-    const amountOk = orderAmount >= amount;
+      const order = await orderRes.json();
 
-    if (statusOk && amountOk) {
-      const receiptUrl = order.links?.find((link: any) => link.rel === 'self')?.href;
+      // If order is APPROVED, we need to capture it
+      if (order.status === 'APPROVED') {
+        const captureRes = await fetch(`${base}/v2/checkout/orders/${orderId}/capture`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!captureRes.ok) {
+          const errorText = await captureRes.text().catch(() => '');
+          return { 
+            success: false, 
+            provider: 'PayPal', 
+            failureReason: `Failed to capture order: ${captureRes.status} ${errorText}`,
+            raw: order
+          };
+        }
+
+        const capturedOrder = await captureRes.json();
+        const captureStatus = capturedOrder.status;
+        // PayPal capture amount is usually in payments.captures[0].amount.value
+        const captureAmountStr = capturedOrder.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.value
+          ?? capturedOrder.purchase_units?.[0]?.amount?.value
+          ?? '0';
+        const orderAmount = parseFloat(captureAmountStr || '0');
+        
+        // Allow small rounding differences (within 0.01)
+        const amountOk = Math.abs(orderAmount - amount) <= 0.01 || orderAmount >= amount;
+
+        if (captureStatus === 'COMPLETED' && amountOk) {
+          const receiptUrl = capturedOrder.links?.find((link: any) => link.rel === 'self')?.href;
+          return {
+            success: true,
+            provider: 'PayPal',
+            transactionId: capturedOrder.id,
+            receiptUrl,
+            verifiedAt: new Date(),
+            raw: capturedOrder,
+          };
+        }
+
+         return {
+           success: false,
+           provider: 'PayPal',
+           failureReason: `Order captured but status is ${captureStatus} (expected: COMPLETED) or amount mismatch (expected: ${amount}, got: ${orderAmount})`,
+           raw: capturedOrder,
+         };
+      }
+
+      // If already completed, just verify
+      if (order.status === 'COMPLETED') {
+        const orderAmount = parseFloat(order.purchase_units?.[0]?.amount?.value || '0');
+        const amountOk = orderAmount >= amount;
+
+        if (amountOk) {
+          const receiptUrl = order.links?.find((link: any) => link.rel === 'self')?.href;
+          return {
+            success: true,
+            provider: 'PayPal',
+            transactionId: order.id,
+            receiptUrl,
+            verifiedAt: new Date(),
+            raw: order,
+          };
+        }
+      }
+
       return {
-        success: true,
+        success: false,
         provider: 'PayPal',
-        transactionId: order.id,
-        receiptUrl,
-        verifiedAt: new Date(),
+        failureReason: `Order status is ${order.status}, expected APPROVED or COMPLETED`,
         raw: order,
       };
+    } catch (error: any) {
+      return {
+        success: false,
+        provider: 'PayPal',
+        failureReason: `PayPal verification error: ${error?.message || error}`,
+      };
     }
-
-    return {
-      success: false,
-      provider: 'PayPal',
-      failureReason: 'Payment not completed or amount mismatch',
-      raw: order,
-    };
   }
 
   private async verifyStripePaymentIntent(intentId: string, amount: number): Promise<PaymentVerification> {

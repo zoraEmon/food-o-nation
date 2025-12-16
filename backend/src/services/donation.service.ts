@@ -3,11 +3,13 @@ import PrismaMock from '../memory/prismaMock.js';
 import { QRCodeService } from './qrcode.service.js';
 import { EmailService } from './email.service.js';
 import { PaymentGatewayService } from './paymentGateway.service.js';
+import { SMSService } from './sms.service.js';
 
 const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 const qrcodeService = new QRCodeService();
 const emailService = new EmailService();
 const paymentGatewayService = new PaymentGatewayService();
+const smsService = new SMSService();
 const APP_METRIC_ID = 'app-metrics';
 
 async function logActivity(userId: string | undefined, action: string, details?: string) {
@@ -160,6 +162,17 @@ export class DonationService {
         verification.provider,
         verification.receiptUrl
       );
+    }
+
+    // Send SMS notification if phone number is available
+    const recipientPhone = donor?.user?.primaryPhone;
+    if (recipientPhone && recipientName) {
+      await smsService.sendPaymentConfirmation(
+        recipientPhone,
+        recipientName,
+        amount,
+        donation.paymentReference || paymentReference
+      ).catch(err => console.error('SMS notification failed:', err));
     }
 
     // Notify all admins

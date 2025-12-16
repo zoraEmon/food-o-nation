@@ -173,14 +173,12 @@ export class DonationController {
       }
 
       const pg = new PaymentGatewayService();
-      const appBase = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
+      const created = await pg.createPayPalOrder(numericAmount, description || 'Food Donation');
       
-      // Generate a reference for tracking
-      const reference = `PAYPAL-${Date.now()}`;
-      
-      // For sandbox testing, use a mock redirect URL or use PayPal's test mode
-      // In production, call PayPal Orders API to create an order first
-      const redirectUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${reference}`;
+      if (!created.success) {
+        res.status(502).json({ success: false, message: created.failureReason || 'Failed to create PayPal order' });
+        return;
+      }
 
       res.status(200).json({
         success: true,
@@ -188,8 +186,8 @@ export class DonationController {
         data: {
           donorId,
           amount: numericAmount,
-          paymentReference: reference,
-          redirectUrl,
+          orderId: created.orderId,
+          redirectUrl: created.redirectUrl,
         },
       });
     } catch (error) {

@@ -145,6 +145,11 @@ export default function MonetaryDonationPage() {
 
       // For Maya: initiate checkout and redirect to provider
       if (paymentMethod === 'GCASH') {
+        // Store amount for callback retrieval
+        try {
+          sessionStorage.setItem('paymentAmount', amount);
+          sessionStorage.setItem('paymentMethod', 'maya');
+        } catch {}
         const data = await initMayaCheckout(donorId, parseFloat(amount), `Donation - ${frequency}`);
         // Redirect to Maya payment page
         window.location.href = data.redirectUrl!;
@@ -153,6 +158,11 @@ export default function MonetaryDonationPage() {
 
       // For PayPal: initiate checkout and redirect to provider
       if (paymentMethod === 'PAYPAL') {
+        // Store amount for callback retrieval
+        try {
+          sessionStorage.setItem('paymentAmount', amount);
+          sessionStorage.setItem('paymentMethod', 'paypal');
+        } catch {}
         const data = await initPayPalCheckout(donorId, parseFloat(amount), `Donation - ${frequency}`);
         // Redirect to PayPal payment page
         window.location.href = data.redirectUrl!;
