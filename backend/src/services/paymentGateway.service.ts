@@ -28,16 +28,18 @@ export class PaymentGatewayService {
       return { success: false, failureReason: 'Missing MAYA_SECRET_KEY or MAYA_PUBLIC_KEY' };
     }
 
+    const appBase = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
+    const reference = `TEST-${Date.now()}`;
     const body = {
       totalAmount: {
         value: amount,
         currency: 'PHP',
       },
-      requestReferenceNumber: `TEST-${Date.now()}`,
+      requestReferenceNumber: reference,
       redirectUrl: {
-        success: 'https://example.com/success',
-        failure: 'https://example.com/failure',
-        cancel: 'https://example.com/cancel',
+        success: `${appBase}/donate/monetary/callback?provider=maya&status=success&ref=${encodeURIComponent(reference)}&amount=${amount}`,
+        failure: `${appBase}/donate/monetary/callback?provider=maya&status=failure&ref=${encodeURIComponent(reference)}&amount=${amount}`,
+        cancel: `${appBase}/donate/monetary/callback?provider=maya&status=cancel&ref=${encodeURIComponent(reference)}&amount=${amount}`,
       },
       items: description
         ? [

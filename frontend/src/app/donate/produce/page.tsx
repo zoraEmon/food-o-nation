@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import Link from "next/link";
-import QRCode from "react-qr-code"; 
+import dynamic from "next/dynamic";
+const QRCode = dynamic(() => import('react-qr-code'), { ssr: false }); 
 import { 
   MapPin, Calendar, ArrowLeft, CheckCircle, Download, Clock, AlignLeft, ChevronDown, Loader2 
 } from "lucide-react";
@@ -73,7 +74,9 @@ const SuccessModal = ({ isOpen, onClose, qrData, email }: { isOpen: boolean; onC
         </p>
         
         <div className="bg-white p-4 border-2 border-dashed border-gray-300 rounded-xl mb-6 inline-block shadow-sm">
-          <QRCode id="qr-code-svg" value={qrData} size={140} level="H" bgColor="#FFFFFF" fgColor="#004225" />
+          <Suspense fallback={<div className="w-[140px] h-[140px] bg-gray-200 rounded flex items-center justify-center">Loading...</div>}>
+            <QRCode id="qr-code-svg" value={qrData} size={140} level="H" bgColor="#FFFFFF" fgColor="#004225" />
+          </Suspense>
         </div>
         
         <div className="flex flex-col gap-3">

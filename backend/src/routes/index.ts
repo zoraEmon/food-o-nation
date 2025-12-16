@@ -13,6 +13,8 @@ import donationItemRoutes from './donationItem.routes.js';
 import donationCenterRoutes from './donationCenter.routes.js';
 import benificaryAddressCountRoutes from './beneficiaryChartData.routes.js';
 import updateDetailsRoutes from './updateDetails.routers.js'; // Page details routes
+import programApplicationRoutes from './programApplication.routes.js';
+import metricsRoutes from './metrics.routes.js';
 
 // ruta for auth related endpoints [29/11/2025]
 const router = express.Router();
@@ -26,6 +28,8 @@ router.use('/donors', donorRoutes);
 router.use('/donationCenter', donationCenterRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/newsletters', newsletterRoutes);
+router.use('/program-applications', programApplicationRoutes);
+router.use('/metrics', metricsRoutes);
 router.use('/', stallReservationRoutes);
 router.use('/programRegistration', programRigerstationRoutes);
 router.use('/donationItem', donationItemRoutes);

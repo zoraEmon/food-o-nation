@@ -1,26 +1,77 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
+import axios from "axios";
+import { Loader2 } from "lucide-react";
+
+interface MonetaryDonor {
+  name: string;
+  tier: string;
+  totalDonation: number;
+  donationCount: number;
+}
+
+interface GoodsDonor {
+  name: string;
+  items: string;
+  totalItems: number;
+}
 
 export default function AcknowledgementPage() {
-  
-  // Mock Data - In a real app, this comes from your database
-  const monetaryDonors = [
-    { name: "The Santos Family", tier: "Gold" },
-    { name: "Global Tech Solutions", tier: "Gold" },
-    { name: "Maria Clara", tier: "Silver" },
-    { name: "Juan Dela Cruz", tier: "Silver" },
-    { name: "Anonymous Donor", tier: "Bronze" },
-  ];
+  const [monetaryDonors, setMonetaryDonors] = useState<MonetaryDonor[]>([]);
+  const [goodsDonors, setGoodsDonors] = useState<GoodsDonor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const goodsDonors = [
-    { name: "Barangay 143 Bakery", items: "500 Loaves of Bread" },
-    { name: "City Rice Mill", items: "20 Sacks of Rice" },
-    { name: "PureWaters Inc.", items: "100 Gallons Water" },
-    { name: "Sunrise Grocery", items: "Canned Goods Assortment" },
-    { name: "Local Farmers Co-op", items: "Fresh Vegetables" },
-  ];
+  useEffect(() => {
+    const fetchTopDonors = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/donors/top/acknowledgement");
+        if (response.data.success) {
+          setMonetaryDonors(response.data.data.monetaryDonors || []);
+          setGoodsDonors(response.data.data.goodsDonors || []);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch top donors:", err);
+        setError(err.response?.data?.message || "Failed to load donor information");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTopDonors();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-16 h-16 text-primary animate-spin" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -56,18 +107,25 @@ export default function AcknowledgementPage() {
                  </h2>
                  
                  <ul className="space-y-4">
-                   {monetaryDonors.map((donor, idx) => (
-                     <li key={idx} className="flex items-center gap-4 border-b border-gray-100 dark:border-white/10 pb-3 last:border-0 last:pb-0">
-                       {/* Avatar Placeholder */}
-                       <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm">
-                         {donor.name.charAt(0)}
-                       </div>
-                       <div>
-                         <p className="font-heading font-semibold text-gray-800 dark:text-gray-200">{donor.name}</p>
-                         <span className="text-xs font-sans text-secondary uppercase tracking-wider font-bold">{donor.tier} Tier</span>
-                       </div>
+                   {monetaryDonors.length === 0 ? (
+                     <li className="text-center text-gray-500 py-8">
+                       No monetary donations yet. Be the first to contribute!
                      </li>
-                   ))}
+                   ) : (
+                     monetaryDonors.map((donor, idx) => (
+                       <li key={idx} className="flex items-center gap-4 border-b border-gray-100 dark:border-white/10 pb-3 last:border-0 last:pb-0">
+                         {/* Avatar Placeholder */}
+                         <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm">
+                           {donor.name.charAt(0)}
+                         </div>
+                         <div className="flex-1">
+                           <p className="font-heading font-semibold text-gray-800 dark:text-gray-200">{donor.name}</p>
+                           <span className="text-xs font-sans text-secondary uppercase tracking-wider font-bold">{donor.tier} Tier</span>
+                           <p className="text-xs text-gray-500">₱{donor.totalDonation.toLocaleString()} • {donor.donationCount} donations</p>
+                         </div>
+                       </li>
+                     ))
+                   )}
                  </ul>
               </div>
 
@@ -80,17 +138,24 @@ export default function AcknowledgementPage() {
                  </h2>
                  
                  <ul className="space-y-4">
-                   {goodsDonors.map((donor, idx) => (
-                     <li key={idx} className="flex items-center gap-4 border-b border-gray-100 dark:border-white/10 pb-3 last:border-0 last:pb-0">
-                       <div className="w-10 h-10 bg-secondary/20 rounded-full flex items-center justify-center text-secondary-dark font-bold text-sm">
-                         {donor.name.charAt(0)}
-                       </div>
-                       <div>
-                         <p className="font-heading font-semibold text-gray-800 dark:text-gray-200">{donor.name}</p>
-                         <p className="text-sm text-gray-500 dark:text-gray-400 font-sans italic">{donor.items}</p>
-                       </div>
+                   {goodsDonors.length === 0 ? (
+                     <li className="text-center text-gray-500 py-8">
+                       No goods donations yet. Be the first to contribute!
                      </li>
-                   ))}
+                   ) : (
+                     goodsDonors.map((donor, idx) => (
+                       <li key={idx} className="flex items-center gap-4 border-b border-gray-100 dark:border-white/10 pb-3 last:border-0 last:pb-0">
+                         <div className="w-10 h-10 bg-secondary/20 rounded-full flex items-center justify-center text-secondary-dark font-bold text-sm">
+                           {donor.name.charAt(0)}
+                         </div>
+                         <div className="flex-1">
+                           <p className="font-heading font-semibold text-gray-800 dark:text-gray-200">{donor.name}</p>
+                           <p className="text-sm text-gray-500 dark:text-gray-400 font-sans italic">{donor.items}</p>
+                           <p className="text-xs text-gray-400">{donor.totalItems} item{donor.totalItems !== 1 ? 's' : ''} donated</p>
+                         </div>
+                       </li>
+                     ))
+                   )}
                  </ul>
               </div>
 

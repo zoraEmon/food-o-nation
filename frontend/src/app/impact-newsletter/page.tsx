@@ -1,30 +1,59 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, TrendingUp, Users, Heart, Calendar, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, Users, Heart, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { Button } from "@/components/ui/Button";
+import { getAppMetrics, type AppMetrics } from "@/services/metricsService";
 
 export default function ImpactNewsletterPage() {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [metrics, setMetrics] = useState<AppMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
 
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSubscribed(true);
-    setLoading(false);
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const data = await getAppMetrics();
+        setMetrics(data);
+      } catch (error) {
+        console.error('Failed to fetch metrics:', error);
+      } finally {
+        setMetricsLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, []);
+
+  const formatNumber = (num: number): string => {
+    return new Intl.NumberFormat('en-US').format(num);
   };
 
   const impactStats = [
-    { icon: Users, label: "Families Helped", value: "2,847", description: "Households supported this year" },
-    { icon: Heart, label: "Meals Distributed", value: "156,320", description: "Nutritious meals provided" },
-    { icon: TrendingUp, label: "Community Impact", value: "94%", description: "Beneficiaries report improved food security" },
-    { icon: Calendar, label: "Programs Active", value: "12", description: "Ongoing aid initiatives" }
+    { 
+      icon: Users, 
+      label: "Families Helped", 
+      value: metrics ? formatNumber(metrics.totalFamilies) : "...", 
+      description: "Households registered in our system" 
+    },
+    { 
+      icon: Heart, 
+      label: "Meals Distributed", 
+      value: metrics ? formatNumber(metrics.mealsDistributed) : "...", 
+      description: "Nutritious meals provided" 
+    },
+    { 
+      icon: TrendingUp, 
+      label: "Community Impact", 
+      value: metrics ? `${metrics.communityImpactPercentage}%` : "...", 
+      description: "Beneficiaries report improved food security" 
+    },
+    { 
+      icon: Calendar, 
+      label: "Programs Active", 
+      value: metrics ? metrics.activePrograms.toString() : "...", 
+      description: "Ongoing aid initiatives" 
+    }
   ];
 
   const recentUpdates = [
@@ -207,53 +236,6 @@ export default function ImpactNewsletterPage() {
                     }`}
                   />
                 ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Newsletter Signup */}
-        <section className="py-16 bg-primary text-white">
-          <div className="container mx-auto px-6">
-            <div className="max-w-2xl mx-auto text-center">
-              <div className="bg-white/10 p-8 rounded-2xl border border-white/20">
-                <Mail className="w-12 h-12 text-secondary mx-auto mb-6" />
-                <h2 className="font-heading text-3xl font-bold mb-4">
-                  Stay Connected
-                </h2>
-                <p className="text-gray-200 mb-8 font-sans">
-                  Subscribe to our newsletter for monthly impact reports, success stories, and updates on how you can help make a difference.
-                </p>
-
-                {!subscribed ? (
-                  <form onSubmit={handleSubscribe} className="space-y-4">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email address"
-                      className="w-full p-4 rounded-lg bg-white text-black placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary"
-                      required
-                    />
-                    <Button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full bg-secondary text-black hover:bg-yellow-400 font-heading font-bold py-4 rounded-lg text-lg"
-                    >
-                      {loading ? "Subscribing..." : "Subscribe to Newsletter"}
-                    </Button>
-                  </form>
-                ) : (
-                  <div className="text-center">
-                    <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                    <h3 className="font-heading text-2xl font-bold mb-2">Thank You!</h3>
-                    <p className="text-gray-200">You've successfully subscribed to our newsletter.</p>
-                  </div>
-                )}
-
-                <p className="text-xs text-gray-300 mt-4">
-                  We respect your privacy. Unsubscribe at any time.
-                </p>
               </div>
             </div>
           </div>

@@ -83,7 +83,9 @@ export class DonationController {
         validatedData.donorId,
         validatedData.amount,
         validatedData.paymentMethod,
-        validatedData.paymentReference
+        validatedData.paymentReference,
+        validatedData.guestName,
+        validatedData.guestEmail
       );
 
       res.status(201).json({
@@ -109,25 +111,24 @@ export class DonationController {
   async initMayaCheckout(req: Request, res: Response): Promise<void> {
     try {
       const { donorId, amount, description } = req.body || {};
-      if (!donorId || !amount || amount <= 0) {
-        res.status(400).json({ success: false, message: 'donorId and positive amount are required' });
+      const numericAmount = Number(amount);
+      if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
+        res.status(400).json({ success: false, message: 'Positive amount is required' });
         return;
       }
 
-      // Optional: ensure donor exists before initiating checkout
-      // We reuse DonationService donor validation via a lightweight call
-      const service = new DonationService();
-      // Validate donor by attempting a minimal query
-      const donor = await (service as any).prisma?.donor?.findUnique?.({ where: { id: donorId } }).catch(() => null);
-
-      // If direct prisma access is not exposed, skip strict validation and proceed
-      if (donorId && typeof donorId !== 'string') {
-        res.status(400).json({ success: false, message: 'Invalid donorId' });
-        return;
+      // Optional: ensure donor exists only when donorId is provided
+      if (donorId) {
+        const service = new DonationService();
+        const donor = await (service as any).prisma?.donor?.findUnique?.({ where: { id: donorId } }).catch(() => null);
+        if (!donor) {
+          res.status(404).json({ success: false, message: 'Donor not found' });
+          return;
+        }
       }
 
       const pg = new PaymentGatewayService();
-      const created = await pg.createMayaCheckout(Number(amount), description || 'Food Donation');
+      const created = await pg.createMayaCheckout(numericAmount, description || 'Food Donation');
       if (!created.success) {
         res.status(502).json({ success: false, message: created.failureReason || 'Failed to create Maya checkout' });
         return;
@@ -138,7 +139,7 @@ export class DonationController {
         message: 'Maya checkout initialized',
         data: {
           donorId,
-          amount: Number(amount),
+          amount: numericAmount,
           checkoutId: created.checkoutId,
           redirectUrl: created.redirectUrl,
         },
@@ -155,7 +156,7 @@ export class DonationController {
   async createProduceDonation(req: Request, res: Response): Promise<void> {
     try {
       // Parse and validate request body
-      const { donorId, donationCenterId, scheduledDate, items } = req.body;
+      const { donorId, donationCenterId, scheduledDate, items, guestName, guestEmail } = req.body;
       
       // Parse items if it's a string (from FormData)
       let parsedItems = items;
@@ -177,6 +178,8 @@ export class DonationController {
         donationCenterId,
         scheduledDate,
         items: parsedItems,
+        guestName,
+        guestEmail,
       });
 
       // Extract image URLs from uploaded files
@@ -190,7 +193,9 @@ export class DonationController {
         validatedData.donationCenterId,
         new Date(validatedData.scheduledDate),
         validatedData.items,
-        imageUrls
+        imageUrls,
+        validatedData.guestName,
+        validatedData.guestEmail
       );
 
       res.status(201).json({

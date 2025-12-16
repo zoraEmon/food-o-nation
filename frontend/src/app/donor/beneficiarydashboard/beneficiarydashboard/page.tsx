@@ -12,6 +12,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { authService } from "@/services/authService";
 import BeneficiaryApplicationForm from "@/components/features/beneficiary/BeneficiaryApplicationForm";
+import axios from "axios";
 
 // --- MOCK DATA: ACTIVE PROGRAMS ---
 const MOCK_ACTIVE_PROGRAMS = [
@@ -265,20 +266,62 @@ export default function BeneficiaryDashboard() {
   const [selectedProgram, setSelectedProgram] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [pastPrograms, setPastPrograms] = useState<any[]>([]);
 
   useEffect(() => {
-    const simulateFetch = () => {
-        setTimeout(() => {
-            setUserData({
-                id: '123',
-                name: 'Juan Dela Cruz',
-                email: 'juan@example.com',
-                status: 'APPROVED' 
-            });
-            setIsLoading(false);
-        }, 1500);
+    const fetchData = async () => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          setUserData({
+            id: user.id,
+            name: user.displayName || 'User',
+            email: user.email || '',
+            status: user.status || 'PENDING'
+          });
+          setHasSeenApprovedModal(user.status === 'APPROVED');
+        }
+        
+        const response = await axios.get(`http://localhost:5000/api/programs?_t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        const allPrograms = response.data.data || [];
+        const active = allPrograms.filter((p: any) => p.status === 'ACTIVE');
+        const completed = allPrograms.filter((p: any) => p.status === 'COMPLETED');
+        setPrograms(active);
+        setPastPrograms(completed);
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    simulateFetch();
+
+    fetchData();
+
+    // Re-fetch data when page becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchData();
+      }
+    };
+
+    const handleFocus = () => {
+      fetchData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const handleJoinProgram = () => {
@@ -287,7 +330,7 @@ export default function BeneficiaryDashboard() {
   }
 
   // Determine which programs to show based on "View More" toggle
-  const visibleActivePrograms = showAllPrograms ? MOCK_ACTIVE_PROGRAMS : MOCK_ACTIVE_PROGRAMS.slice(0, 3);
+  const visibleActivePrograms = showAllPrograms ? programs : programs.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-[#FAF7F0] flex flex-col">
@@ -325,20 +368,29 @@ export default function BeneficiaryDashboard() {
                             </div>
 
                             <div className="divide-y-2 divide-[#004225]/20">
-                                {visibleActivePrograms.map((program) => (
+                                {visibleActivePrograms.length === 0 ? (
+                                  <div className="p-12 text-center text-gray-500">No active programs available at the moment.</div>
+                                ) : (
+                                  visibleActivePrograms.map((program) => {
+                                    const startDate = program.startDate ? new Date(program.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA';
+                                    const startTime = program.startDate ? new Date(program.startDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+                                    const endTime = program.endDate ? new Date(program.endDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+                                    const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : 'TBA';
+                                    
+                                    return (
                                     <div key={program.id} className="p-6 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 relative transition-all hover:bg-[#FAF7F0] group">
                                         <div className="space-y-4">
                                             <div>
-                                                <p className="font-bold text-[#004225] text-xl lg:text-2xl mb-2 group-hover:text-[#FFB000] transition-colors">{program.title}</p>
+                                                <p className="font-bold text-[#004225] text-xl lg:text-2xl mb-2 group-hover:text-[#FFB000] transition-colors">{program.name}</p>
                                                 <p className="text-[#004225]/80 text-base leading-relaxed line-clamp-2">{program.description}</p>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-4">
                                                 <div className="flex items-center gap-2 text-[#004225]/80 bg-[#FFB000]/10 px-3 py-2 rounded-lg">
                                                     <MapPin className="w-5 h-5 text-[#FFB000]" />
-                                                    <span className="font-semibold">{program.location}</span>
+                                                    <span className="font-semibold">{program.location || 'Location TBA'}</span>
                                                 </div>
                                                 <span className="bg-[#FFB000] text-[#004225] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                                                    {program.status}
+                                                    ACTIVE
                                                 </span>
                                             </div>
                                         </div>
@@ -347,11 +399,11 @@ export default function BeneficiaryDashboard() {
                                             <div className="flex items-center gap-4 w-full md:w-auto md:justify-end">
                                                 <div className="flex items-center gap-2 text-[#004225]">
                                                     <Calendar className="w-5 h-5 text-[#FFB000]" />
-                                                    <span className="font-bold">{program.date}</span>
+                                                    <span className="font-bold">{startDate}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[#004225]">
                                                     <Clock className="w-5 h-5 text-[#FFB000]" />
-                                                    <span className="font-bold">{program.time}</span>
+                                                    <span className="font-bold">{timeRange}</span>
                                                 </div>
                                             </div>
                                             
@@ -363,7 +415,9 @@ export default function BeneficiaryDashboard() {
                                             </button>
                                         </div>
                                     </div>
-                                ))}
+                                  );
+                                  })
+                                )}
                             </div>
 
                             {/* View More / View Less Button */}
@@ -388,7 +442,12 @@ export default function BeneficiaryDashboard() {
                                     </div>
 
                                     <div className="divide-y-2 divide-gray-300">
-                                        {MOCK_PAST_PROGRAMS.map((program) => (
+                                        {pastPrograms.length === 0 ? (
+                                          <div className="p-8 text-center text-gray-500">No completed programs yet.</div>
+                                        ) : (
+                                          pastPrograms.map((program) => {  
+                                            const completedDate = program.endDate ? new Date(program.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Date TBA';
+                                            return (
                                             <div key={program.id} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 relative bg-gray-50 opacity-80 hover:opacity-100 transition-opacity">
                                                 <div className="space-y-3">
                                                     <div>
@@ -420,7 +479,9 @@ export default function BeneficiaryDashboard() {
                                                     </button>
                                                 </div>
                                             </div>
-                                        ))}
+                                          );
+                                          })
+                                        )}
                                     </div>
                                 </div>
                             </div>
