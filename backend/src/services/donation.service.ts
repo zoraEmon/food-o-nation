@@ -66,10 +66,19 @@ export class DonationService {
     // Validate donor exists if donorId is provided
     let donor: (Donor & { user: any }) | null = null;
     if (donorId) {
+      // First, try to find by donor ID
       donor = await prisma.donor.findUnique({
         where: { id: donorId },
         include: { user: true },
       });
+
+      // If not found, try to find by user ID (in case frontend sent userId instead of donorId)
+      if (!donor) {
+        donor = await prisma.donor.findFirst({
+          where: { userId: donorId },
+          include: { user: true },
+        });
+      }
 
       if (!donor || !donor.user) {
         throw new Error('Donor not found');
@@ -113,9 +122,9 @@ export class DonationService {
       },
     };
 
-    // Only connect donor if donorId is provided
-    if (donorId) {
-      donationData.donor = { connect: { id: donorId } };
+    // Only connect donor if donor object exists
+    if (donor) {
+      donationData.donor = { connect: { id: donor.id } };
     }
 
     const donation = await prisma.donation.create({
@@ -131,7 +140,7 @@ export class DonationService {
 
       // Update donor's total donation, credit, and points
       await prisma.donor.update({
-        where: { id: donorId },
+        where: { id: donor.id },
         data: {
           totalDonation: {
             increment: amount,
@@ -202,10 +211,19 @@ export class DonationService {
     // Validate donor exists if provided (authenticated flow)
     let donor: any = null;
     if (donorId) {
+      // First, try to find by donor ID
       donor = await prisma.donor.findUnique({
         where: { id: donorId },
         include: { user: true },
       });
+
+      // If not found, try to find by user ID (in case frontend sent userId instead of donorId)
+      if (!donor) {
+        donor = await prisma.donor.findFirst({
+          where: { userId: donorId },
+          include: { user: true },
+        });
+      }
 
       if (!donor || !donor.user) {
         throw new Error('Donor not found');
@@ -230,13 +248,13 @@ export class DonationService {
     // Create donation record
     const donation = await prisma.donation.create({
       data: {
-        ...(donorId ? { donor: { connect: { id: donorId } } } : {}),
+        ...(donor ? { donor: { connect: { id: donor.id } } } : {}),
         status: DonationStatus.SCHEDULED,
         scheduledDate,
         donationCenter: { connect: { id: donationCenterId } },
         imageUrls,
-        guestName: donorId ? undefined : guestName,
-        guestEmail: donorId ? undefined : guestEmail,
+        guestName: donor ? undefined : guestName,
+        guestEmail: donor ? undefined : guestEmail,
         items: {
           createMany: {
             data: items,

@@ -4,16 +4,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { finalizeMonetaryDonation } from '@/services/monetaryService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function MonetaryCallbackPage() {
   const params = useSearchParams();
   const router = useRouter();
+  const { user, token } = useAuth();
 
   const provider = params.get('provider');
   const status = params.get('status');
   const ref = params.get('ref');
   const amountParam = params.get('amount');
-  const token = params.get('token'); // PayPal token
+  const paypalToken = params.get('token'); // PayPal token
   const payerID = params.get('PayerID'); // PayPal payer ID
 
   const amount = useMemo(() => {
@@ -43,20 +45,32 @@ export default function MonetaryCallbackPage() {
           return;
         }
         
-        // For PayPal, use token parameter; for Maya use ref
-        let paymentRef = ref || token;
+        // For PayPal, use paypalToken parameter; for Maya use ref
+        let paymentRef = ref || paypalToken;
         
         if (!paymentRef || !amount) {
           setState({ loading: false, error: 'Missing payment reference or amount.' });
           return;
         }
-        // Get donorId and user info from localStorage if available (logged in users)
+        // Resolve donorId from AuthContext or JWT; fallback to localStorage
         let donorId: string | null = null;
         let guestName: string | undefined;
         let guestEmail: string | undefined;
 
         try {
-          donorId = localStorage.getItem('donorId');
+          if (user?.donorId) {
+            donorId = user.donorId;
+          } else if (token) {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+              const json = JSON.parse(typeof window !== 'undefined' ? atob(base64) : Buffer.from(base64, 'base64').toString());
+              donorId = json?.donorId || null;
+            }
+          } else {
+            donorId = localStorage.getItem('donorId');
+          }
+
           // For guest users, retrieve from session storage (set during donation flow)
           if (!donorId) {
             guestName = sessionStorage.getItem('guestDonorName') || undefined;
@@ -155,10 +169,10 @@ export default function MonetaryCallbackPage() {
                <span className="text-xl font-bold text-[#004225]">₱{amount.toLocaleString()}</span>
              </div>
            )}
-           {(ref || token) && (
+           {(ref || paypalToken) && (
              <div className="flex justify-between items-center">
                <span className="text-gray-600 font-medium">Reference:</span>
-               <span className="font-mono text-sm text-gray-800">{ref || token}</span>
+               <span className="font-mono text-sm text-gray-800">{ref || paypalToken}</span>
              </div>
            )}
            {state.receiptId && (

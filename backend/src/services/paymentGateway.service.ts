@@ -14,7 +14,7 @@ export class PaymentGatewayService {
   /**
    * Create a PayPal Order and return its ID and approval URL
    */
-  async createPayPalOrder(amount: number, description?: string): Promise<{
+  async createPayPalOrder(amount: number, description?: string, payerEmail?: string): Promise<{
     success: boolean;
     orderId?: string;
     redirectUrl?: string;
@@ -50,7 +50,7 @@ export class PaymentGatewayService {
       const { access_token: token } = (await tokenRes.json()) as { access_token: string };
 
       // Create order
-      const orderBody = {
+      const orderBody: any = {
         intent: 'CAPTURE',
         purchase_units: [
           {
@@ -67,6 +67,10 @@ export class PaymentGatewayService {
           cancel_url: `${appBase}/donate/monetary/callback?provider=paypal&status=cancel`,
         },
       };
+
+      if (payerEmail) {
+        orderBody.payer = { email_address: payerEmail };
+      }
 
       const orderRes = await fetch(`${base}/v2/checkout/orders`, {
         method: 'POST',
@@ -104,7 +108,7 @@ export class PaymentGatewayService {
   /**
    * Create a Maya sandbox Checkout and return its ID and redirect URL
    */
-  async createMayaCheckout(amount: number, description?: string): Promise<{
+  async createMayaCheckout(amount: number, description?: string, buyer?: { email?: string; name?: string }): Promise<{
     success: boolean;
     checkoutId?: string;
     redirectUrl?: string;
@@ -120,7 +124,7 @@ export class PaymentGatewayService {
 
     const appBase = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
     const reference = `TEST-${Date.now()}`;
-    const body = {
+    const body: any = {
       totalAmount: {
         value: amount,
         currency: 'PHP',
@@ -142,6 +146,14 @@ export class PaymentGatewayService {
           ]
         : undefined,
     };
+
+    if (buyer?.email) {
+      body.buyer = {
+        contact: {
+          email: buyer.email,
+        },
+      };
+    }
 
     const url = `${base}/checkout/v1/checkouts`;
     const attempt = async (authKey: string, label: string) => {

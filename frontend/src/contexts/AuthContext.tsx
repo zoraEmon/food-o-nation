@@ -7,9 +7,12 @@ import { useRouter } from "next/navigation";
 interface UserData {
   id: string;
   displayName: string;
+  email?: string;
   status: string;
   roles: string[];
   isVerified?: boolean;
+  donorId?: string;
+  beneficiaryId?: string;
 }
 
 interface AuthContextType {
@@ -19,6 +22,8 @@ interface AuthContextType {
   login: (token: string, user: UserData) => void;
   logout: () => void;
   loading: boolean; // To indicate if auth state is being loaded
+  donorId?: string;
+  beneficiaryId?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,6 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginUser = (newToken: string, newUser: UserData) => {
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
+    
+    // Store donorId and beneficiaryId separately for easy access
+    if (newUser.donorId) {
+      localStorage.setItem("donorId", newUser.donorId);
+    }
+    if (newUser.beneficiaryId) {
+      localStorage.setItem("beneficiaryId", newUser.beneficiaryId);
+    }
+    
     setToken(newToken);
     setUser(newUser);
     setIsLoggedIn(true);
@@ -62,6 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutUser = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("donorId");
+    localStorage.removeItem("beneficiaryId");
     setToken(null);
     setUser(null);
     setIsLoggedIn(false);
@@ -76,6 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: loginUser,
       logout: logoutUser,
       loading,
+      donorId: user?.donorId,
+      beneficiaryId: user?.beneficiaryId,
     }}>
       {children}
     </AuthContext.Provider>

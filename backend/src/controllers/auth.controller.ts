@@ -70,14 +70,27 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
 
         const data = result.data;
 
-        // 3. Check for Existing Email
+        // 3. Check for Existing Email - Verify email is unique across all users
         const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
         if (existingUser) {
             // Cleanup uploaded files
             if (files?.profileImage?.[0]) fs.unlinkSync(files.profileImage[0].path);
             if (files?.governmentIdFile?.[0]) fs.unlinkSync(files.governmentIdFile[0].path);
             if (files?.signature?.[0]) fs.unlinkSync(files.signature[0].path);
-            return res.status(400).json({ message: 'Email already in use' });
+            
+            // Provide specific message based on existing user's role
+            let roleMessage = "an account";
+            if (existingUser.donorProfile) {
+                roleMessage = "a donor account";
+            } else if (existingUser.beneficiaryProfile) {
+                roleMessage = "a beneficiary account";
+            } else if (existingUser.adminProfile) {
+                roleMessage = "an admin account";
+            }
+            
+            return res.status(400).json({ 
+                message: `This email is already registered with ${roleMessage}. Please use a different email or log in to your existing account.` 
+            });
         }
 
         // 4. Hash Password
@@ -189,6 +202,14 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
             fs.unlinkSync(req.file.path); 
         }
         console.error("Register Beneficiary Error:", error);
+        
+        // Handle unique constraint violations from database
+        if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+            return res.status(400).json({ 
+                message: "This email is already registered. Please use a different email." 
+            });
+        }
+        
         res.status(500).json({ message: 'Failed to register, internal server error.' });
     }
 }
@@ -211,11 +232,24 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
 
         const data = result.data;
 
-        // 3. Check Email
+        // 3. Check Email - Verify email is unique across all users
         const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
         if (existingUser) {
             if (req.file) fs.unlinkSync(req.file.path);
-            return res.status(400).json({ message: "Email already in use." });
+            
+            // Provide specific message based on existing user's role
+            let roleMessage = "an account";
+            if (existingUser.beneficiaryProfile) {
+                roleMessage = "a beneficiary account";
+            } else if (existingUser.donorProfile) {
+                roleMessage = "a donor account";
+            } else if (existingUser.adminProfile) {
+                roleMessage = "an admin account";
+            }
+            
+            return res.status(400).json({ 
+                message: `This email is already registered with ${roleMessage}. Please use a different email or log in to your existing account.` 
+            });
         }
 
         const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -225,12 +259,12 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
         const hashedOtp = await hashOTP(otp);
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
 
-        // 5. Create User
+        // 5. Create User with Donor Profile (Status: PENDING_APPROVAL - waiting for admin approval)
         const newUser = await prisma.user.create({
             data: {
                 email: data.email,
                 password: hashedPassword,
-                status: "PENDING",
+                status: "PENDING_APPROVAL", // Requires admin approval for donors
                 isVerified: false, // User is not verified until OTP is entered
                 otpCode: hashedOtp,
                 otpExpiresAt: otpExpiresAt,
@@ -250,14 +284,22 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
         await emailService.sendOTP(newUser.email, otp);
 
         res.status(201).json({
-            message: "Registration successful! Please check your email (or phone) for your verification code to log in.",
+            message: "Registration successful! Please check your email for your verification code. After verification, your account will be pending admin approval.",
             userId: newUser.id,
-            requireVerification: true // Indicate to frontend that OTP is required
+            requireVerification: true, // Indicate to frontend that OTP is required
+            pendingApproval: true // Indicate that admin approval is required
         });
 
     } catch (error) {
         if (req.file) fs.unlinkSync(req.file.path);
         console.error("Register Donor Error:", error);
+        
+        // Handle unique constraint violations from database
+        if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+            return res.status(400).json({ 
+                message: "This email is already registered. Please use a different email." 
+            });
+        }
         res.status(500).json({ message: 'Failed to register, internal server error.' });
     }
 }
@@ -270,7 +312,7 @@ export const login = async (req: Request, res: Response) => {
             return res.status(400).json({ errors: result.error.format() });
         }
 
-        const { email, password } = result.data;
+        const { email, password, loginType } = result.data;
 
         const user = await prisma.user.findUnique({ 
             where: { email }, 
@@ -289,8 +331,66 @@ export const login = async (req: Request, res: Response) => {
             return res.status(403).json({ message: 'Account is not active. Please contact support.' });
         }
 
+        if (user.status === 'PENDING_APPROVAL') {
+            return res.status(403).json({ 
+                message: 'Your account is pending admin approval. You will be able to log in once approved.' 
+            });
+        }
+
+        // ✅ NEW: Validate that user has the correct role
+        const hasRequestedRole = 
+            (loginType === 'BENEFICIARY' && user.beneficiaryProfile) ||
+            (loginType === 'DONOR' && user.donorProfile) ||
+            (loginType === 'ADMIN' && user.adminProfile);
+
+        if (!hasRequestedRole) {
+            // Provide helpful message about what role this account actually has
+            let actualRole = "None";
+            if (user.beneficiaryProfile) actualRole = "Beneficiary";
+            if (user.donorProfile) actualRole = "Donor";
+            if (user.adminProfile) actualRole = "Admin";
+            
+            return res.status(403).json({ 
+                message: `This account is registered as a ${actualRole}. Please log in with the correct login type or use a different account.`
+            });
+        }
+
+        // ✅ NEW: Check if user is not verified - require OTP
+        if (!user.isVerified) {
+            // Check if OTP has expired
+            const isOtpExpired = user.otpExpiresAt && user.otpExpiresAt < new Date();
+            
+            if (isOtpExpired || !user.otpCode) {
+                // Regenerate OTP for this login attempt
+                const newOtp = generateOTP();
+                const hashedOtp = await hashOTP(newOtp);
+                const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+                
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        otpCode: hashedOtp,
+                        otpExpiresAt: otpExpiresAt,
+                    }
+                });
+
+                // Send new OTP email
+                await emailService.sendOTP(user.email, newOtp);
+            }
+
+            // Return special response indicating OTP verification needed
+            return res.status(200).json({
+                requiresOtpVerification: true,
+                userId: user.id,
+                email: user.email,
+                message: "Please verify your email address. A verification code has been sent to your email."
+            });
+        }
+
         const roles: string[] = [];
         let displayName = user.email;
+        let donorId: string | undefined;
+        let beneficiaryId: string | undefined;
 
         if (user.adminProfile) {
             roles.push('ADMIN');
@@ -298,10 +398,12 @@ export const login = async (req: Request, res: Response) => {
         }
         if (user.donorProfile) {
             roles.push('DONOR');
+            donorId = user.donorProfile.id;
             if(roles.length === 1) displayName = user.donorProfile.displayName;
         }
         if (user.beneficiaryProfile) {
             roles.push('BENEFICIARY');
+            beneficiaryId = user.beneficiaryProfile.id;
             if(roles.length === 1) displayName = `${user.beneficiaryProfile.firstName} ${user.beneficiaryProfile.lastName}`;
         }
 
@@ -309,7 +411,9 @@ export const login = async (req: Request, res: Response) => {
             { 
                 userId: user.id, 
                 status: user.status, 
-                roles: roles 
+                roles: roles,
+                donorId,
+                beneficiaryId
             },
             JWT_SECRET,
             { expiresIn: '7d' }
@@ -320,8 +424,11 @@ export const login = async (req: Request, res: Response) => {
             user: {
                 id: user.id,
                 displayName,
+                email: user.email,
                 status: user.status,
-                roles: roles
+                roles: roles,
+                donorId,
+                beneficiaryId
             }
         });
 
@@ -468,6 +575,125 @@ export const verifyOTP = async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error("Verify OTP Error:", error);
+        res.status(500).json({ message: "Failed to verify OTP, internal server error." });
+    }
+};
+
+// New: Verify Donor OTP (by userId instead of email)
+export const verifyDonorOtp = async (req: Request, res: Response) => {
+    try {
+        const { userId, otp } = req.body;
+
+        if (!userId || !otp) {
+            return res.status(400).json({ message: "User ID and OTP are required." });
+        }
+
+        const user = await prisma.user.findUnique({ 
+            where: { id: userId },
+            include: {
+                beneficiaryProfile: true,
+                donorProfile: true,
+                adminProfile: true,
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ message: "Account already verified." });
+        }
+
+        if (!user.otpCode || !user.otpExpiresAt) {
+            return res.status(400).json({ message: "No OTP found for this account. Please register again." });
+        }
+
+        const isOtpValid = await compareOTP(otp, user.otpCode);
+        const isOtpExpired = user.otpExpiresAt < new Date();
+
+        if (!isOtpValid || isOtpExpired) {
+            // Clear OTP fields to prevent brute-forcing
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    otpCode: null,
+                    otpExpiresAt: null,
+                },
+            });
+            return res.status(400).json({ message: isOtpExpired ? "OTP expired." : "Incorrect OTP." });
+        }
+
+        // OTP is valid, verify the user (keep status as PENDING_APPROVAL for admin to approve)
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                isVerified: true,
+                // Keep PENDING_APPROVAL status - admin must approve the donor
+                otpCode: null,
+                otpExpiresAt: null,
+            },
+            include: {
+                beneficiaryProfile: true,
+                donorProfile: true,
+                adminProfile: true,
+            },
+        });
+
+        const roles: string[] = [];
+        let displayName = updatedUser.email;
+        let donorId: string | undefined;
+        let beneficiaryId: string | undefined;
+
+        if (updatedUser.adminProfile) {
+            roles.push("ADMIN");
+            displayName = `${updatedUser.adminProfile.firstName} ${updatedUser.adminProfile.lastName}`;
+        }
+        if (updatedUser.donorProfile) {
+            roles.push("DONOR");
+            donorId = updatedUser.donorProfile.id;
+            if(roles.length === 1) displayName = updatedUser.donorProfile.displayName;
+        }
+        if (updatedUser.beneficiaryProfile) {
+            roles.push("BENEFICIARY");
+            beneficiaryId = updatedUser.beneficiaryProfile.id;
+            if(roles.length === 1) displayName = `${updatedUser.beneficiaryProfile.firstName} ${updatedUser.beneficiaryProfile.lastName}`;
+        }
+
+        const token = jwt.sign(
+            { 
+                userId: updatedUser.id, 
+                status: updatedUser.status, 
+                roles: roles,
+                donorId,
+                beneficiaryId
+            },
+            JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Email verified successfully!",
+            token,
+            data: {
+                token,
+                user: {
+                    id: updatedUser.id,
+                    displayName,
+                    status: updatedUser.status,
+                    roles: roles,
+                    isVerified: updatedUser.isVerified,
+                    donorId,
+                    beneficiaryId
+                },
+                donorId,
+                beneficiaryId
+            }
+        });
+
+    } catch (error) {
+        console.error("Verify Donor OTP Error:", error);
         res.status(500).json({ message: "Failed to verify OTP, internal server error." });
     }
 };

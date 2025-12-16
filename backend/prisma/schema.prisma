@@ -35,7 +35,6 @@ model Admin {
   programApplicationScans ProgramApplicationScan[]
   stallApplicationsScanned StallApplication[]       @relation("StallApplicationScanner")
   stallApplicationScans    StallApplicationScan[]   @relation("StallApplicationScanAdmin")
-  newsletters             Newsletter[]
 }
 
 model Beneficiary {
@@ -424,15 +423,4 @@ enum FoodSecuritySeverity {
   MILD
   MODERATE
   SEVERE
-}
-
-model Newsletter {
-  id        String   @id @default(uuid())
-  headline  String
-  content   String
-  images    String[] @default([])
-  adminId   String
-  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }

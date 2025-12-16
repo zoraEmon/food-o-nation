@@ -8,20 +8,26 @@ const api = axios.create({
 });
 
 interface RegisterResponse {
+  success?: boolean;
   message: string;
   userId: string;
   requireVerification?: boolean;
+  data?: { userId: string; token?: string };
 }
 
 interface LoginResponse {
-  token: string;
-  user: { 
+  token?: string;
+  user?: { 
     id: string; 
     displayName: string; 
     status: string; 
     roles: string[]; 
     isVerified?: boolean; 
   };
+  requiresOtpVerification?: boolean;
+  userId?: string;
+  email?: string;
+  message?: string;
 }
 
 interface UserProfile {
@@ -80,8 +86,16 @@ export const authService = {
       }
     });
     
-    const response = await api.post<RegisterResponse>('/register/beneficiary', formData);
-    return response.data;
+    try {
+      const response = await api.post<RegisterResponse>('/register/beneficiary', formData);
+      return { success: true, ...response.data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Registration failed',
+        userId: '',
+      };
+    }
   },
 
   // 2. Register Donor (FormData for Image)
@@ -94,19 +108,41 @@ export const authService = {
         formData.append(key, String(data[key]));
       }
     });
-    const response = await api.post<RegisterResponse>('/register/donor', formData);
-    return response.data;
+    try {
+      const response = await api.post<RegisterResponse>('/register/donor', formData);
+      return { success: true, ...response.data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Registration failed',
+        userId: '',
+      };
+    }
   },
   
   // 3. Login
   login: async (email: string, password: string, loginType: string): Promise<LoginResponse> => {
-    const response = await api.post<LoginResponse>('/login', { email, password, loginType });
-    
-    if (response.data.token) {
+    try {
+      const response = await api.post<LoginResponse>('/login', { email, password, loginType });
+      
+      // If OTP verification is required
+      if (response.data.requiresOtpVerification) {
+        return response.data;
+      }
+      
+      // Otherwise, standard login with token
+      if (response.data.token) {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (err: any) {
+      return {
+        token: undefined,
+        user: undefined,
+        message: err.response?.data?.message || 'Login failed',
+      };
     }
-    return response.data;
   },
 
   // 4. Get Current User Profile
@@ -180,5 +216,27 @@ export const authService = {
         localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
+  },
+
+  // 7. Verify Donor OTP
+  verifyDonorOtp: async (userId: string, otp: string): Promise<{ success: boolean; message?: string; data?: { userId: string; token: string; user: any } }> => {
+    try {
+      const response = await api.post<any>('/verify-donor-otp', { userId, otp });
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return { 
+        success: true, 
+        message: response.data.message || 'OTP verified', 
+        data: response.data 
+      };
+    } catch (err: any) {
+      return { 
+        success: false, 
+        message: err.response?.data?.message || 'OTP verification failed',
+        data: undefined
+      };
+    }
   },
 };

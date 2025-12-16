@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { authService } from "@/services/authService";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { User, MapPin, Users, DollarSign } from "lucide-react";
 
-export default function Dashboard() {
+function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -164,5 +165,14 @@ function InfoRow({ label, value }: { label: string, value: string | number }) {
       <span className="text-gray-500 dark:text-gray-400">{label}</span>
       <span className="font-bold text-gray-800 dark:text-gray-200">{value}</span>
     </div>
+  );
+}
+
+// Wrap with ProtectedRoute for authentication
+export default function ProtectedDashboard() {
+  return (
+    <ProtectedRoute>
+      <Dashboard />
+    </ProtectedRoute>
   );
 }

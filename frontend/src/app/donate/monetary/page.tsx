@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { initMayaCheckout, initPayPalCheckout } from "@/services/monetaryService";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- CONSTANTS ---
 const PRESET_AMOUNTS = [100, 250, 500, 1000, 2000, 5000];
@@ -73,6 +74,7 @@ export default function MonetaryDonationPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const { user, isLoggedIn, token } = useAuth();
   
   // Form State
   const [amount, setAmount] = useState<string>("");
@@ -81,18 +83,17 @@ export default function MonetaryDonationPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"CARD" | "GCASH" | "PAYPAL">("CARD");
+  const [cardExpiry, setCardExpiry] = useState("");
 
-  // Load user data if logged in
+  // Load user data if logged in via AuthContext
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setDonorName(parsedUser.displayName || parsedUser.name || "");
-        setEmail(parsedUser.email || "");
-      } catch (e) { console.error(e); }
+    if (user) {
+      setDonorName(user.displayName || "");
+      if (user.email) {
+        setEmail(user.email);
+      }
     }
-  }, []);
+  }, [user]);
 
   // --- HANDLERS ---
 
@@ -117,8 +118,27 @@ export default function MonetaryDonationPage() {
     setStep(2);
   };
 
+  // Safely read donorId from context or from JWT if missing
+  const getDonorId = (): string | null => {
+    if (user?.donorId) return user.donorId;
+    if (!token) return null;
+    try {
+      const [, payload] = token.split(".");
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const json = JSON.parse(typeof window !== 'undefined' ? atob(base64) : Buffer.from(base64, 'base64').toString());
+      return json?.donorId || null;
+    } catch {
+      return null;
+    }
+  };
+
   const goToReceipt = () => {
-    setStep(3);
+    // If logged in and we have a user, skip contact details
+    if (isLoggedIn) {
+      setStep(4);
+    } else {
+      setStep(3);
+    }
   };
 
   const goToPayment = () => {
@@ -129,11 +149,8 @@ export default function MonetaryDonationPage() {
   const handleFinalDonate = async () => {
     setLoading(true);
     try {
-      // Get donorId from localStorage if logged in
-      let donorId: string | null = null;
-      try {
-        donorId = localStorage.getItem('donorId');
-      } catch {}
+      // Get donorId from AuthContext or JWT fallback if logged in
+      const donorId: string | null = getDonorId();
 
       // For guest users, store name and email in sessionStorage for callback
       if (!donorId) {
@@ -150,7 +167,12 @@ export default function MonetaryDonationPage() {
           sessionStorage.setItem('paymentAmount', amount);
           sessionStorage.setItem('paymentMethod', 'maya');
         } catch {}
-        const data = await initMayaCheckout(donorId, parseFloat(amount), `Donation - ${frequency}`);
+        const data = await initMayaCheckout(
+          donorId,
+          parseFloat(amount),
+          `Donation - ${frequency}`,
+          email || user?.email || undefined
+        );
         // Redirect to Maya payment page
         window.location.href = data.redirectUrl!;
         return;
@@ -163,7 +185,12 @@ export default function MonetaryDonationPage() {
           sessionStorage.setItem('paymentAmount', amount);
           sessionStorage.setItem('paymentMethod', 'paypal');
         } catch {}
-        const data = await initPayPalCheckout(donorId, parseFloat(amount), `Donation - ${frequency}`);
+        const data = await initPayPalCheckout(
+          donorId,
+          parseFloat(amount),
+          `Donation - ${frequency}`,
+          email || user?.email || undefined
+        );
         // Redirect to PayPal payment page
         window.location.href = data.redirectUrl!;
         return;
@@ -386,10 +413,36 @@ export default function MonetaryDonationPage() {
                 <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mt-4">
                   {paymentMethod === 'CARD' && (
                     <div className="space-y-4 animate-in fade-in">
-                      <input className={inputClass} placeholder="Card Number" maxLength={16} onChange={(e) => e.target.value = e.target.value.replace(/[^0-9]/g, '')} />
+                      <input
+                        className={inputClass}
+                        placeholder="Card Number"
+                        maxLength={16}
+                        onChange={(e) => {
+                          e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                        }}
+                      />
                       <div className="flex gap-4">
-                        <input className={inputClass} placeholder="MM/YY" maxLength={5} />
-                        <input className={inputClass} placeholder="CVC" maxLength={3} onChange={(e) => e.target.value = e.target.value.replace(/[^0-9]/g, '')} />
+                        <input
+                          className={inputClass}
+                          placeholder="MM/YY"
+                          maxLength={5}
+                          value={cardExpiry}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                            const mm = digits.slice(0, 2);
+                            const yy = digits.slice(2, 4);
+                            const formatted = yy ? `${mm}/${yy}` : mm;
+                            setCardExpiry(formatted);
+                          }}
+                        />
+                        <input
+                          className={inputClass}
+                          placeholder="CVC"
+                          maxLength={3}
+                          onChange={(e) => {
+                            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                          }}
+                        />
                       </div>
                     </div>
                   )}

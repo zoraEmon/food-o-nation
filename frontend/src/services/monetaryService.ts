@@ -34,24 +34,36 @@ export type InitCreditCardCheckoutResponse = {
   };
 };
 
-export async function initMayaCheckout(donorId: string | null, amount: number, description?: string) {
+export async function initMayaCheckout(donorId: string | null, amount: number, description?: string, email?: string) {
+  const headers: any = {};
+  try {
+    const token = localStorage.getItem('token');
+    if (token) headers.Authorization = `Bearer ${token}`;
+  } catch {}
   const res = await axios.post<InitMayaCheckoutResponse>(`${API_BASE}/maya/checkout`, {
     donorId: donorId || undefined,
     amount,
     description,
-  });
+    email,
+  }, { headers });
   if (!res.data.success || !res.data.data?.redirectUrl) {
     throw new Error(res.data.message || 'Failed to initialize Maya checkout');
   }
   return res.data.data;
 }
 
-export async function initPayPalCheckout(donorId: string | null, amount: number, description?: string) {
+export async function initPayPalCheckout(donorId: string | null, amount: number, description?: string, email?: string) {
+  const headers: any = {};
+  try {
+    const token = localStorage.getItem('token');
+    if (token) headers.Authorization = `Bearer ${token}`;
+  } catch {}
   const res = await axios.post<InitPayPalCheckoutResponse>(`${API_BASE}/paypal/checkout`, {
     donorId: donorId || undefined,
     amount,
     description,
-  });
+    email,
+  }, { headers });
   if (!res.data.success || !res.data.data?.redirectUrl) {
     throw new Error(res.data.message || 'Failed to initialize PayPal checkout');
   }
@@ -86,6 +98,11 @@ export async function finalizeMonetaryDonation(
     payload.guestEmail = guestEmail;
   }
 
-  const res = await axios.post<CreateMonetaryDonationResponse>(`${API_BASE}/monetary`, payload);
+  const headers: any = {};
+  try {
+    const token = localStorage.getItem('token');
+    if (token) headers.Authorization = `Bearer ${token}`;
+  } catch {}
+  const res = await axios.post<CreateMonetaryDonationResponse>(`${API_BASE}/monetary`, payload, { headers });
   return res.data;
 }

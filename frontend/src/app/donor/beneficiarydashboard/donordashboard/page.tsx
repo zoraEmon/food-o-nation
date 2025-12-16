@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 // --- TYPES ---
 interface DonationItem {
@@ -117,7 +118,7 @@ const SuccessModal = ({ isOpen, onClose, qrData, email }: { isOpen: boolean; onC
 };
 
 // --- MAIN PAGE COMPONENT ---
-export default function DonationProcessPage() {
+function DonationProcessPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -445,5 +446,14 @@ export default function DonationProcessPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+// Wrap with ProtectedRoute for authentication
+export default function ProtectedDonorDashboard() {
+  return (
+    <ProtectedRoute requiredRoles={['DONOR']}>
+      <DonationProcessPage />
+    </ProtectedRoute>
   );
 }

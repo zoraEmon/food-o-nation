@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
@@ -9,55 +9,32 @@ import { cn } from '@/lib/utils';
 import Modal from '../ui/Modal';
 import { HandHeart, HeartHandshake, LogOut, User, ChevronDown } from 'lucide-react';
 import LoginForm from '@/components/features/auth/LoginForm';
-import AnonymousDonationModal from '@/components/ui/AnonymousDonationModal'; // ✅ Import new modal
+import AnonymousDonationModal from '@/components/ui/AnonymousDonationModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, isLoggedIn, logout, loading } = useAuth();
   
   // --- STATE MANAGEMENT ---
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showAnonymousModal, setShowAnonymousModal] = useState(false); // ✅ New State
+  const [showAnonymousModal, setShowAnonymousModal] = useState(false);
   const [loginRole, setLoginRole] = useState<"BENEFICIARY" | "DONOR" | null>(null);
-  
-  // User State (Logged In Check)
-  const [user, setUser] = useState<any>(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
   const isActive = (path: string) => pathname === path;
 
-  // 1. Check LocalStorage on Mount
-  useEffect(() => {
-    const checkUser = () => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          console.error("Error parsing user", e);
-        }
-      }
-    };
-    checkUser();
-    window.addEventListener('storage', checkUser);
-    return () => window.removeEventListener('storage', checkUser);
-  }, []);
-
-  // 2. Handle Logout
+  // Handle Logout
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setUser(null);
+    logout();
     setShowDropdown(false);
-    router.push('/'); 
   };
 
   const closeLoginModal = () => {
     setShowLoginModal(false);
     setLoginRole(null);
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) setUser(JSON.parse(storedUser));
   };
 
   // ✅ New Handler for Donate Click
@@ -77,14 +54,22 @@ export default function Navbar() {
     router.push('/donate');
   };
 
-  const navLinks = [
-    { name: "Home", href: "/dashboard" },
+  // Public links (always visible)
+  const publicNavLinks = [
     { name: "About Us", href: "/" },
     { name: "Programs", href: "/programs" },
     { name: "Newsletter", href: "/impact-newsletter" },
     { name: "Acknowledgement", href: "/acknowledgement" },
     { name: "Contact Us", href: "/contact" },
   ];
+
+  // Authenticated links (only when logged in)
+  const authNavLinks = [
+    { name: "Home", href: "/dashboard" },
+    ...publicNavLinks
+  ];
+
+  const navLinks = user ? authNavLinks : publicNavLinks;
 
   const getUserInitials = () => {
     if (!user) return "U";
@@ -124,7 +109,7 @@ export default function Navbar() {
                <ThemeToggle />
             </div>
 
-            {/* ✅ UPDATED DONATE BUTTON */}
+            {/* ✅ DONATE BUTTON - Visible for everyone (guests and authenticated users) */}
             <button 
               onClick={handleDonateClick}
               className="font-hand text-2xl text-secondary hover:text-white transition-colors hidden sm:block bg-transparent border-none cursor-pointer"
@@ -155,7 +140,7 @@ export default function Navbar() {
                     </div>
                     
                     <Link 
-                      href="/donor/dashboard" 
+                      href="/dashboard" 
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#004225] flex items-center gap-2"
                       onClick={() => setShowDropdown(false)}
                     >
@@ -195,57 +180,53 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* --- LOGIN MODAL --- */}
+      {/* --- LOGIN SELECTION MODAL --- */}
       <Modal 
         isOpen={showLoginModal} 
         onClose={closeLoginModal}
-        title={loginRole ? "Sign In" : "Welcome Back"}
+        title="Welcome Back"
       >
-        {!loginRole && (
-          <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-            <p className="text-center text-gray-600 dark:text-gray-300 font-sans">
-              Please select your account type to continue.
-            </p>
+        <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+          <p className="text-center text-gray-600 dark:text-gray-300 font-sans">
+            Please select your account type to continue.
+          </p>
 
-            <div className="grid grid-cols-1 gap-4">
-              <div 
-                onClick={() => setLoginRole('BENEFICIARY')}
-                className="group cursor-pointer p-4 border-2 border-primary/10 hover:border-[#004225] hover:bg-[#004225]/5 rounded-xl transition-all flex items-center gap-4"
-              >
-                <div className="bg-[#004225]/10 p-3 rounded-full text-[#004225] dark:text-[#ffb000]">
-                  <HandHeart size={28} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-heading font-bold text-lg text-primary dark:text-white">Beneficiary</h4>
-                  <p className="text-xs text-gray-500 font-sans">Login to access aid programs.</p>
-                </div>
-                <div className="text-primary/20 group-hover:text-[#004225]">➜</div>
+          <div className="grid grid-cols-1 gap-4">
+            <div 
+              onClick={() => {
+                setShowLoginModal(false);
+                router.push('/login?type=beneficiary');
+              }}
+              className="group cursor-pointer p-4 border-2 border-primary/10 hover:border-[#004225] hover:bg-[#004225]/5 rounded-xl transition-all flex items-center gap-4"
+            >
+              <div className="bg-[#004225]/10 p-3 rounded-full text-[#004225] dark:text-[#ffb000]">
+                <HandHeart size={28} />
               </div>
+              <div className="flex-1">
+                <h4 className="font-heading font-bold text-lg text-primary dark:text-white">Beneficiary</h4>
+                <p className="text-xs text-gray-500 font-sans">Login to access aid programs.</p>
+              </div>
+              <div className="text-primary/20 group-hover:text-[#004225]">➜</div>
+            </div>
 
-              <div 
-                onClick={() => setLoginRole('DONOR')}
-                className="group cursor-pointer p-4 border-2 border-primary/10 hover:border-blue-600 hover:bg-blue-50 rounded-xl transition-all flex items-center gap-4"
-              >
-                <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full text-blue-600">
-                  <HeartHandshake size={28} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-heading font-bold text-lg text-primary dark:text-white group-hover:text-blue-600 transition-colors">Donor Partner</h4>
-                  <p className="text-xs text-gray-500 font-sans">Login to manage donations.</p>
-                </div>
-                <div className="text-primary/20 group-hover:text-blue-600">➜</div>
+            <div 
+              onClick={() => {
+                setShowLoginModal(false);
+                router.push('/login?type=donor');
+              }}
+              className="group cursor-pointer p-4 border-2 border-primary/10 hover:border-blue-600 hover:bg-blue-50 rounded-xl transition-all flex items-center gap-4"
+            >
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full text-blue-600">
+                <HeartHandshake size={28} />
               </div>
+              <div className="flex-1">
+                <h4 className="font-heading font-bold text-lg text-primary dark:text-white group-hover:text-blue-600 transition-colors">Donor Partner</h4>
+                <p className="text-xs text-gray-500 font-sans">Login to manage donations.</p>
+              </div>
+              <div className="text-primary/20 group-hover:text-blue-600">➜</div>
             </div>
           </div>
-        )}
-
-        {loginRole && (
-          <LoginForm 
-            role={loginRole} 
-            onBack={() => setLoginRole(null)} 
-            onClose={closeLoginModal} 
-          />
-        )}
+        </div>
       </Modal>
 
       {/* --- REGISTER MODAL --- */}

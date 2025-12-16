@@ -13,6 +13,13 @@ import BeneficiaryApplicationForm from "@/components/features/beneficiary/Benefi
 import axios from "axios";
 
 // --- helpers ---
+const getLocationFromProgram = (program: any) => {
+  if (program.location) return program.location;
+  if (program.place?.address) return program.place.address;
+  if (program.place?.name) return program.place.name;
+  return null;
+};
+
 const formatDateDisplay = (value: any) => {
   if (!value) return "Date not provided";
   const dateObj = new Date(value);
@@ -182,18 +189,34 @@ const ApprovedSuccessView = ({ name, onContinue }: { name: string; onContinue: (
 );
 
 // --- PROGRAM DETAILS MODAL ---
-const ProgramDetailsModal = ({ program, onClose, onConfirm }: { program: any; onClose: () => void; onConfirm: () => void }) => {
+const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole }: { program: any; onClose: () => void; onConfirm: () => void; userRole?: string }) => {
   const isCompleted = program.status === "COMPLETED" || program.status === "Completed";
-  const isMapLink = typeof program.location === "string" && program.location.startsWith("http");
-  const formattedDate = formatDateDisplay(program.startDate || program.date || program.datetime);
-  const timeRange = buildTimeRange(program.startDate || program.date || program.datetime, program.endDate || program.end_time);
+  const location = getLocationFromProgram(program);
+  const isMapLink = typeof location === "string" && location.startsWith("http");
+  // Handle both 'date' and 'startDate' field names
+  const programDate = program.date || program.startDate || program.datetime;
+  const formattedDate = formatDateDisplay(programDate);
+  const timeRange = buildTimeRange(programDate, program.endDate || program.end_time);
   const programTitle = program.name || program.title || "Program Details";
   
+  // Beneficiary-specific fields
   const userHasApplied = program.userHasApplied || false;
   const applicationStatus = program.userApplicationStatus;
   const claimedSlots = program.claimedSlots || 0;
-  const availableSlots = program.availableSlots;
-  const isFull = program.isFull || false;
+  const beneficiaryAvailableSlots = program.availableSlots;
+  const isBeneficiaryFull = program.isFull || false;
+  
+  // Donor-specific fields
+  const donorHasReserved = program.donorHasReserved || false;
+  const reservationStatus = program.donorReservationStatus;
+  const stallCapacity = program.stallCapacity || 0;
+  const reservedStalls = program.reservedStalls || 0;
+  const availableStalls = program.availableStalls || 0;
+  const isStallsFull = program.isFull || false;
+  const slotNumber = program.donorSlotNumber;
+  
+  const isDonor = userRole === "DONOR";
+  const isFull = isDonor ? isStallsFull : isBeneficiaryFull;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
@@ -204,7 +227,7 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm }: { program: any; on
             <h2 className="text-2xl lg:text-3xl font-bold font-heading text-[#FFB000]">{programTitle}</h2>
             <div className="flex gap-4 mt-2 text-sm lg:text-base opacity-90">
               <span className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" /> {new Date(program.startDate).toLocaleDateString()}
+                <Calendar className="w-4 h-4" /> {formatDateDisplay(programDate)}
               </span>
             </div>
           </div>
@@ -234,13 +257,13 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm }: { program: any; on
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white p-4 rounded-lg border border-[#004225]/20 space-y-3">
                 <p className="text-sm font-bold text-[#004225] uppercase tracking-wide mb-2">Location</p>
-                {program.location ? (
+                {location ? (
                   <div className="space-y-2">
                     <p className="text-gray-700 flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-[#FFB000]" /> {program.location}
+                      <MapPin className="w-4 h-4 text-[#FFB000]" /> {location}
                     </p>
                     <iframe
-                      src={getGoogleMapEmbedUrl(program.location)}
+                      src={getGoogleMapEmbedUrl(location)}
                       className="w-full h-64 rounded-lg border border-[#FFB000]/40"
                       loading="lazy"
                       allowFullScreen
@@ -264,18 +287,45 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm }: { program: any; on
 
             {/* Slots Information */}
             <div className="bg-[#FAF7F0] p-4 rounded-lg border-l-4 border-[#FFB000]">
-              <p className="font-bold text-[#004225] mb-2">Available Slots</p>
+              <p className="font-bold text-[#004225] mb-2">
+                {isDonor ? "Stall Availability" : "Participant Slots"}
+              </p>
               <div className="flex items-center gap-4">
-                <p className="text-gray-700">
-                  <span className="font-bold text-[#004225]">{claimedSlots}</span> claimed
-                  {availableSlots !== null && <span> • <span className="font-bold text-[#FFB000]">{availableSlots}</span> available</span>}
-                </p>
+                {isDonor ? (
+                  <p className="text-gray-700">
+                    <span className="font-bold text-[#004225]">{reservedStalls}</span> reserved
+                    {stallCapacity > 0 && <span> • <span className="font-bold text-[#FFB000]">{availableStalls}</span> available</span>}
+                    <span className="text-sm text-gray-500 block mt-1">Total capacity: {stallCapacity}</span>
+                  </p>
+                ) : (
+                  <p className="text-gray-700">
+                    <span className="font-bold text-[#004225]">{claimedSlots}</span> claimed
+                    {beneficiaryAvailableSlots !== null && <span> • <span className="font-bold text-[#FFB000]">{beneficiaryAvailableSlots}</span> available</span>}
+                  </p>
+                )}
                 {isFull && <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">FULL</span>}
               </div>
             </div>
 
-            {/* Application Status */}
-            {userHasApplied && (
+            {/* Status for Donor */}
+            {isDonor && donorHasReserved && (
+              <div className={`p-4 rounded-lg border-l-4 ${
+                reservationStatus === 'CONFIRMED' ? 'bg-green-50 border-green-500' :
+                reservationStatus === 'CANCELLED' ? 'bg-red-50 border-red-500' :
+                'bg-yellow-50 border-yellow-500'
+              }`}>
+                <p className="font-bold text-sm uppercase tracking-wide mb-1">Your Stall Reservation</p>
+                <p className={`font-bold ${
+                  reservationStatus === 'CONFIRMED' ? 'text-green-700' :
+                  reservationStatus === 'CANCELLED' ? 'text-red-700' :
+                  'text-yellow-700'
+                }`}>{reservationStatus || 'PENDING'}</p>
+                {slotNumber && <p className="text-sm text-gray-600 mt-1">Stall #{slotNumber}</p>}
+              </div>
+            )}
+
+            {/* Status for Beneficiary */}
+            {!isDonor && userHasApplied && (
               <div className={`p-4 rounded-lg border-l-4 ${
                 applicationStatus === 'APPROVED' ? 'bg-green-50 border-green-500' :
                 applicationStatus === 'REJECTED' ? 'bg-red-50 border-red-500' :
@@ -303,14 +353,18 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm }: { program: any; on
           {!isCompleted && (
             <button
               onClick={onConfirm}
-              disabled={userHasApplied || isFull}
+              disabled={(isDonor ? donorHasReserved : userHasApplied) || isFull}
               className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
-                userHasApplied || isFull
+                (isDonor ? donorHasReserved : userHasApplied) || isFull
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-[#FFB000] text-[#004225] hover:bg-yellow-500 hover:shadow-xl transform hover:-translate-y-1'
               }`}
             >
-              {userHasApplied ? 'Already Applied' : isFull ? 'Program Full' : 'Confirm Application'} <CheckCircle className="w-5 h-5" />
+              {isDonor ? (
+                donorHasReserved ? 'Already Reserved' : isFull ? 'All Stalls Reserved' : 'Reserve Stall'
+              ) : (
+                userHasApplied ? 'Already Applied' : isFull ? 'Program Full' : 'Confirm Application'
+              )} <CheckCircle className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -362,8 +416,10 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                 <div className="bg-white rounded-2xl border-2 border-dashed border-[#004225]/20 p-6 text-gray-500 text-center">No scheduled programs yet.</div>
               ) : (
                 scheduledPrograms.map((program) => {
-                  const startDate = formatDateShort(program.startDate || program.date || program.datetime);
-                  const startTime = formatTimeDisplay(program.startDate || program.date || program.datetime);
+                  const programDate = program.date || program.startDate || program.datetime;
+                  const startDate = formatDateShort(programDate);
+                  const startTime = formatTimeDisplay(programDate);
+                  const location = getLocationFromProgram(program);
 
                   return (
                     <div
@@ -403,14 +459,14 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                             </div>
                           </div>
 
-                          {program.location && (
+                          {location && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2 text-[#004225]">
                                 <MapPin className="w-5 h-5 text-[#FFB000] flex-shrink-0" />
-                                <p className="font-semibold text-sm">{program.location}</p>
+                                <p className="font-semibold text-sm">{location}</p>
                               </div>
                               <iframe
-                                src={getGoogleMapEmbedUrl(program.location)}
+                                src={getGoogleMapEmbedUrl(location)}
                                 className="w-full h-64 rounded-xl border-2 border-[#FFB000]/40"
                                 loading="lazy"
                                 allowFullScreen
@@ -448,10 +504,11 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                 <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-6 text-gray-500 text-center">No past programs yet.</div>
               ) : (
                 pastPrograms.map((program) => {
-                  const startDate = formatDateShort(program.startDate || program.date || program.datetime);
-                  const startTime = formatTimeDisplay(program.startDate || program.date || program.datetime);
-
-                  const isMapLink = typeof program.location === "string" && program.location.startsWith("http");
+                  const programDate = program.date || program.startDate || program.datetime;
+                  const startDate = formatDateShort(programDate);
+                  const startTime = formatTimeDisplay(programDate);
+                  const location = getLocationFromProgram(program);
+                  const isMapLink = typeof location === "string" && location.startsWith("http");
 
                   return (
                     <div
@@ -488,14 +545,14 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                             </div>
                           </div>
 
-                          {program.location && (
+                          {location && (
                             <div className="space-y-3">
-                              <div className="flex items-center gap-2 text-gray-700">
-                                <MapPin className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                                <p className="font-semibold text-sm">{program.location}</p>
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                                <p className="font-semibold text-sm">{location}</p>
                               </div>
                               <iframe
-                                src={getGoogleMapEmbedUrl(program.location)}
+                                src={getGoogleMapEmbedUrl(location)}
                                 className="w-full h-56 rounded-lg border border-gray-300"
                                 loading="lazy"
                                 allowFullScreen
@@ -540,7 +597,7 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
 };
 
 // --- MAIN PAGE ---
-export default function ProgramsPage() {
+function ProgramsPage() {
   const [isActivityHistoryOpen, setIsActivityHistoryOpen] = useState(false);
   const [hasSeenApprovedModal, setHasSeenApprovedModal] = useState(false);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
@@ -557,37 +614,74 @@ export default function ProgramsPage() {
     try {
       const storedUser = localStorage.getItem("user");
       const token = localStorage.getItem("token");
+      let userRole = null;
       
       if (storedUser) {
-        const user = JSON.parse(storedUser);
-        setUserData({
-          id: user.id,
-          name: user.displayName || "User",
-          email: user.email || "",
-          status: user.status || "PENDING"
-        });
-        setHasSeenApprovedModal(user.status === "APPROVED");
+        try {
+          const user = JSON.parse(storedUser);
+          // Check if user has roles array or role string
+          const roles = user.roles || [];
+          const role = user.role || (roles.length > 0 ? roles[0] : null);
+          userRole = role;
+          
+          setUserData({
+            id: user.id,
+            name: user.displayName || "User",
+            email: user.email || "",
+            status: user.status || "PENDING",
+            role: role,
+            roles: roles
+          });
+          setHasSeenApprovedModal(user.status === "APPROVED");
+        } catch (parseError) {
+          console.error('[fetchData] Error parsing user data:', parseError);
+        }
       }
 
-      // Use authenticated endpoint if user is logged in
+      // Use authenticated endpoint based on user role, with fallback to public
       let response;
-      if (token && storedUser) {
-        // Add timestamp to prevent caching
-        response = await axios.get(`http://localhost:5000/api/program-applications/with-status?_t=${Date.now()}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
+      
+      // Try authenticated endpoints first for logged-in users
+      if (token && userRole) {
+        try {
+          console.log('[fetchData] User role:', userRole);
+          
+          if (userRole === "DONOR") {
+            // Fetch programs with stall reservation status for donors
+            const url = `http://localhost:5000/api/stalls/programs-with-donor-status`;
+            console.log('[fetchData] Calling donor endpoint:', url);
+            response = await axios.get(url, {
+              headers: { 
+                Authorization: `Bearer ${token}`
+              },
+              timeout: 10000
+            });
+          } else if (userRole === "BENEFICIARY") {
+            // Fetch programs with application status for beneficiaries
+            console.log('[fetchData] Calling beneficiary endpoint');
+            response = await axios.get(`http://localhost:5000/api/program-applications/with-status`, {
+              headers: { 
+                Authorization: `Bearer ${token}`
+              },
+              timeout: 10000
+            });
           }
-        });
-      } else {
-        response = await axios.get(`http://localhost:5000/api/programs?_t=${Date.now()}`, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
+        } catch (authError: any) {
+          console.warn('[fetchData] Authenticated endpoint failed, falling back to public:', authError.message);
+          // Fall back to public endpoint if authenticated request fails
+          response = null;
+        }
+      }
+      
+      // If no response yet (no auth or auth failed), use public endpoint
+      if (!response) {
+        console.log('[fetchData] Using public endpoint');
+        response = await axios.get(`http://localhost:5000/api/programs`, {
+          timeout: 10000
         });
       }
+      
+      console.log('[fetchData] Response received, success:', response?.data?.success);
 
       const allPrograms = response.data.data || [];
 
@@ -598,7 +692,9 @@ export default function ProgramsPage() {
       const past: any[] = [];
 
       allPrograms.forEach((p: any) => {
-        const start = p.startDate ? new Date(p.startDate) : null;
+        // Handle both 'date' and 'startDate' field names
+        const programDate = p.date || p.startDate;
+        const start = programDate ? new Date(programDate) : null;
         const isUpcoming = start ? start >= today : p.status !== "COMPLETED";
         if (isUpcoming) {
           upcoming.push(p);
@@ -609,8 +705,21 @@ export default function ProgramsPage() {
 
       setScheduledPrograms(upcoming);
       setPastPrograms(past);
-    } catch (err) {
-      console.error("Failed to fetch data:", err);
+    } catch (err: any) {
+      console.error("[fetchData] Failed to fetch programs:", err);
+      console.error("[fetchData] Error type:", err.constructor.name);
+      console.error("[fetchData] Error message:", err.message);
+      console.error("[fetchData] Error code:", err.code);
+      if (err.response) {
+        console.error("[fetchData] Response status:", err.response.status);
+        console.error("[fetchData] Response data:", err.response.data);
+      }
+      if (err.request) {
+        console.error("[fetchData] Request made but no response");
+      }
+      // Set empty arrays so the page still renders
+      setScheduledPrograms([]);
+      setPastPrograms([]);
     } finally {
       setIsLoading(false);
     }
@@ -650,21 +759,35 @@ export default function ProgramsPage() {
         return;
       }
 
-      const response = await axios.post(
-        "http://localhost:5000/api/program-applications/apply",
-        { programId: selectedProgram.id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      let response;
+      
+      if (userData?.role === "DONOR") {
+        // Donor: Reserve a stall
+        response = await axios.post(
+          `http://localhost:5000/api/stalls/programs/${selectedProgram.id}/reserve`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        alert("Stall reserved successfully! Check your email for the QR code.");
+      } else {
+        // Beneficiary: Apply for food program
+        response = await axios.post(
+          "http://localhost:5000/api/program-applications/apply",
+          { programId: selectedProgram.id },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-      // Show QR code modal
-      setQrCodeData(response.data.data);
-      setShowQRCode(true);
+        // Show QR code modal for beneficiaries
+        setQrCodeData(response.data.data);
+        setShowQRCode(true);
+      }
+
       setSelectedProgram(null);
       
-      // Re-fetch programs to update application status
+      // Re-fetch programs to update status
       fetchData();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "Failed to apply for program";
+      const errorMessage = error.response?.data?.message || "Failed to process request";
       alert(errorMessage);
     }
   };
@@ -693,7 +816,11 @@ export default function ProgramsPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                   <div>
                     <h1 className="text-4xl lg:text-5xl font-bold text-[#004225] mb-2">Welcome, {userData.name.split(" ")[0]}!</h1>
-                    <p className="text-[#004225]/70 text-lg">Browse available programs and join activities</p>
+                    <p className="text-[#004225]/70 text-lg">
+                      {userData.role === "DONOR" 
+                        ? "Browse available programs and reserve stalls for your donations" 
+                        : "Browse available programs and join activities"}
+                    </p>
                   </div>
                   <div className="flex gap-3">
                     <button
@@ -720,17 +847,20 @@ export default function ProgramsPage() {
 
                 {/* --- SCHEDULED PROGRAMS SECTION --- */}
                 <div className="bg-white border-2 border-[#004225] w-full rounded-2xl overflow-hidden shadow-2xl mb-8">
-                  <div className="text-center font-bold bg-[#004225] text-[#FFB000] p-6 text-2xl shadow-lg">Scheduled Programs</div>
+                  <div className="text-center font-bold bg-[#004225] text-[#FFB000] p-6 text-2xl shadow-lg">
+                    {userData.role === "DONOR" ? "Available Programs - Reserve Your Stall" : "Scheduled Programs"}
+                  </div>
 
                   <div className="divide-y-2 divide-[#004225]/20">
                     {visibleActivePrograms.length === 0 ? (
                       <div className="p-12 text-center text-gray-500">No active programs available at the moment.</div>
                     ) : (
                       visibleActivePrograms.map((program) => {
-                        const startDate = formatDateDisplay(program.startDate || program.date || program.datetime);
-                        const timeRange = buildTimeRange(program.startDate || program.date || program.datetime, program.endDate || program.end_time);
-
-                        const isMapLink = typeof program.location === "string" && program.location.startsWith("http");
+                        const programDate = program.date || program.startDate || program.datetime;
+                        const startDate = formatDateDisplay(programDate);
+                        const timeRange = buildTimeRange(programDate, program.endDate || program.end_time);
+                        const location = getLocationFromProgram(program);
+                        const isMapLink = typeof location === "string" && location.startsWith("http");
 
                         return (
                           <div key={program.id} className="p-6 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 relative transition-all hover:bg-[#FAF7F0] group">
@@ -740,14 +870,14 @@ export default function ProgramsPage() {
                                 <p className="text-[#004225]/80 text-base leading-relaxed line-clamp-2">{program.description}</p>
                               </div>
                               <div className="flex flex-wrap items-center gap-4">
-                                {program.location && (
+                                {location && (
                                   <div className="w-full space-y-2">
                                     <div className="flex items-center gap-2 text-[#004225]/80 bg-[#FFB000]/10 px-3 py-2 rounded-lg">
                                       <MapPin className="w-5 h-5 text-[#FFB000]" />
-                                      <span className="font-semibold">{program.location}</span>
+                                      <span className="font-semibold">{location}</span>
                                     </div>
                                     <iframe
-                                      src={getGoogleMapEmbedUrl(program.location)}
+                                      src={getGoogleMapEmbedUrl(location)}
                                       className="w-full h-64 rounded-xl border-2 border-[#FFB000]/40"
                                       loading="lazy"
                                       allowFullScreen
@@ -813,7 +943,8 @@ export default function ProgramsPage() {
                           <div className="p-8 text-center text-gray-500">No completed programs yet.</div>
                         ) : (
                           pastPrograms.map((program) => {
-                            const completedDate = formatDateDisplay(program.endDate);
+                            const completedDate = formatDateDisplay(program.endDate || program.date);
+                            const location = getLocationFromProgram(program);
                             return (
                               <div key={program.id} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 relative bg-gray-50 opacity-80 hover:opacity-100 transition-opacity">
                                 <div className="space-y-3">
@@ -824,7 +955,7 @@ export default function ProgramsPage() {
                                   <div className="flex flex-wrap items-center gap-3">
                                     <div className="flex items-center gap-2 text-gray-600 text-sm">
                                       <MapPin className="w-4 h-4 text-gray-500" />
-                                      <span>{program.location || "Location TBA"}</span>
+                                      <span>{location || "Location TBA"}</span>
                                     </div>
                                     <span className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">COMPLETED</span>
                                   </div>
@@ -854,7 +985,7 @@ export default function ProgramsPage() {
                 )}
 
                 {/* Modal */}
-                {selectedProgram && <ProgramDetailsModal program={selectedProgram} onClose={() => setSelectedProgram(null)} onConfirm={handleJoinProgram} />}
+                {selectedProgram && <ProgramDetailsModal program={selectedProgram} onClose={() => setSelectedProgram(null)} onConfirm={handleJoinProgram} userRole={userData?.role} />}
                 
                 {/* QR Code Modal */}
                 {showQRCode && qrCodeData && (
@@ -959,3 +1090,6 @@ export default function ProgramsPage() {
     </div>
   );
 }
+
+// Programs page is now public for transparency
+export default ProgramsPage;

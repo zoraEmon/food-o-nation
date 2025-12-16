@@ -4,7 +4,8 @@ import {
     registerDonor,
     login,
     getMe,
-    verifyOTP // Import verifyOTP
+    verifyOTP,
+    verifyDonorOtp
 } from '../controllers/auth.controller.js';
 import { AuthRequest, authToken } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/upload.middleware.js';
@@ -46,6 +47,9 @@ router.post('/login', login);
 
 // 4. Verify OTP (NEW)
 router.post('/verify-otp', verifyOTP);
+
+// 5. Verify Donor OTP (by userId)
+router.post('/verify-donor-otp', verifyDonorOtp);
 
 // Protected route
 router.get('/me', authToken, getMe);

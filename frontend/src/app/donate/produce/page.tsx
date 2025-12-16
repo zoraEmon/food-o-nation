@@ -5,11 +5,13 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 const QRCode = dynamic(() => import('react-qr-code'), { ssr: false }); 
 import { 
-  MapPin, Calendar, ArrowLeft, CheckCircle, Download, Clock, AlignLeft, ChevronDown, Loader2 
+  MapPin, Calendar, ArrowLeft, CheckCircle, Download, Clock, AlignLeft, ChevronDown, Loader2, AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { useAuth } from "@/contexts/AuthContext";
+import { createProduceDonation, DonationItem } from "@/services/produceService";
 
 // --- TYPES ---
 interface Location { 
@@ -25,7 +27,7 @@ const TIME_SLOTS = [
 ];
 
 // --- SUCCESS MODAL ---
-const SuccessModal = ({ isOpen, onClose, qrData, email }: { isOpen: boolean; onClose: () => void; qrData: string, email: string }) => {
+const SuccessModal = ({ isOpen, onClose, qrData, email, donationId }: { isOpen: boolean; onClose: () => void; qrData: string, email: string, donationId?: string }) => {
   if (!isOpen) return null;
 
   const downloadQRCode = () => {
@@ -69,9 +71,14 @@ const SuccessModal = ({ isOpen, onClose, qrData, email }: { isOpen: boolean; onC
         </div>
 
         <h3 className="text-2xl font-extrabold text-[#004225] mb-2 font-heading">Appointment Created!</h3>
-        <p className="text-sm text-gray-600 font-bold mb-6">
+        <p className="text-sm text-gray-600 font-bold mb-2">
           Please show this QR Code at the center.
         </p>
+        {donationId && (
+          <p className="text-xs text-gray-500 mb-6 bg-gray-100 py-2 px-3 rounded">
+            Donation ID: <span className="font-mono font-bold">{donationId}</span>
+          </p>
+        )}
         
         <div className="bg-white p-4 border-2 border-dashed border-gray-300 rounded-xl mb-6 inline-block shadow-sm">
           <Suspense fallback={<div className="w-[140px] h-[140px] bg-gray-200 rounded flex items-center justify-center">Loading...</div>}>

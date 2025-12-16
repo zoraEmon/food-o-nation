@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { DonationService } from '../services/donation.service.js';
 import { PaymentGatewayService } from '../services/paymentGateway.service.js';
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '../../generated/prisma/index.js';
 import {
   createMonetaryDonationSchema,
   createProduceDonationSchema,
@@ -11,6 +13,8 @@ import {
 import { ZodError } from 'zod';
 
 const donationService = new DonationService();
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'foodONationSecret';
 
 /**
  * Helper function to handle validation errors
@@ -75,8 +79,22 @@ export class DonationController {
    */
   async createMonetaryDonation(req: Request, res: Response): Promise<void> {
     try {
+      // Derive donorId from JWT if missing and strip guest fields for authenticated donors
+      const body: any = { ...(req.body || {}) };
+      if (!body.donorId && req.headers.authorization) {
+        try {
+          const token = (req.headers.authorization || '').split(' ')[1];
+          const decoded: any = jwt.verify(token, JWT_SECRET);
+          if (decoded?.donorId) {
+            body.donorId = decoded.donorId;
+            delete body.guestName;
+            delete body.guestEmail;
+          }
+        } catch {}
+      }
+
       // Validate request body
-      const validatedData = createMonetaryDonationSchema.parse(req.body);
+      const validatedData = createMonetaryDonationSchema.parse(body);
 
       // Create donation
       const donation = await donationService.createMonetaryDonation(
@@ -110,17 +128,29 @@ export class DonationController {
    */
   async initMayaCheckout(req: Request, res: Response): Promise<void> {
     try {
-      const { donorId, amount, description } = req.body || {};
+      let { donorId, amount, description, email } = req.body || {};
       const numericAmount = Number(amount);
       if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
         res.status(400).json({ success: false, message: 'Positive amount is required' });
         return;
       }
 
+      // If donorId missing, try to derive from Authorization bearer token
+      if (!donorId && req.headers.authorization) {
+        try {
+          const token = (req.headers.authorization || '').split(' ')[1];
+          const decoded: any = jwt.verify(token, JWT_SECRET);
+          if (decoded?.donorId) donorId = decoded.donorId;
+          if (!email && decoded?.userId) {
+            const u = await prisma.user.findUnique({ where: { id: decoded.userId } });
+            if (u?.email) email = u.email;
+          }
+        } catch {}
+      }
+
       // Optional: ensure donor exists only when donorId is provided
       if (donorId) {
-        const service = new DonationService();
-        const donor = await (service as any).prisma?.donor?.findUnique?.({ where: { id: donorId } }).catch(() => null);
+        const donor = await prisma.donor.findUnique({ where: { id: donorId } });
         if (!donor) {
           res.status(404).json({ success: false, message: 'Donor not found' });
           return;
@@ -128,7 +158,7 @@ export class DonationController {
       }
 
       const pg = new PaymentGatewayService();
-      const created = await pg.createMayaCheckout(numericAmount, description || 'Food Donation');
+      const created = await pg.createMayaCheckout(numericAmount, description || 'Food Donation', { email });
       if (!created.success) {
         res.status(502).json({ success: false, message: created.failureReason || 'Failed to create Maya checkout' });
         return;
@@ -155,17 +185,29 @@ export class DonationController {
    */
   async initPayPalCheckout(req: Request, res: Response): Promise<void> {
     try {
-      const { donorId, amount, description } = req.body || {};
+      let { donorId, amount, description, email } = req.body || {};
       const numericAmount = Number(amount);
       if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
         res.status(400).json({ success: false, message: 'Positive amount is required' });
         return;
       }
 
+      // If donorId missing, try to derive from Authorization bearer token
+      if (!donorId && req.headers.authorization) {
+        try {
+          const token = (req.headers.authorization || '').split(' ')[1];
+          const decoded: any = jwt.verify(token, JWT_SECRET);
+          if (decoded?.donorId) donorId = decoded.donorId;
+          if (!email && decoded?.userId) {
+            const u = await prisma.user.findUnique({ where: { id: decoded.userId } });
+            if (u?.email) email = u.email;
+          }
+        } catch {}
+      }
+
       // Optional: ensure donor exists only when donorId is provided
       if (donorId) {
-        const service = new DonationService();
-        const donor = await (service as any).prisma?.donor?.findUnique?.({ where: { id: donorId } }).catch(() => null);
+        const donor = await prisma.donor.findUnique({ where: { id: donorId } });
         if (!donor) {
           res.status(404).json({ success: false, message: 'Donor not found' });
           return;
@@ -173,7 +215,7 @@ export class DonationController {
       }
 
       const pg = new PaymentGatewayService();
-      const created = await pg.createPayPalOrder(numericAmount, description || 'Food Donation');
+      const created = await pg.createPayPalOrder(numericAmount, description || 'Food Donation', email);
       
       if (!created.success) {
         res.status(502).json({ success: false, message: created.failureReason || 'Failed to create PayPal order' });

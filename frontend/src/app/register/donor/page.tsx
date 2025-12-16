@@ -2,15 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
+import { Upload, Eye, EyeOff, ArrowLeft, AlertTriangle } from "lucide-react";
+import AuthNavbar from "@/components/layout/AuthNavbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
+import { authService } from "@/services/authService";
+import Modal from "@/components/ui/Modal";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DonorRegisterPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [registeredUserId, setRegisteredUserId] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showWarningModal, setShowWarningModal] = useState(false);
   
   const inputClass = "w-full p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:border-[#ffb000] focus:outline-none transition-all";
 
@@ -35,10 +47,49 @@ export default function DonorRegisterPage() {
       setFormData({ ...formData, profileImage: file });
     }
   };
+  
+  const handleBackClick = () => {
+    const hasFormData = formData.email !== "" || formData.displayName !== "" || formData.password !== "";
+    if (hasFormData) {
+      setShowWarningModal(true);
+    } else {
+      router.push('/');
+    }
+  };
+  
+  const handleConfirmLeave = () => {
+    setShowWarningModal(false);
+    router.push('/');
+  };
+
+  const handleOtpVerification = async () => {
+    setOtpLoading(true);
+    try {
+      const response = await authService.verifyDonorOtp(registeredUserId, otp);
+      if (response.success && response.data?.token && response.data?.user) {
+        setSuccessMessage("Email verified successfully! Redirecting...");
+        setShowOtpModal(false);
+        
+        // Store user data via AuthContext
+        login(response.data.token, response.data.user);
+        
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 1000);
+      } else {
+        setError(response.message || "OTP verification failed");
+      }
+    } catch (err: any) {
+      setError(err?.message || "OTP verification error");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     // Validation
     if (!formData.email || !formData.password || !formData.displayName) {
@@ -55,32 +106,25 @@ export default function DonorRegisterPage() {
 
     setLoading(true);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
     try {
-      // Mock response - no backend call
-      const mockResponse = {
-        userId: `donor-${Date.now()}`,
-        message: "Registration successful!",
-        requireVerification: false
-      };
-      
-      // Set bypass token and user data for immediate dashboard access
-      localStorage.setItem('token', 'dev-bypass-token');
-      localStorage.setItem('user', JSON.stringify({
-        id: mockResponse.userId,
+      const response = await authService.registerDonor({
         email: formData.email,
-        role: 'DONOR',
-        status: 'APPROVED',
-        displayName: formData.displayName
-      }));
+        password: formData.password,
+        displayName: formData.displayName,
+        donorType: formData.donorType,
+      });
       
-      alert("Registration Successful! Redirecting to your dashboard...");
-      router.push("/donor/beneficiarydashboard/donordashboard");
+      if (response.success) {
+        setRegisteredUserId(response.data?.userId);
+        setSuccessMessage("Registration successful! Please verify your email.");
+        setShowOtpModal(true);
+        setOtp("");
+      } else {
+        setError(response.message || "Registration failed");
+      }
     } catch (err: any) {
       console.error(err);
-      setError("Registration failed. Please try again.");
+      setError(err?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -88,17 +132,33 @@ export default function DonorRegisterPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 flex items-center justify-center py-16 px-4">
-        <div className="w-full max-w-xl bg-white dark:bg-[#0a291a] p-8 md:p-12 rounded-2xl shadow-xl border border-primary/10">
-          <div className="text-center mb-10">
-            <h1 className="font-heading text-3xl font-bold text-primary dark:text-white mb-2">
-              Become a Partner Donor
-            </h1>
-            <p className="font-sans text-gray-500 dark:text-gray-400">
-              Join our community of givers. Your contribution changes lives.
-            </p>
+        <AuthNavbar 
+          showLoginButton={true}
+          loginLink="/login?type=donor"
+        />
+        <main className="flex-1 flex flex-col items-center justify-center py-16 px-4">
+          {/* Back Button Outside Card */}
+          <div className="w-full max-w-xl mb-4">
+            <Button
+              onClick={handleBackClick}
+              variant="ghost"
+              className="text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-secondary flex items-center gap-2"
+            >
+              <ArrowLeft size={20} />
+              <span>Back</span>
+            </Button>
           </div>
+          
+          <div className="w-full max-w-xl bg-white dark:bg-[#0a291a] p-8 md:p-12 rounded-2xl shadow-xl border border-primary/10">
+            
+            <div className="text-center mb-10">
+              <h1 className="font-heading text-3xl font-bold text-primary dark:text-white mb-2">
+                Become a Partner Donor
+              </h1>
+              <p className="font-sans text-gray-500 dark:text-gray-400">
+                Join our community of givers. Your contribution changes lives.
+              </p>
+            </div>
 
           {error && (
             <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 text-sm font-bold flex items-center gap-2">
@@ -180,15 +240,24 @@ export default function DonorRegisterPage() {
               <label className="text-xs font-bold text-gray-500">
                 Password <span className="text-red-500">*</span>
               </label>
-              <input
-                required
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className={inputClass}
-                placeholder="••••••••••••"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="••••••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
               <p className="text-[10px] text-gray-400">Must be at least 12 characters.</p>
             </div>
 
@@ -196,15 +265,24 @@ export default function DonorRegisterPage() {
               <label className="text-xs font-bold text-gray-500">
                 Confirm Password <span className="text-red-500">*</span>
               </label>
-              <input
-                required
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className={inputClass}
-                placeholder="••••••••••••"
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="••••••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <Button
@@ -217,7 +295,93 @@ export default function DonorRegisterPage() {
           </form>
         </div>
       </main>
+
+      {/* OTP Verification Modal */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#0a291a] rounded-2xl p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-[#004225] dark:text-white mb-4">Verify Your Email</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              We've sent a 6-digit verification code to <strong>{formData.email}</strong>. Please enter it below.
+            </p>
+
+            {error && (
+              <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <input
+              type="text"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              placeholder="Enter 6-digit OTP"
+              className={`${inputClass} text-center text-2xl tracking-widest mb-6`}
+            />
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                onClick={handleOtpVerification}
+                disabled={otpLoading || otp.length !== 6}
+                className="flex-1 bg-[#ffb000] text-black hover:bg-[#ffc107]"
+              >
+                {otpLoading ? "Verifying..." : "Verify"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowOtpModal(false);
+                  setOtp("");
+                  setError("");
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Warning Modal */}
+      <Modal
+        isOpen={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
+        title="Unsaved Changes"
+      >
+        <div className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700 dark:text-gray-300">
+                You have unsaved changes in your registration form. Are you sure you want to leave? All your progress will be lost.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              onClick={() => setShowWarningModal(false)}
+              variant="outline"
+              className="px-6"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmLeave}
+              className="bg-red-600 hover:bg-red-700 text-white px-6"
+            >
+              Yes, Leave
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <Footer />
-    </div>
+      </div>
   );
 }

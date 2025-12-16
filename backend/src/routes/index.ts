@@ -24,6 +24,6 @@ router.use('/payments', paymentRoutes);
 router.use('/newsletters', newsletterRoutes);
 router.use('/program-applications', programApplicationRoutes);
 router.use('/metrics', metricsRoutes);
-router.use('/', stallReservationRoutes);
+router.use('/stalls', stallReservationRoutes);
 
 export default router;

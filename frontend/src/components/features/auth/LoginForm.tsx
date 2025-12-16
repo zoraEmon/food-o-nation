@@ -54,9 +54,9 @@ export default function LoginForm({ role, onBack, onClose }: LoginFormProps) {
       
       // Redirect based on role
       if (role === "BENEFICIARY") {
-        router.push("/donor/beneficiarydashboard/beneficiarydashboard");
+        router.push("/dashboard");
       } else if (role === "DONOR") {
-        router.push("/donor/beneficiarydashboard/donordashboard");
+        router.push("/dashboard");
       } else {
         router.push("/dashboard");
       }
@@ -87,9 +87,9 @@ export default function LoginForm({ role, onBack, onClose }: LoginFormProps) {
     
     // Redirect based on role
     if (role === "BENEFICIARY") {
-      router.push("/donor/beneficiarydashboard/beneficiarydashboard");
+      router.push("/dashboard");
     } else if (role === "DONOR") {
-      router.push("/donor/beneficiarydashboard/donordashboard");
+      router.push("/dashboard");
     } else {
       router.push("/dashboard");
     }

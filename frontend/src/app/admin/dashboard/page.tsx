@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/authService";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { 
   LayoutDashboard, 
   Users, 
@@ -26,7 +27,7 @@ interface User {
   donorProfile?: any;
 }
 
-export default function AdminDashboardPage() {
+function AdminDashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -164,5 +165,14 @@ export default function AdminDashboardPage() {
 
       </main>
     </div>
+  );
+}
+
+// Wrap with ProtectedRoute for authentication
+export default function ProtectedAdminDashboard() {
+  return (
+    <ProtectedRoute requiredRoles={['ADMIN']}>
+      <AdminDashboardPage />
+    </ProtectedRoute>
   );
 }

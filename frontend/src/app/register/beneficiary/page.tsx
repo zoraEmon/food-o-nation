@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Plus, X } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
+import { Upload, Plus, X, ArrowLeft, AlertTriangle } from "lucide-react";
+import AuthNavbar from "@/components/layout/AuthNavbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/services/authService";
+import Modal from "@/components/ui/Modal";
 
 interface HouseholdMember {
   id: string;
@@ -27,6 +28,7 @@ export default function BeneficiaryRegisterPage() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [registeredUserId, setRegisteredUserId] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   
   const inputClass = "w-full p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:border-[#ffb000] focus:outline-none transition-all";
   const yesterday = new Date();
@@ -145,6 +147,19 @@ export default function BeneficiaryRegisterPage() {
   const handleIncomeSourceChange = (source: string, checked: boolean) => {
     if (checked) setFormData({ ...formData, incomeSources: [...formData.incomeSources, source] });
     else setFormData({ ...formData, incomeSources: formData.incomeSources.filter(s => s !== source) });
+  };
+  
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      setShowWarningModal(true);
+    } else {
+      router.push('/');
+    }
+  };
+  
+  const handleConfirmLeave = () => {
+    setShowWarningModal(false);
+    router.push('/');
   };
 
   // Navigation warning
@@ -273,6 +288,12 @@ export default function BeneficiaryRegisterPage() {
 
       // Call backend API
       const response = await authService.registerBeneficiary(payload);
+      
+      if (!response.success) {
+        setError(response.message || "Registration failed. Please try again.");
+        return;
+      }
+      
       setRegisteredUserId(response.userId);
       setShowOtpModal(true);
       setHasUnsavedChanges(false);
@@ -307,17 +328,33 @@ export default function BeneficiaryRegisterPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 flex items-center justify-center py-16 px-4">
-        <div className="w-full max-w-4xl bg-white dark:bg-[#0a291a] p-8 md:p-12 rounded-2xl shadow-xl border border-primary/10">
-          <div className="text-center mb-10">
-            <h1 className="font-heading text-3xl font-bold text-primary dark:text-white mb-2">
-              Beneficiary Application
-            </h1>
-            <p className="font-sans text-gray-500 dark:text-gray-400">
-              Please fill out your details accurately.
-            </p>
+        <AuthNavbar 
+          showLoginButton={true}
+          loginLink="/login?type=beneficiary"
+        />
+        <main className="flex-1 flex flex-col items-center justify-center py-16 px-4">
+          {/* Back Button Outside Card */}
+          <div className="w-full max-w-4xl mb-4">
+            <Button
+              onClick={handleBackClick}
+              variant="ghost"
+              className="text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-secondary flex items-center gap-2"
+            >
+              <ArrowLeft size={20} />
+              <span>Back</span>
+            </Button>
           </div>
+          
+          <div className="w-full max-w-4xl bg-white dark:bg-[#0a291a] p-8 md:p-12 rounded-2xl shadow-xl border border-primary/10">
+            
+            <div className="text-center mb-10">
+              <h1 className="font-heading text-3xl font-bold text-primary dark:text-white mb-2">
+                Beneficiary Application
+              </h1>
+              <p className="font-sans text-gray-500 dark:text-gray-400">
+                Please fill out your details accurately.
+              </p>
+            </div>
 
           {error && (
             <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 text-sm font-bold flex items-center gap-2">
@@ -729,7 +766,44 @@ export default function BeneficiaryRegisterPage() {
           </div>
         </div>
       )}
+      
+      {/* Warning Modal */}
+      <Modal
+        isOpen={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
+        title="Unsaved Changes"
+      >
+        <div className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700 dark:text-gray-300">
+                You have unsaved changes in your registration form. Are you sure you want to leave? All your progress will be lost.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              onClick={() => setShowWarningModal(false)}
+              variant="outline"
+              className="px-6"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmLeave}
+              className="bg-red-600 hover:bg-red-700 text-white px-6"
+            >
+              Yes, Leave
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      
       <Footer />
-    </div>
+      </div>
   );
 }
