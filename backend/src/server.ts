@@ -32,6 +32,29 @@ app.get('/', (req, res) => {
   
 });
 
+// Helper function to retry a promise with exponential backoff
+async function retryAsync<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 2000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isConnectionError = error?.message?.includes('Can\'t reach database') || error?.message?.includes('ECONNREFUSED');
+      if (attempt < maxRetries && isConnectionError) {
+        const delay = delayMs * Math.pow(2, attempt - 1);
+        console.log(`[Retry] Attempt ${attempt}/${maxRetries} failed. Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error('All retries exhausted');
+}
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
@@ -42,8 +65,8 @@ app.listen(PORT, () => {
     return;
   }
   
-  // Startup run once
-  updateExpiredApplicationStatusesService()
+  // Startup run once with retry logic
+  retryAsync(() => updateExpiredApplicationStatusesService(), 3, 2000)
     .then(() => console.log('[Nightly Expiry Job] Startup run complete'))
     .catch((e: any) => console.error('[Nightly Expiry Job] Startup error:', e?.message || e));
 
@@ -51,7 +74,7 @@ app.listen(PORT, () => {
   cron.schedule('0 2 * * *', async () => {
     try {
       console.log('[Nightly Expiry Job] Running...');
-      await updateExpiredApplicationStatusesService();
+      await retryAsync(() => updateExpiredApplicationStatusesService(), 3, 1000);
       console.log('[Nightly Expiry Job] Completed');
     } catch (e: any) {
       console.error('[Nightly Expiry Job] Error:', e?.message || e);
@@ -62,7 +85,7 @@ app.listen(PORT, () => {
   cron.schedule('10 2 * * *', async () => {
     try {
       console.log('[Nightly Beneficiary Cleanup] Running...');
-      const result = await deleteRejectedBeneficiariesOlderThan(30);
+      const result = await retryAsync(() => deleteRejectedBeneficiariesOlderThan(30), 3, 1000);
       console.log(`[Nightly Beneficiary Cleanup] Deleted: ${result.deleted}`);
     } catch (e: any) {
       console.error('[Nightly Beneficiary Cleanup] Error:', e?.message || e);
@@ -74,7 +97,7 @@ app.listen(PORT, () => {
     try {
       console.log('[Nightly Donor Cleanup] Running...');
       const donorService = new DonorService();
-      const result = await donorService.deleteRejectedOlderThan(30);
+      const result = await retryAsync(() => donorService.deleteRejectedOlderThan(30), 3, 1000);
       console.log(`[Nightly Donor Cleanup] Deleted: ${result.deleted}`);
     } catch (e: any) {
       console.error('[Nightly Donor Cleanup] Error:', e?.message || e);

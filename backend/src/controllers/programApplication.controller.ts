@@ -36,12 +36,20 @@ export const getProgramsWithUserStatus = async (req: Request, res: Response) => 
       });
     }
 
-    // Fetch all programs
+    // Fetch all programs with place information for location display
     const programs = await prisma.program.findMany({
       orderBy: {
         date: 'asc'
       },
       include: {
+        place: {
+          select: {
+            name: true,
+            address: true,
+            latitude: true,
+            longitude: true,
+          }
+        },
         _count: {
           select: {
             registrations: true
@@ -64,18 +72,20 @@ export const getProgramsWithUserStatus = async (req: Request, res: Response) => 
 
     // Create a map of user's registrations by programId
     const registrationsMap = new Map(
-      userRegistrations.map(reg => [reg.programId, reg])
+      userRegistrations.map((reg: any) => [reg.programId, reg])
     );
 
     // Enrich programs with user status and slots info
-    const enrichedPrograms = programs.map(program => {
-      const userRegistration = registrationsMap.get(program.id);
+    const enrichedPrograms = programs.map((program: any) => {
+      const userRegistration: any = registrationsMap.get(program.id);
       const claimedSlots = program._count.registrations;
       const availableSlots = program.maxParticipants ? program.maxParticipants - claimedSlots : null;
       const isFull = program.maxParticipants ? claimedSlots >= program.maxParticipants : false;
 
       return {
         ...program,
+        // Normalize a top-level location string for consumers that expect it
+        location: program.place?.address || program.place?.name || null,
         claimedSlots,
         availableSlots,
         isFull,
@@ -124,13 +134,35 @@ export const applyForProgram = async (req: Request, res: Response) => {
 
     // Get beneficiary from userId
     const beneficiary = await prisma.beneficiary.findUnique({
-      where: { userId }
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            status: true
+          }
+        }
+      }
     });
 
     if (!beneficiary) {
       return res.status(404).json({
         success: false,
         message: 'Beneficiary profile not found'
+      });
+    }
+
+    // Check if user status allows program applications
+    if (beneficiary.user.status === 'PENDING') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is pending admin approval. You cannot apply for programs until your account is approved.'
+      });
+    }
+
+    if (beneficiary.user.status !== 'APPROVED' && beneficiary.user.status !== 'VERIFIED') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account status does not allow program applications. Please contact support.'
       });
     }
 

@@ -27,7 +27,14 @@ export const getProgramsWithDonorStatus = async (req: Request, res: Response) =>
 
     // Get donor from userId
     const donor = await prisma.donor.findUnique({
-      where: { userId }
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            status: true
+          }
+        }
+      }
     });
 
     if (!donor) {
@@ -36,6 +43,8 @@ export const getProgramsWithDonorStatus = async (req: Request, res: Response) =>
         message: 'Donor profile not found'
       });
     }
+
+    // Note: Status check for stall reservation will be done in reserveStall function
 
     // Fetch all programs that have stall capacity
     const programs = await prisma.program.findMany({
@@ -129,10 +138,32 @@ export const reserveStall = async (req: Request, res: Response) => {
     // If no donorId provided, derive from JWT token
     if (!donorId && (req as any).user?.userId) {
       const donor = await prisma.donor.findUnique({
-        where: { userId: (req as any).user.userId }
+        where: { userId: (req as any).user.userId },
+        include: {
+          user: {
+            select: {
+              status: true
+            }
+          }
+        }
       });
       if (donor) {
         donorId = donor.id;
+        
+        // Check if user status allows stall reservations
+        if (donor.user.status === 'PENDING') {
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Your account is pending admin approval. You cannot reserve stalls until your account is approved.' 
+          });
+        }
+        
+        if (donor.user.status !== 'APPROVED' && donor.user.status !== 'VERIFIED') {
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Your account status does not allow stall reservations. Please contact support.' 
+          });
+        }
       }
     }
     

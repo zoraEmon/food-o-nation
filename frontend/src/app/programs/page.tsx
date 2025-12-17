@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
   X, MapPin, Calendar, Clock, ArrowRight, ChevronRight, ChevronDown, ChevronUp,
   Loader2, Home, HelpCircle, CheckCircle, UploadCloud, FileText, History, Download, Mail
@@ -11,6 +12,12 @@ import Footer from "@/components/layout/Footer";
 import { authService } from "@/services/authService";
 import BeneficiaryApplicationForm from "@/components/features/beneficiary/BeneficiaryApplicationForm";
 import axios from "axios";
+
+// Dynamically import LocationMap to avoid SSR issues with Leaflet
+const LocationMap = dynamic(() => import("@/components/features/programs/LocationMap").then(m => m.LocationMap), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 animate-pulse">Loading map with route...</div>
+});
 
 // --- helpers ---
 const getLocationFromProgram = (program: any) => {
@@ -59,26 +66,6 @@ const buildTimeRange = (start: any, end: any) => {
   if (startTime) return startTime;
   if (endTime) return endTime;
   return "Time not provided";
-};
-
-const getGoogleMapEmbedUrl = (location: string) => {
-  if (!location) return "https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d15444.286238573038!2d121.03400000000001!3d14.5547!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sph!4v1234567890123!5m2!1sen!2sph";
-  
-  // If already a Google Maps embed URL, return as-is
-  if (location.includes('google.com/maps/embed')) return location;
-  
-  // If it's a Google Maps URL, convert to embed format
-  if (location.includes('google.com/maps')) {
-    const placeMatch = location.match(/place\/([^/]+)/);
-    if (placeMatch) {
-      const placeName = encodeURIComponent(placeMatch[1]);
-      return `https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${placeName}`;
-    }
-  }
-  
-  // If it's a plain address/location name, create search embed
-  const encoded = encodeURIComponent(location);
-  return `https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encoded}`;
 };
 
 // --- 🟡 PENDING VIEW COMPONENT ---
@@ -189,7 +176,7 @@ const ApprovedSuccessView = ({ name, onContinue }: { name: string; onContinue: (
 );
 
 // --- PROGRAM DETAILS MODAL ---
-const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole }: { program: any; onClose: () => void; onConfirm: () => void; userRole?: string }) => {
+const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole, userStatus }: { program: any; onClose: () => void; onConfirm: () => void; userRole?: string; userStatus?: string }) => {
   const isCompleted = program.status === "COMPLETED" || program.status === "Completed";
   const location = getLocationFromProgram(program);
   const isMapLink = typeof location === "string" && location.startsWith("http");
@@ -258,15 +245,17 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole }: { progra
               <div className="bg-white p-4 rounded-lg border border-[#004225]/20 space-y-3">
                 <p className="text-sm font-bold text-[#004225] uppercase tracking-wide mb-2">Location</p>
                 {location ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-gray-700 flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-[#FFB000]" /> {location}
                     </p>
-                    <iframe
-                      src={getGoogleMapEmbedUrl(location)}
-                      className="w-full h-64 rounded-lg border border-[#FFB000]/40"
-                      loading="lazy"
-                      allowFullScreen
+                    <LocationMap
+                      location={location}
+                      latitude={program.place?.latitude}
+                      longitude={program.place?.longitude}
+                      placeName={program.place?.name}
+                      height="h-64"
+                      showRoute={true}
                     />
                   </div>
                 ) : (
@@ -351,21 +340,29 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole }: { progra
             Close
           </button>
           {!isCompleted && (
-            <button
-              onClick={onConfirm}
-              disabled={(isDonor ? donorHasReserved : userHasApplied) || isFull}
-              className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
-                (isDonor ? donorHasReserved : userHasApplied) || isFull
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-[#FFB000] text-[#004225] hover:bg-yellow-500 hover:shadow-xl transform hover:-translate-y-1'
-              }`}
-            >
-              {isDonor ? (
-                donorHasReserved ? 'Already Reserved' : isFull ? 'All Stalls Reserved' : 'Reserve Stall'
-              ) : (
-                userHasApplied ? 'Already Applied' : isFull ? 'Program Full' : 'Confirm Application'
-              )} <CheckCircle className="w-5 h-5" />
-            </button>
+            <>
+              {userStatus === 'PENDING' && (
+                <div className="px-8 py-3 rounded-xl bg-yellow-50 border-2 border-yellow-500 text-yellow-700 font-bold text-sm flex items-center gap-2">
+                  <span>⚠️ Account pending approval</span>
+                </div>
+              )}
+              <button
+                onClick={onConfirm}
+                disabled={(isDonor ? donorHasReserved : userHasApplied) || isFull || userStatus === 'PENDING'}
+                className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
+                  (isDonor ? donorHasReserved : userHasApplied) || isFull || userStatus === 'PENDING'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-[#FFB000] text-[#004225] hover:bg-yellow-500 hover:shadow-xl transform hover:-translate-y-1'
+                }`}
+              >
+                {userStatus === 'PENDING' ? 'Approval Required' :
+                 isDonor ? (
+                  donorHasReserved ? 'Already Reserved' : isFull ? 'All Stalls Reserved' : 'Reserve Stall'
+                ) : (
+                  userHasApplied ? 'Already Applied' : isFull ? 'Program Full' : 'Confirm Application'
+                )} <CheckCircle className="w-5 h-5" />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -465,11 +462,13 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                                 <MapPin className="w-5 h-5 text-[#FFB000] flex-shrink-0" />
                                 <p className="font-semibold text-sm">{location}</p>
                               </div>
-                              <iframe
-                                src={getGoogleMapEmbedUrl(location)}
-                                className="w-full h-64 rounded-xl border-2 border-[#FFB000]/40"
-                                loading="lazy"
-                                allowFullScreen
+                              <LocationMap
+                                location={location}
+                                latitude={program.place?.latitude}
+                                longitude={program.place?.longitude}
+                                placeName={program.place?.name}
+                                height="h-64"
+                                showRoute={true}
                               />
                             </div>
                           )}
@@ -551,11 +550,13 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                                 <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
                                 <p className="font-semibold text-sm">{location}</p>
                               </div>
-                              <iframe
-                                src={getGoogleMapEmbedUrl(location)}
-                                className="w-full h-56 rounded-lg border border-gray-300"
-                                loading="lazy"
-                                allowFullScreen
+                              <LocationMap
+                                location={location}
+                                latitude={program.place?.latitude}
+                                longitude={program.place?.longitude}
+                                placeName={program.place?.name}
+                                height="h-56"
+                                showRoute={true}
                               />
                             </div>
                           )}
@@ -609,6 +610,7 @@ function ProgramsPage() {
   const [pastPrograms, setPastPrograms] = useState<any[]>([]);
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<any>(null);
+  const [showPendingModal, setShowPendingModal] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -633,6 +635,7 @@ function ProgramsPage() {
             roles: roles
           });
           setHasSeenApprovedModal(user.status === "APPROVED");
+          setShowPendingModal(user.status === "PENDING");
         } catch (parseError) {
           console.error('[fetchData] Error parsing user data:', parseError);
         }
@@ -706,16 +709,13 @@ function ProgramsPage() {
       setScheduledPrograms(upcoming);
       setPastPrograms(past);
     } catch (err: any) {
-      console.error("[fetchData] Failed to fetch programs:", err);
-      console.error("[fetchData] Error type:", err.constructor.name);
-      console.error("[fetchData] Error message:", err.message);
-      console.error("[fetchData] Error code:", err.code);
+      // Only log meaningful errors, suppress axios internal errors
       if (err.response) {
-        console.error("[fetchData] Response status:", err.response.status);
-        console.error("[fetchData] Response data:", err.response.data);
-      }
-      if (err.request) {
-        console.error("[fetchData] Request made but no response");
+        console.error("[fetchData] API Error:", err.response.status, err.response.data?.message || err.message);
+      } else if (err.request) {
+        console.error("[fetchData] No response from server:", err.message);
+      } else if (err.message) {
+        console.error("[fetchData] Error:", err.message);
       }
       // Set empty arrays so the page still renders
       setScheduledPrograms([]);
@@ -808,9 +808,9 @@ function ProgramsPage() {
 
         {!isLoading && userData && (
           <>
-            {userData.status === "PENDING" && <PendingView userData={userData} onShowForm={() => setShowApplicationForm(true)} />}
+            {/* Pending status notice shows as modal; cards remain visible */}
 
-            {userData.status === "APPROVED" && hasSeenApprovedModal && (
+            {((userData.status === "PENDING") || (userData.status === "APPROVED" && hasSeenApprovedModal)) && (
               <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -863,48 +863,71 @@ function ProgramsPage() {
                         const isMapLink = typeof location === "string" && location.startsWith("http");
 
                         return (
-                          <div key={program.id} className="p-6 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 relative transition-all hover:bg-[#FAF7F0] group">
-                            <div className="space-y-4">
-                              <div>
-                                <p className="font-bold text-[#004225] text-xl lg:text-2xl mb-2 group-hover:text-[#FFB000] transition-colors">{program.name}</p>
-                                <p className="text-[#004225]/80 text-base leading-relaxed line-clamp-2">{program.description}</p>
+                          <div
+                            key={program.id}
+                            className="relative overflow-hidden rounded-2xl border-2 border-[#004225]/15 bg-white shadow-sm hover:shadow-md transition-shadow"
+                          >
+                            {/* Header */}
+                            <div className="flex items-start justify-between gap-4 p-6 border-b border-[#004225]/10">
+                              <div className="min-w-0">
+                                <h3 className="text-2xl font-extrabold text-[#004225] truncate">
+                                  {program.name || program.title || 'Program'}
+                                </h3>
+                                <p className="mt-1 text-[#004225]/80 line-clamp-2">
+                                  {program.description || 'No description provided.'}
+                                </p>
                               </div>
-                              <div className="flex flex-wrap items-center gap-4">
+                              <span className="shrink-0 px-3 py-1 rounded-full bg-[#FFB000] text-[#004225] text-xs font-bold tracking-wider">
+                                SCHEDULED
+                              </span>
+                            </div>
+
+                            {/* Body */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+                              {/* Left: Details */}
+                              <div className="md:col-span-2 space-y-4">
                                 {location && (
-                                  <div className="w-full space-y-2">
-                                    <div className="flex items-center gap-2 text-[#004225]/80 bg-[#FFB000]/10 px-3 py-2 rounded-lg">
-                                      <MapPin className="w-5 h-5 text-[#FFB000]" />
-                                      <span className="font-semibold">{location}</span>
+                                  <div className="space-y-3">
+                                    <div className="flex items-start gap-3">
+                                      <MapPin className="w-5 h-5 text-[#FFB000] mt-0.5" />
+                                      <p className="font-semibold text-[#004225] break-words">{location}</p>
                                     </div>
-                                    <iframe
-                                      src={getGoogleMapEmbedUrl(location)}
-                                      className="w-full h-64 rounded-xl border-2 border-[#FFB000]/40"
-                                      loading="lazy"
-                                      allowFullScreen
+                                    {/* Map with Route */}
+                                    <LocationMap
+                                      location={location}
+                                      latitude={program.place?.latitude}
+                                      longitude={program.place?.longitude}
+                                      placeName={program.place?.name}
+                                      height="h-64"
+                                      showRoute={true}
                                     />
                                   </div>
                                 )}
-                                <span className="bg-[#FFB000] text-[#004225] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">SCHEDULED</span>
                               </div>
-                            </div>
 
-                            <div className="space-y-4 flex flex-col justify-center items-start md:items-end">
-                              <div className="flex items-center gap-4 w-full md:w-auto md:justify-end">
+                              {/* Right: Date/Time */}
+                              <div className="rounded-xl border border-[#004225]/15 bg-[#FAF7F0] p-4">
                                 <div className="flex items-center gap-2 text-[#004225]">
                                   <Calendar className="w-5 h-5 text-[#FFB000]" />
                                   <span className="font-bold">{startDate}</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-[#004225]">
-                                  <Clock className="w-5 h-5 text-[#FFB000]" />
-                                  <span className="font-bold">{timeRange}</span>
-                                </div>
+                                {timeRange && (
+                                  <div className="mt-2 flex items-center gap-2 text-[#004225]">
+                                    <Clock className="w-5 h-5 text-[#FFB000]" />
+                                    <span className="font-semibold">{timeRange}</span>
+                                  </div>
+                                )}
                               </div>
+                            </div>
 
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-3 border-t border-[#004225]/10 bg-[#FAF7F0] p-4">
                               <button
                                 onClick={() => setSelectedProgram(program)}
-                                className="w-full md:w-auto bg-[#FFB000] text-[#004225] px-8 py-3 rounded-xl font-bold hover:bg-yellow-500 transition-all shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 z-10"
+                                className="inline-flex items-center gap-2 rounded-xl bg-[#FFB000] px-6 py-3 font-bold text-[#004225] hover:bg-yellow-500 shadow-sm"
                               >
-                                View Details & Apply <ArrowRight className="w-5 h-5" />
+                                {userData?.status === 'PENDING' ? 'View Details' : 'View Details & Apply'}
+                                <ArrowRight className="w-5 h-5" />
                               </button>
                             </div>
                           </div>
@@ -952,13 +975,29 @@ function ProgramsPage() {
                                     <p className="font-bold text-gray-700 text-lg mb-1">{program.name}</p>
                                     <p className="text-gray-600 text-sm leading-relaxed">{program.description}</p>
                                   </div>
-                                  <div className="flex flex-wrap items-center gap-3">
+                                  <div className="flex flex-wrap items-center gap-3 mb-3">
                                     <div className="flex items-center gap-2 text-gray-600 text-sm">
                                       <MapPin className="w-4 h-4 text-gray-500" />
                                       <span>{location || "Location TBA"}</span>
                                     </div>
                                     <span className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">COMPLETED</span>
                                   </div>
+                                  {location && (
+                                    <div className="flex items-center gap-2 text-gray-600 text-sm mt-2 mb-3">
+                                      <MapPin className="w-4 h-4 text-gray-500" />
+                                      <span>{location}</span>
+                                    </div>
+                                  )}
+                                  {location && (
+                                    <LocationMap
+                                      location={location}
+                                      latitude={program.place?.latitude}
+                                      longitude={program.place?.longitude}
+                                      placeName={program.place?.name}
+                                      height="h-56"
+                                      showRoute={true}
+                                    />
+                                  )}
                                 </div>
 
                                 <div className="space-y-4 flex flex-col justify-center items-start md:items-end">
@@ -985,7 +1024,7 @@ function ProgramsPage() {
                 )}
 
                 {/* Modal */}
-                {selectedProgram && <ProgramDetailsModal program={selectedProgram} onClose={() => setSelectedProgram(null)} onConfirm={handleJoinProgram} userRole={userData?.role} />}
+                {selectedProgram && <ProgramDetailsModal program={selectedProgram} onClose={() => setSelectedProgram(null)} onConfirm={handleJoinProgram} userRole={userData?.role} userStatus={userData?.status} />}
                 
                 {/* QR Code Modal */}
                 {showQRCode && qrCodeData && (

@@ -259,12 +259,12 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
         const hashedOtp = await hashOTP(otp);
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
 
-        // 5. Create User with Donor Profile (Status: PENDING_APPROVAL - waiting for admin approval)
+        // 5. Create User with Donor Profile (Status: PENDING - waiting for admin approval)
         const newUser = await prisma.user.create({
             data: {
                 email: data.email,
                 password: hashedPassword,
-                status: "PENDING_APPROVAL", // Requires admin approval for donors
+                status: "PENDING", // Requires admin approval for donors
                 isVerified: false, // User is not verified until OTP is entered
                 otpCode: hashedOtp,
                 otpExpiresAt: otpExpiresAt,
@@ -331,11 +331,7 @@ export const login = async (req: Request, res: Response) => {
             return res.status(403).json({ message: 'Account is not active. Please contact support.' });
         }
 
-        if (user.status === 'PENDING_APPROVAL') {
-            return res.status(403).json({ 
-                message: 'Your account is pending admin approval. You will be able to log in once approved.' 
-            });
-        }
+        // PENDING users can log in but with limited access
 
         // ✅ NEW: Validate that user has the correct role
         const hasRequestedRole = 
@@ -624,12 +620,12 @@ export const verifyDonorOtp = async (req: Request, res: Response) => {
             return res.status(400).json({ message: isOtpExpired ? "OTP expired." : "Incorrect OTP." });
         }
 
-        // OTP is valid, verify the user (keep status as PENDING_APPROVAL for admin to approve)
+        // OTP is valid, verify the user (keep status as PENDING for admin to approve)
         const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
                 isVerified: true,
-                // Keep PENDING_APPROVAL status - admin must approve the donor
+                // Keep PENDING status - admin must approve the donor
                 otpCode: null,
                 otpExpiresAt: null,
             },

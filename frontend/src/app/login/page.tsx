@@ -14,6 +14,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const loginType = searchParams.get('type') || 'beneficiary'; // 'beneficiary' or 'donor'
+  const isFromRegistration = searchParams.get('registered') === 'true';
   const { login } = useAuth();
   
   const [email, setEmail] = useState("");
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(isFromRegistration ? "Registration successful! Please login to verify your email with OTP." : "");
   
   // OTP states
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -125,6 +127,11 @@ export default function LoginPage() {
           
           <div className="w-full max-w-md bg-white dark:bg-[#0a291a] p-8 rounded-2xl shadow-xl border border-primary/10">
             <h1 className="font-heading text-3xl font-bold text-primary dark:text-white mb-6 text-center">{pageTitle}</h1>
+          {successMessage && (
+            <div className="mb-4 bg-green-50 text-green-700 p-3 rounded-lg text-sm">
+              {successMessage}
+            </div>
+          )}
           {error && (
             <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm">
               {error}

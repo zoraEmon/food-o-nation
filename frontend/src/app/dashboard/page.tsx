@@ -57,6 +57,25 @@ function Dashboard() {
 
       <main className="flex-1 container mx-auto px-6 py-12">
         
+        {/* PENDING STATUS NOTICE */}
+        {user?.status === 'PENDING' && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 mb-6 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center">
+                <span className="text-white text-sm font-bold">!</span>
+              </div>
+              <div>
+                <h3 className="text-yellow-800 dark:text-yellow-200 font-bold text-lg mb-1">
+                  Account Pending Approval
+                </h3>
+                <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                  Your account is currently pending admin approval. You can view your profile, but you cannot apply for programs or reserve stalls until your account is approved.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* WELCOME BANNER */}
         <div className="bg-[#004225] rounded-3xl p-8 md:p-12 text-white shadow-xl mb-12 flex flex-col md:flex-row items-center gap-8">
           

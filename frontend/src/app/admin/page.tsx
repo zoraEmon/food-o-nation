@@ -16,7 +16,8 @@ export default function AdminLoginPage() {
     setError("");
     try {
       const response = await authService.login(email, password, "ADMIN");
-      if (response.user.roles.includes("ADMIN")) {
+      const roles = response.user?.roles ?? [];
+      if (Array.isArray(roles) && roles.includes("ADMIN")) {
         router.push("/admin/dashboard");
       } else {
         setError("You are not authorized to access the admin panel.");

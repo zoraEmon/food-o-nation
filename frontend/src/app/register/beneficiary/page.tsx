@@ -190,7 +190,7 @@ export default function BeneficiaryRegisterPage() {
     }
 
     // Basic Validation
-    if (!formData.applicantName || !formData.contactNumber || !formData.email || !formData.birthDate || 
+    if (!formData.firstName || !formData.lastName || !formData.contactNumber || !formData.email || !formData.birthDate || 
         !formData.householdPosition || !formData.streetNumber || !formData.barangay || !formData.municipality ||
         !formData.region || !formData.zipCode || !formData.annualSalary || 
         !formData.employmentStatus || !formData.declarationAccepted || !formData.privacyAccepted || 

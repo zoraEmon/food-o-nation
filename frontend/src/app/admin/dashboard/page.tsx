@@ -1,19 +1,20 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+/* eslint-disable @next/next/no-img-element */
 import { authService } from "@/services/authService";
-import { 
-  LayoutDashboard, 
-  Users, 
-  ClipboardList, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  LogOut,
   CircleUserRound,
   Shield,
-  BarChart3
+  BarChart3,
+  Sun,
+  Moon,
 } from "lucide-react";
-
 import QrScanner from "qr-scanner";
 
 interface User {
@@ -21,12 +22,11 @@ interface User {
   email: string;
   status: string;
   adminProfile?: {
-    id?: string;
     firstName: string;
     lastName: string;
   };
-  beneficiaryProfile?: any;
-  donorProfile?: any;
+  beneficiaryProfile?: unknown;
+  donorProfile?: unknown;
 }
 
 const resourceSummary = [
@@ -160,6 +160,7 @@ const initialPrograms = [
 export default function AdminDashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState<"beneficiary" | "donor" | "program" | "analytics" | "content">("beneficiary");
   const [beneficiarySubtab, setBeneficiarySubtab] = useState<"applications" | "official">("applications");
   const [donorSubtab, setDonorSubtab] = useState<"applications" | "official" | "appointments">("applications");
@@ -185,7 +186,11 @@ export default function AdminDashboardPage() {
   const [qrScanType, setQrScanType] = useState<"beneficiary" | "donor" | null>(null);
   const [qrResult, setQrResult] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const scannerRef = useRef<QrScanner | null>(null);
+  const scannerRef = useRef<{
+    start: () => Promise<void>;
+    stop: () => void;
+    destroy: () => void;
+  } | null>(null);
   const router = useRouter();
 
   const openScanner = (type: "beneficiary" | "donor") => {
@@ -212,7 +217,7 @@ export default function AdminDashboardPage() {
 
     const scanner = new QrScanner(
       video,
-      (result) => {
+      (result: { data: string }) => {
         setQrResult(result.data);
         scanner.stop();
       },
@@ -222,7 +227,7 @@ export default function AdminDashboardPage() {
     scannerRef.current = scanner;
     scanner
       .start()
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error("Failed to start QR scanner", err);
         setQrResult("Camera unavailable or permission denied.");
       });
@@ -238,12 +243,11 @@ export default function AdminDashboardPage() {
       try {
         const currentUser = await authService.getMe();
         if (!currentUser || !currentUser.adminProfile) {
-          // Not an admin or not logged in, redirect to home
           authService.logout();
           router.push("/");
           return;
         }
-        setUser(currentUser);
+        setUser(currentUser as User);
       } catch (error) {
         console.error("Error fetching user data:", error);
         authService.logout();
@@ -252,8 +256,34 @@ export default function AdminDashboardPage() {
         setLoading(false);
       }
     };
+
     checkAdminStatus();
   }, [router]);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("adminTheme");
+    if (savedTheme === "light") {
+      setIsDarkMode(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => {
+      const newValue = !prev;
+      localStorage.setItem("adminTheme", newValue ? "dark" : "light");
+      return newValue;
+    });
+  };
+
+  const bgMain = isDarkMode ? "bg-[#0d3d2a]" : "bg-[#FAF7F0]";
+  const bgSidebar = isDarkMode ? "bg-[#0d3d2a]" : "bg-[#0a7a4a]";
+  const bgCard = isDarkMode ? "bg-[#0f4f34]" : "bg-white";
+  const textPrimary = isDarkMode ? "text-gray-100" : "text-[#0b2e1c]";
+  const textSecondary = isDarkMode ? "text-gray-200" : "text-[#1f3d2b]";
+  const textMuted = isDarkMode ? "text-gray-400" : "text-[#2f5f46]";
+  const borderColor = isDarkMode ? "border-gray-700" : "border-gray-200";
+  const headingFont = "font-[var(--font-heading)]";
+  const bodyFont = "font-[var(--font-sans)]";
 
   const openDetails = (payload: {
     title: string;
@@ -272,14 +302,14 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-gray-100">
+      <div className={`min-h-screen flex items-center justify-center ${bgMain} ${textPrimary} ${bodyFont}`}>
         Loading Admin Dashboard...
       </div>
     );
   }
 
   if (!user) {
-    return null; // Should have redirected by now
+    return null;
   }
 
   const sidebarTabs = [
@@ -289,6 +319,8 @@ export default function AdminDashboardPage() {
     { key: "analytics", label: "Resource & Trend Analytics", icon: BarChart3 },
     { key: "content", label: "Content Management", icon: ClipboardList },
   ] as const;
+
+  const activeTabLabel = sidebarTabs.find((t) => t.key === activeTab)?.label ?? "Admin Dashboard";
 
   const saveProgramModal = () => {
     if (!programModal) return;
@@ -350,22 +382,19 @@ export default function AdminDashboardPage() {
     switch (activeTab) {
       case "beneficiary":
         return (
-          <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+          <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-2xl font-semibold text-goldenyellow">Beneficiary Management</h3>
-                <p className="text-gray-200 text-sm">Review applications and manage approved beneficiaries.</p>
+                <h3 className={`text-2xl font-semibold text-[#FFB000] ${headingFont}`}>Beneficiary Management</h3>
+                <p className={`${textSecondary} text-sm`}>Review applications and manage approved beneficiaries.</p>
               </div>
               <div className="flex gap-2">
-                {[
-                  { key: "applications", label: "Application Review" },
-                  { key: "official", label: "Official Beneficiaries" },
-                ].map((tab) => (
+                {[{ key: "applications", label: "Application Review" }, { key: "official", label: "Official Beneficiaries" }].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setBeneficiarySubtab(tab.key as typeof beneficiarySubtab)}
                     className={`px-4 py-2 rounded-md text-sm font-semibold transition ${
-                      beneficiarySubtab === tab.key ? "bg-goldenyellow text-gray-900" : "bg-white/10 text-white hover:bg-white/20"
+                      beneficiarySubtab === tab.key ? "bg-[#FFB000] text-[#004225]" : "bg-white/10 text-white hover:bg-white/20"
                     }`}
                   >
                     {tab.label}
@@ -375,7 +404,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {beneficiarySubtab === "applications" && (
-              <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
+              <div className={`overflow-hidden rounded-lg border ${borderColor} bg-white/5`}>
                 <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
                   <span>Applicant</span>
                   <span>Date Applied</span>
@@ -414,7 +443,7 @@ export default function AdminDashboardPage() {
             )}
 
             {beneficiarySubtab === "official" && (
-              <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
+              <div className={`overflow-hidden rounded-lg border ${borderColor} bg-white/5`}>
                 <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
                   <span>Beneficiary</span>
                   <span>Status / Since</span>
@@ -454,18 +483,14 @@ export default function AdminDashboardPage() {
         );
       case "donor":
         return (
-          <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+          <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-2xl font-semibold text-goldenyellow">Donor Management</h3>
-                <p className="text-gray-200 text-sm">Evaluate donor applications, manage partners, and monitor drop-offs.</p>
+                <h3 className={`text-2xl font-semibold text-[#FFB000] ${headingFont}`}>Donor Management</h3>
+                <p className={`${textSecondary} text-sm`}>Evaluate donor applications, manage partners, and monitor drop-offs.</p>
               </div>
               <div className="flex gap-2">
-                {[
-                  { key: "applications", label: "Application Review" },
-                  { key: "official", label: "Official Donors" },
-                  { key: "appointments", label: "Drop-off Appointments" },
-                ].map((tab) => (
+                {[{ key: "applications", label: "Application Review" }, { key: "official", label: "Official Donors" }, { key: "appointments", label: "Drop-off Appointments" }].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setDonorSubtab(tab.key as typeof donorSubtab)}
@@ -480,7 +505,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {donorSubtab === "applications" && (
-              <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
+              <div className={`overflow-hidden rounded-lg border ${borderColor} bg-white/5`}>
                 <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
                   <span>Donor</span>
                   <span>Date Applied</span>
@@ -518,7 +543,7 @@ export default function AdminDashboardPage() {
             )}
 
             {donorSubtab === "official" && (
-              <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
+              <div className={`overflow-hidden rounded-lg border ${borderColor} bg-white/5`}>
                 <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
                   <span>Donor</span>
                   <span>Status / Since</span>
@@ -555,7 +580,7 @@ export default function AdminDashboardPage() {
             )}
 
             {donorSubtab === "appointments" && (
-              <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
+              <div className={`overflow-hidden rounded-lg border ${borderColor} bg-white/5`}>
                 <div className="grid grid-cols-4 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
                   <span>What</span>
                   <span>When</span>
@@ -576,15 +601,15 @@ export default function AdminDashboardPage() {
         );
       case "program":
         return (
-          <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+          <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-2xl font-semibold text-goldenyellow">Program Management</h3>
-                <p className="text-gray-200 text-sm">View programs, adjust capacity, and manage assigned beneficiaries and donor stalls.</p>
+                <h3 className={`text-2xl font-semibold text-[#FFB000] ${headingFont}`}>Program Management</h3>
+                <p className={`${textSecondary} text-sm`}>View programs, adjust capacity, and manage assigned beneficiaries and donor stalls.</p>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
+            <div className={`overflow-hidden rounded-lg border ${borderColor} bg-white/5`}>
               <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
                 <span>Program</span>
                 <span>Summary</span>
@@ -592,10 +617,7 @@ export default function AdminDashboardPage() {
               </div>
               {programEntries.map((program) => (
                 <div key={program.id} className="grid grid-cols-3 items-center px-4 py-3 text-sm text-gray-200 border-b border-gray-800 last:border-b-0">
-                  <button
-                    onClick={() => setProgramModal(program)}
-                    className="text-goldenyellow font-semibold hover:underline text-left"
-                  >
+                  <button onClick={() => setProgramModal(program)} className="text-goldenyellow font-semibold hover:underline text-left">
                     {program.title}
                   </button>
                   <span className="text-gray-300 truncate">{program.summary}</span>
@@ -614,11 +636,11 @@ export default function AdminDashboardPage() {
         );
       case "content":
         return (
-          <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+          <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-2xl font-semibold text-goldenyellow">Content Management</h3>
-                <p className="text-gray-200 text-sm">Edit client-facing copy and imagery for the About section.</p>
+                <h3 className={`text-2xl font-semibold text-[#FFB000] ${headingFont}`}>Content Management</h3>
+                <p className={`${textSecondary} text-sm`}>Edit client-facing copy and imagery for the About section.</p>
               </div>
               <span className="text-xs text-gray-300 bg-white/5 border border-gray-700 rounded-md px-3 py-1">Local preview</span>
             </div>
@@ -687,40 +709,35 @@ export default function AdminDashboardPage() {
       default:
         return (
           <>
-            {/* Resource Utilization */}
-            <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+            <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                <h3 className="text-2xl font-semibold text-goldenyellow">Resource Utilization</h3>
-                <p className="text-gray-200 text-sm">How core resources are being consumed this week</p>
+                <h3 className={`text-2xl font-semibold text-[#FFB000] ${headingFont}`}>Resource Utilization</h3>
+                <p className={`${textSecondary} text-sm`}>How core resources are being consumed this week</p>
               </div>
               <div className="grid gap-4">
                 {resourceSummary.map((item) => (
-                  <div key={item.label} className="bg-white/5 border border-gray-700 rounded-md p-4">
+                  <div key={item.label} className={`bg-white/5 border ${borderColor} rounded-md p-4`}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-white font-semibold">{item.label}</span>
                       <span className="text-goldenyellow font-bold">{item.used}%</span>
                     </div>
                     <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className={`${item.color} h-3`}
-                        style={{ width: `${item.used}%` }}
-                      />
+                      <div className={`${item.color} h-3`} style={{ width: `${item.used}%` }} />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Trend Analytics */}
             <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+              <div className={`${bgCard} lg:col-span-2 p-6 rounded-lg shadow-md border ${borderColor}`}>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                  <h3 className="text-2xl font-semibold text-goldenyellow">Trend Analytics</h3>
-                  <p className="text-gray-200 text-sm">Recent movement across key KPIs</p>
+                  <h3 className={`text-2xl font-semibold text-[#FFB000] ${headingFont}`}>Trend Analytics</h3>
+                  <p className={`${textSecondary} text-sm`}>Recent movement across key KPIs</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {trendHighlights.map((trend) => (
-                    <div key={trend.title} className="bg-white/5 border border-gray-700 rounded-md p-4">
+                    <div key={trend.title} className={`bg-white/5 border ${borderColor} rounded-md p-4`}>
                       <p className="text-gray-200 text-sm uppercase tracking-wide">{trend.title}</p>
                       <p className={`text-3xl font-bold mt-2 ${trend.tone}`}>{trend.value}</p>
                       <p className="text-gray-300 text-sm mt-1">{trend.note}</p>
@@ -728,9 +745,9 @@ export default function AdminDashboardPage() {
                   ))}
                 </div>
               </div>
-              <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
-                <h4 className="text-xl font-semibold text-goldenyellow mb-4">Alerts & Insights</h4>
-                <ul className="space-y-3 text-gray-200 text-sm">
+              <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
+                <h4 className={`text-xl font-semibold text-[#FFB000] mb-4 ${headingFont}`}>Alerts & Insights</h4>
+                <ul className={`space-y-3 ${textSecondary} text-sm`}>
                   <li className="flex items-start gap-2">
                     <span className="mt-1 h-2 w-2 rounded-full bg-amber-300" />
                     Stock for rice drops below buffer in 2 regions.
@@ -752,11 +769,10 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-100 relative">
-      {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 w-64 bg-leafgreen p-6 shadow-lg border-r border-goldenyellow flex flex-col">
+    <div className={`flex min-h-screen ${bgMain} ${textPrimary} ${bodyFont} relative transition-colors duration-300`}>
+      <aside className={`fixed inset-y-0 left-0 w-64 ${bgSidebar} p-6 shadow-lg border-r border-[#FFB000] flex flex-col transition-colors duration-300 ${bodyFont}`}>
         <div className="flex items-center mb-10">
-          <Shield className="w-8 h-8 text-goldenyellow mr-3" />
+          <Shield className="w-8 h-8 text-[#FFB000] mr-3" />
           <h2 className="text-2xl font-bold text-gray-50">Admin Panel</h2>
         </div>
         <nav className="grow">
@@ -769,7 +785,7 @@ export default function AdminDashboardPage() {
                   <button
                     onClick={() => setActiveTab(tab.key)}
                     className={`w-full flex items-center text-left rounded-md px-3 py-2 transition-colors duration-200 ${
-                      isActive ? "bg-white/10 text-goldenyellow" : "text-white hover:text-goldenyellow hover:bg-white/5"
+                      isActive ? "bg-white/10 text-[#FFB000]" : "text-white hover:text-[#FFB000] hover:bg-white/5"
                     }`}
                   >
                     <Icon className="w-5 h-5 mr-3" />
@@ -780,12 +796,32 @@ export default function AdminDashboardPage() {
             })}
           </ul>
         </nav>
-        <div className="mt-auto">
-          <div className="flex items-center text-white mb-4">
-            <CircleUserRound className="w-6 h-6 mr-3 text-goldenyellow" />
-            <span>{user.adminProfile?.firstName} {user.adminProfile?.lastName}</span>
+        <div className="mt-auto space-y-4">
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white font-semibold py-2 px-4 rounded-md transition duration-200 gap-2"
+            aria-label="Toggle theme"
+          >
+            {isDarkMode ? (
+              <>
+                <Sun className="w-5 h-5" />
+                <span>Light Mode</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-5 h-5" />
+                <span>Dark Mode</span>
+              </>
+            )}
+          </button>
+
+          <div className="flex items-center text-white">
+            <CircleUserRound className="w-6 h-6 mr-3 text-[#FFB000]" />
+            <span>
+              {user.adminProfile?.firstName} {user.adminProfile?.lastName}
+            </span>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out gap-2"
           >
@@ -795,77 +831,67 @@ export default function AdminDashboardPage() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="ml-64 p-8 overflow-y-auto">
-        <h1 className="text-4xl font-extrabold text-leafgreen mb-8">Admin Dashboard</h1>
-        <p className="text-gray-500 mb-6">Currently viewing: <span className="text-leafgreen font-semibold">{sidebarTabs.find(t => t.key === activeTab)?.label}</span></p>
-        
+        <h1 className={`text-4xl font-extrabold mb-6 ${headingFont} ${isDarkMode ? "text-[#FFB000]" : "text-[#004225]"}`}>
+          {activeTabLabel}
+        </h1>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Stat Card 1 */}
-          <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+          <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-goldenyellow">Total Users</h3>
-              <Users className="w-8 h-8 text-goldenyellow" />
+              <h3 className={`text-xl font-semibold text-[#FFB000] ${headingFont}`}>Total Users</h3>
+              <Users className="w-8 h-8 text-[#FFB000]" />
             </div>
-            <p className="text-5xl font-bold text-white">1,234</p>
-            <p className="text-gray-400 text-sm mt-2">Registered across all roles</p>
+            <p className={`text-5xl font-bold ${textPrimary}`}>1,234</p>
+            <p className={`${textMuted} text-sm mt-2`}>Registered across all roles</p>
           </div>
 
-          {/* Stat Card 2 */}
-          <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+          <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-goldenyellow">Pending Approvals</h3>
+              <h3 className={`text-xl font-semibold text-[#FFB000] ${headingFont}`}>Pending Approvals</h3>
               <ClipboardList className="w-8 h-8 text-yellow-400" />
             </div>
-            <p className="text-5xl font-bold text-white">45</p>
-            <p className="text-gray-400 text-sm mt-2">Beneficiaries and Donors awaiting review</p>
+            <p className={`text-5xl font-bold ${textPrimary}`}>45</p>
+            <p className={`${textMuted} text-sm mt-2`}>Beneficiaries and Donors awaiting review</p>
           </div>
 
-          {/* Stat Card 3 */}
-          <div className="bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
+          <div className={`${bgCard} p-6 rounded-lg shadow-md border ${borderColor}`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-goldenyellow">Active Programs</h3>
-              <LayoutDashboard className="w-8 h-8 text-goldenyellow" />
+              <h3 className={`text-xl font-semibold text-[#FFB000] ${headingFont}`}>Active Programs</h3>
+              <LayoutDashboard className="w-8 h-8 text-[#FFB000]" />
             </div>
-            <p className="text-5xl font-bold text-white">12</p>
-            <p className="text-gray-400 text-sm mt-2">Currently running food aid programs</p>
+            <p className={`text-5xl font-bold ${textPrimary}`}>12</p>
+            <p className={`${textMuted} text-sm mt-2`}>Currently running food aid programs</p>
           </div>
         </div>
 
-        <div className="mt-10 space-y-8">
-          {renderContent()}
-        </div>
+        <div className="mt-10 space-y-8">{renderContent()}</div>
 
-        <div className="mt-10 bg-leafgreen p-6 rounded-lg shadow-md border border-gray-700">
-          <h3 className="text-2xl font-semibold text-goldenyellow mb-4">Recent Activity</h3>
+        <div className={`${bgCard} mt-10 p-6 rounded-lg shadow-md border ${borderColor}`}>
+          <h3 className={`text-2xl font-semibold text-[#FFB000] mb-4 ${headingFont}`}>Recent Activity</h3>
           <ul className="space-y-3">
-            <li className="text-gray-400">[Timestamp] User John Doe registered as Beneficiary.</li>
-            <li className="text-gray-400">[Timestamp] Donation from XYZ Corp for &quot;Winter Drive&quot; program.</li>
-            <li className="text-gray-400">[Timestamp] Admin Jane Smith approved 3 pending users.</li>
+            <li className={textMuted}>[Timestamp] User John Doe registered as Beneficiary.</li>
+            <li className={textMuted}>[Timestamp] Donation from XYZ Corp for &quot;Winter Drive&quot; program.</li>
+            <li className={textMuted}>[Timestamp] Admin Jane Smith approved 3 pending users.</li>
           </ul>
         </div>
-
       </main>
+
       {detailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-2xl p-6 relative">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm uppercase text-gray-400">{detailModal.title}</p>
-                <h3 className="text-2xl font-semibold text-goldenyellow">{detailModal.name}</h3>
+                <h3 className={`text-2xl font-semibold text-goldenyellow ${headingFont}`}>{detailModal.name}</h3>
               </div>
-              <button
-                onClick={closeDetails}
-                className="text-gray-400 hover:text-white transition"
-                aria-label="Close details"
-              >
+              <button onClick={closeDetails} className="text-gray-400 hover:text-white transition" aria-label="Close details">
                 ✕
               </button>
             </div>
 
             <div className="mt-4 flex flex-col md:flex-row gap-4">
               <div className="w-28 h-28 rounded-lg bg-white/5 border border-gray-700 flex items-center justify-center overflow-hidden">
-                {/* Placeholder portrait; replace with actual image if available */}
                 <span className="text-gray-500 text-sm">Portrait</span>
               </div>
               <div className="flex-1 space-y-2 text-sm text-gray-200">
@@ -884,13 +910,14 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
       {programModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden p-8 relative">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm uppercase text-gray-400">Program Details</p>
-                <h3 className="text-2xl font-semibold text-goldenyellow">{programModal.title}</h3>
+                <h3 className={`text-2xl font-semibold text-goldenyellow ${headingFont}`}>{programModal.title}</h3>
                 <p className="text-gray-300 mt-1">{programModal.summary}</p>
               </div>
               <div className="flex items-center gap-2">
@@ -900,11 +927,7 @@ export default function AdminDashboardPage() {
                 >
                   Save
                 </button>
-                <button
-                  onClick={() => setProgramModal(null)}
-                  className="text-gray-400 hover:text-white transition"
-                  aria-label="Close program modal"
-                >
+                <button onClick={() => setProgramModal(null)} className="text-gray-400 hover:text-white transition" aria-label="Close program modal">
                   ✕
                 </button>
               </div>
@@ -917,9 +940,7 @@ export default function AdminDashboardPage() {
                   type="number"
                   min={0}
                   value={programModal.maxBeneficiaries}
-                  onChange={(e) =>
-                    setProgramModal({ ...programModal, maxBeneficiaries: Number(e.target.value) || 0 })
-                  }
+                  onChange={(e) => setProgramModal({ ...programModal, maxBeneficiaries: Number(e.target.value) || 0 })}
                   className="bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-goldenyellow"
                 />
               </label>
@@ -929,9 +950,7 @@ export default function AdminDashboardPage() {
                   type="number"
                   min={0}
                   value={programModal.maxDonorStalls}
-                  onChange={(e) =>
-                    setProgramModal({ ...programModal, maxDonorStalls: Number(e.target.value) || 0 })
-                  }
+                  onChange={(e) => setProgramModal({ ...programModal, maxDonorStalls: Number(e.target.value) || 0 })}
                   className="bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-goldenyellow"
                 />
               </label>
@@ -940,7 +959,7 @@ export default function AdminDashboardPage() {
             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1" style={{ maxHeight: "50vh" }}>
               <div className="border border-gray-800 rounded-lg p-4 bg-white/5 min-w-0">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-lg font-semibold text-goldenyellow">Beneficiaries</h4>
+                  <h4 className={`text-lg font-semibold text-goldenyellow ${headingFont}`}>Beneficiaries</h4>
                   <div className="flex gap-2">
                     <select
                       value={selectedProgramBeneficiary}
@@ -949,7 +968,9 @@ export default function AdminDashboardPage() {
                     >
                       <option value="">Add from approved list</option>
                       {availableBeneficiaries.map((name) => (
-                        <option key={name} value={name}>{name}</option>
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
                       ))}
                     </select>
                     <button
@@ -961,16 +982,11 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
                 <ul className="space-y-2 text-sm text-gray-200 max-h-52 overflow-y-auto pr-1">
-                  {programModal.beneficiaries.length === 0 && (
-                    <li className="text-gray-400">No beneficiaries assigned yet.</li>
-                  )}
+                  {programModal.beneficiaries.length === 0 && <li className="text-gray-400">No beneficiaries assigned yet.</li>}
                   {programModal.beneficiaries.map((name) => (
                     <li key={name} className="flex items-center justify-between bg-white/5 border border-gray-800 rounded-md px-3 py-2">
                       <span>{name}</span>
-                      <button
-                        onClick={() => removeBeneficiaryFromProgram(name)}
-                        className="text-xs text-red-400 hover:text-red-200"
-                      >
+                      <button onClick={() => removeBeneficiaryFromProgram(name)} className="text-xs text-red-400 hover:text-red-200">
                         Remove
                       </button>
                     </li>
@@ -980,7 +996,7 @@ export default function AdminDashboardPage() {
 
               <div className="border border-gray-800 rounded-lg p-4 bg-white/5 min-w-0">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-lg font-semibold text-goldenyellow">Donor Stalls</h4>
+                  <h4 className={`text-lg font-semibold text-goldenyellow ${headingFont}`}>Donor Stalls</h4>
                   <div className="flex gap-2">
                     <select
                       value={selectedProgramDonor}
@@ -989,7 +1005,9 @@ export default function AdminDashboardPage() {
                     >
                       <option value="">Add from donor list</option>
                       {availableDonors.map((name) => (
-                        <option key={name} value={name}>{name}</option>
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
                       ))}
                     </select>
                     <button
@@ -1001,16 +1019,11 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
                 <ul className="space-y-2 text-sm text-gray-200 max-h-52 overflow-y-auto pr-1">
-                  {programModal.donorStalls.length === 0 && (
-                    <li className="text-gray-400">No donor stalls assigned yet.</li>
-                  )}
+                  {programModal.donorStalls.length === 0 && <li className="text-gray-400">No donor stalls assigned yet.</li>}
                   {programModal.donorStalls.map((name) => (
                     <li key={name} className="flex items-center justify-between bg-white/5 border border-gray-800 rounded-md px-3 py-2">
                       <span>{name}</span>
-                      <button
-                        onClick={() => removeDonorFromProgram(name)}
-                        className="text-xs text-red-400 hover:text-red-200"
-                      >
+                      <button onClick={() => removeDonorFromProgram(name)} className="text-xs text-red-400 hover:text-red-200">
                         Remove
                       </button>
                     </li>
@@ -1039,26 +1052,22 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
+
       {qrScannerOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 px-4">
           <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-3xl p-6 relative">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm uppercase text-gray-400">QR Scanner</p>
-                <h3 className="text-2xl font-semibold text-goldenyellow">
+                <h3 className={`text-2xl font-semibold text-goldenyellow ${headingFont}`}>
                   {qrScanType === "beneficiary" ? "Beneficiary Application" : "Donor Stall Request"}
                 </h3>
                 <p className="text-gray-300 mt-1">Grant camera permission and align the code within the frame.</p>
               </div>
-              <button
-                onClick={closeScanner}
-                className="text-gray-400 hover:text-white transition text-xl"
-                aria-label="Close QR scanner"
-              >
+              <button onClick={closeScanner} className="text-gray-400 hover:text-white transition text-xl" aria-label="Close QR scanner">
                 ✕
               </button>
             </div>
@@ -1082,7 +1091,7 @@ export default function AdminDashboardPage() {
               <button
                 onClick={() => {
                   setQrResult(null);
-                  scannerRef.current?.start().catch((err) => {
+                  scannerRef.current?.start().catch((err: unknown) => {
                     console.error("Failed to restart QR scanner", err);
                     setQrResult("Camera unavailable or permission denied.");
                   });
@@ -1091,10 +1100,7 @@ export default function AdminDashboardPage() {
               >
                 Restart Scan
               </button>
-              <button
-                onClick={closeScanner}
-                className="px-4 py-2 rounded-md bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition"
-              >
+              <button onClick={closeScanner} className="px-4 py-2 rounded-md bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition">
                 Close
               </button>
             </div>

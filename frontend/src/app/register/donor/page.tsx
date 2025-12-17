@@ -12,15 +12,10 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function DonorRegisterPage() {
   const router = useRouter();
-  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [registeredUserId, setRegisteredUserId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [showWarningModal, setShowWarningModal] = useState(false);
   
@@ -62,29 +57,7 @@ export default function DonorRegisterPage() {
     router.push('/');
   };
 
-  const handleOtpVerification = async () => {
-    setOtpLoading(true);
-    try {
-      const response = await authService.verifyDonorOtp(registeredUserId, otp);
-      if (response.success && response.data?.token && response.data?.user) {
-        setSuccessMessage("Email verified successfully! Redirecting...");
-        setShowOtpModal(false);
-        
-        // Store user data via AuthContext
-        login(response.data.token, response.data.user);
-        
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1000);
-      } else {
-        setError(response.message || "OTP verification failed");
-      }
-    } catch (err: any) {
-      setError(err?.message || "OTP verification error");
-    } finally {
-      setOtpLoading(false);
-    }
-  };
+  // OTP verification removed - now handled on login page
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,10 +88,11 @@ export default function DonorRegisterPage() {
       });
       
       if (response.success) {
-        setRegisteredUserId(response.data?.userId);
-        setSuccessMessage("Registration successful! Please verify your email.");
-        setShowOtpModal(true);
-        setOtp("");
+        setSuccessMessage("Registration successful! Redirecting to login...");
+        // Redirect to login page after short delay
+        setTimeout(() => {
+          router.push("/login?type=donor&registered=true");
+        }, 1500);
       } else {
         setError(response.message || "Registration failed");
       }
@@ -296,54 +270,7 @@ export default function DonorRegisterPage() {
         </div>
       </main>
 
-      {/* OTP Verification Modal */}
-      {showOtpModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#0a291a] rounded-2xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-[#004225] dark:text-white mb-4">Verify Your Email</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              We've sent a 6-digit verification code to <strong>{formData.email}</strong>. Please enter it below.
-            </p>
-
-            {error && (
-              <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <input
-              type="text"
-              maxLength={6}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              placeholder="Enter 6-digit OTP"
-              className={`${inputClass} text-center text-2xl tracking-widest mb-6`}
-            />
-
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                onClick={handleOtpVerification}
-                disabled={otpLoading || otp.length !== 6}
-                className="flex-1 bg-[#ffb000] text-black hover:bg-[#ffc107]"
-              >
-                {otpLoading ? "Verifying..." : "Verify"}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  setShowOtpModal(false);
-                  setOtp("");
-                  setError("");
-                }}
-                className="flex-1 bg-gray-200 text-gray-700 hover:bg-gray-300"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* OTP verification now handled on login page */}
       
       {/* Warning Modal */}
       <Modal
