@@ -10,6 +10,7 @@ import Link from 'next/link';
 // --- Imported Layout Components ---
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { useNotification } from '@/components/ui/NotificationProvider';
 import { authService } from "@/services/authService";
 import BeneficiaryApplicationForm from "@/components/features/beneficiary/BeneficiaryApplicationForm";
 
@@ -255,6 +256,7 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm }: { program: any, on
 
 // --- MAIN PAGE ---
 export default function BeneficiaryDashboard() {
+  const { showNotification } = useNotification();
   const [isActivityHistoryOpen, setIsActivityHistoryOpen] = useState(false);
   const [hasSeenApprovedModal, setHasSeenApprovedModal] = useState(false);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
@@ -282,7 +284,7 @@ export default function BeneficiaryDashboard() {
   }, []);
 
   const handleJoinProgram = () => {
-      alert(`Successfully applied for: ${selectedProgram?.title}`);
+      showNotification({ title: 'Applied', message: `Successfully applied for: ${selectedProgram?.title}`, type: 'success', autoClose: 4000 });
       setSelectedProgram(null);
   }
 

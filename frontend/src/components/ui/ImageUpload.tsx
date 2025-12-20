@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useNotification } from '@/components/ui/NotificationProvider';
 import { Camera, Upload, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -12,6 +13,7 @@ interface ImageUploadProps {
 
 export default function ImageUpload({ currentImage, onImageSelect, label = "Upload Photo" }: ImageUploadProps) {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const { showNotification } = useNotification();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -41,7 +43,7 @@ export default function ImageUpload({ currentImage, onImageSelect, label = "Uplo
       }
     } catch (err) {
       console.error("Camera Error:", err);
-      alert("Unable to access camera. Please check permissions.");
+      showNotification({ title: 'Camera error', message: 'Unable to access camera. Please check permissions.', type: 'error' });
       setIsCameraOpen(false);
     }
   };

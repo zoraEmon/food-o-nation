@@ -65,4 +65,8 @@ async function main() {
   }
 }
 
-main();
+if (import.meta.vitest) {
+  describe('QR code (E2E) - skipped under unit test runner', () => { it('is skipped in unit test runs', () => {}); });
+} else {
+  main();
+}

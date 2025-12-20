@@ -16,7 +16,7 @@ model User {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   id                 String        @id @default(uuid())
-  profileImage       String?
+  profileImage       String?      
   isVerified         Boolean       @default(false)
   otpCode            String?
   otpExpiresAt       DateTime?
@@ -36,6 +36,7 @@ model Admin {
   programApplicationScans ProgramApplicationScan[]
   stallApplicationsScanned StallApplication[]       @relation("StallApplicationScanner")
   stallApplicationScans    StallApplicationScan[]   @relation("StallApplicationScanAdmin")
+  newsletters             Newsletter[]
 }
 
 model Beneficiary {
@@ -48,14 +49,12 @@ model Beneficiary {
   userId                  String                @unique
   birthDate               DateTime
   contactNumber           String
-  gender                  Gender
   id                      String                @id @default(uuid())
   middleName              String?
   civilStatus             CivilStatus
   status                  Status                @default(PENDING)
   reviewReason            String?
   reviewedAt              DateTime?
-  activeEmail             String?
   adultCount              Int                   @default(0)
   childrenCount           Int                   @default(0)
   declarationAccepted     Boolean               @default(false)
@@ -65,21 +64,22 @@ model Beneficiary {
   householdPositionDetail String?
   incomeSources           IncomeSource[]        @default([])
   mainEmploymentStatus    MainEmploymentStatus?
-  monthlyIncome           Float?
   primaryPhone            String
   privacyAccepted         Boolean               @default(false)
   pwdCount                Int                   @default(0)
   receivingAid            Boolean               @default(false)
   receivingAidDetail      String?
   seniorCount             Int                   @default(0)
-  signatureUrl            String?
   specialDietDescription  String?
   specialDietRequired     Boolean               @default(false)
   address                 Address?
   user                    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   foodSecuritySurveys     FoodSecuritySurvey[]
   householdMembers        HouseholdMember[]
-  programRegistrations    ProgramRegistration[]
+  programRegistrations    ProgramRegistration[] @relation("BeneficiaryRegistrations")
+  monthlyIncome           Float?
+  gender                  Gender?
+  signatureUrl            String?
 }
 
 model Address {
@@ -90,6 +90,8 @@ model Address {
   country       String      @default("Philippines")
   zipCode       String
   beneficiaryId String      @unique
+    monthlyIncome           Float?                // Monthly income as a float
+    gender                  Gender?               // Gender of the beneficiary
   id            String      @id @default(uuid())
   beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
 }
@@ -107,22 +109,45 @@ model HouseholdMember {
 model FoodSecuritySurvey {
   id            String               @id @default(uuid())
   beneficiaryId String
-  periodStart   DateTime
-  periodEnd     DateTime
-  q1            FoodFrequency
-  q2            FoodFrequency
-  q3            FoodFrequency
-  q4            FoodFrequency
-  q5            FoodFrequency
-  q6            FoodFrequency
+  // Removed periodStart and periodEnd
+  answers       Answer[]
+  questions     Question[] @relation("SurveyQuestions")
   totalScore    Int                  @default(0)
   severity      FoodSecuritySeverity @default(SECURE)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   beneficiary   Beneficiary          @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
 
-  @@unique([beneficiaryId, periodStart, periodEnd])
-  @@index([beneficiaryId, periodStart])
+  @@unique([beneficiaryId, createdAt])
+  @@index([beneficiaryId, createdAt])
+}
+
+enum QuestionType {
+  FOOD_FREQUENCY
+  FOOD_SECURITY_SEVERITY
+}
+
+model Question {
+  id        String       @id @default(uuid())
+  text      String
+  type      QuestionType
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  surveys   FoodSecuritySurvey[] @relation("SurveyQuestions")
+  answers   Answer[]
+}
+model Answer {
+  id                    String   @id @default(uuid())
+  surveyId              String
+  questionId            String
+  foodSeverityResponse  FoodSecuritySeverity?
+  foodFrequencyResponse FoodFrequency?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  survey                FoodSecuritySurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  question              Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([surveyId, questionId]) // Only one answer per question per survey
 }
 
 model Donor {
@@ -227,7 +252,7 @@ model ProgramRegistration {
   registeredAt  DateTime             @default(now())
   status        ProgramStatus        @default(PENDING)
   application   ProgramApplication[]
-  beneficiary   Beneficiary          @relation(fields: [beneficiaryId], references: [id])
+  beneficiary   Beneficiary          @relation("BeneficiaryRegistrations", fields: [beneficiaryId], references: [id])
   program       Program              @relation(fields: [programId], references: [id])
 
   @@unique([programId, beneficiaryId])
@@ -436,10 +461,6 @@ model Newsletter {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
-// =========================================================
-// 11. PAGE DETAILS
-// =========================================================
 
 model PageLogo {
   id        String   @id @default(uuid())

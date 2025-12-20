@@ -1,0 +1,26 @@
+/* Custom scrollbar for dark/light mode */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #FFB000 #16202a;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #FFB000;
+  border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #16202a;
+}
+@media (prefers-color-scheme: light) {
+  .custom-scrollbar {
+    scrollbar-color: #FFB000 #f3f3f3;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #FFB000;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f3f3f3;
+  }
+}

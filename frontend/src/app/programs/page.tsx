@@ -12,6 +12,8 @@ import Footer from "@/components/layout/Footer";
 import { authService } from "@/services/authService";
 import BeneficiaryApplicationForm from "@/components/features/beneficiary/BeneficiaryApplicationForm";
 import axios from "axios";
+import { useNotification } from '@/components/ui/NotificationProvider';
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 // Dynamically import LocationMap to avoid SSR issues with Leaflet
 const LocationMap = dynamic(() => import("@/components/features/programs/LocationMap").then(m => m.LocationMap), {
@@ -749,13 +751,15 @@ function ProgramsPage() {
     };
   }, []);
 
+  const { showNotification } = useNotification();
+
   const handleJoinProgram = async () => {
     if (!selectedProgram) return;
     
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("Please login to apply for programs");
+        showNotification({ title: 'Login required', message: 'Please log in to apply for programs', type: 'info', autoClose: 4000 });
         return;
       }
 
@@ -768,7 +772,7 @@ function ProgramsPage() {
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        alert("Stall reserved successfully! Check your email for the QR code.");
+        showNotification({ title: 'Stall reserved', message: 'Stall reserved successfully! Check your email for the QR code.', type: 'success', autoClose: 5000 });
       } else {
         // Beneficiary: Apply for food program
         response = await axios.post(
@@ -780,6 +784,7 @@ function ProgramsPage() {
         // Show QR code modal for beneficiaries
         setQrCodeData(response.data.data);
         setShowQRCode(true);
+        showNotification({ title: 'Applied', message: `Successfully applied for: ${selectedProgram.title}`, type: 'success', autoClose: 5000 });
       }
 
       setSelectedProgram(null);
@@ -788,7 +793,7 @@ function ProgramsPage() {
       fetchData();
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || "Failed to process request";
-      alert(errorMessage);
+      showNotification({ title: 'Error', message: errorMessage, type: 'error' });
     }
   };
 

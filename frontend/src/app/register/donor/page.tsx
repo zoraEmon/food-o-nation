@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/Button";
 import { authService } from "@/services/authService";
 import Modal from "@/components/ui/Modal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 export default function DonorRegisterPage() {
   const router = useRouter();
+  const { showNotification } = useNotification();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -88,11 +90,9 @@ export default function DonorRegisterPage() {
       });
       
       if (response.success) {
-        setSuccessMessage("Registration successful! Redirecting to login...");
-        // Redirect to login page after short delay
-        setTimeout(() => {
-          router.push("/login?type=donor&registered=true");
-        }, 1500);
+        // Show notification and redirect immediately
+        showNotification({ title: 'Registration successful', message: 'Registration successful! Please check your email for the verification code.', type: 'success', autoClose: 5000 });
+        router.push("/login?type=donor&registered=true");
       } else {
         setError(response.message || "Registration failed");
       }

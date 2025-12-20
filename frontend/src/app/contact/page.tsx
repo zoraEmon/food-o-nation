@@ -4,6 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
 import { authService } from "../../services/authService"; // Corrected path
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({ name: "", email: "", message: "", inquiryType: "General Inquiry" });
@@ -37,11 +38,13 @@ export default function ContactPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const { showNotification } = useNotification();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Form submitted:", formData);
     // Implement actual form submission logic here
-    alert("Message sent! (Simulated)");
+    showNotification({ title: 'Message sent', message: 'Message sent! (Simulated)', type: 'success', autoClose: 4000 });
     setFormData({ name: "", email: "", message: "", inquiryType: "General Inquiry" });
   };
 

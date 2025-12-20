@@ -4,8 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image"; // Import Image component
 import { ArrowLeft, CheckCircle, Mail, CreditCard, Smartphone, Globe, Lock, Heart } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import Navbar from "@/components/layout/Navbar";
+import { Button } from "@/components/ui/Button";import { useNotification } from '@/components/ui/NotificationProvider';import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { initMayaCheckout, initPayPalCheckout } from "@/services/monetaryService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -71,6 +70,7 @@ const SuccessModal = ({
 // MAIN PAGE COMPONENT
 // ==========================================
 export default function MonetaryDonationPage() {
+  const { showNotification } = useNotification();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -205,7 +205,7 @@ export default function MonetaryDonationPage() {
         setShowSuccess(true);
       }
     } catch (e: any) {
-      alert(e?.message || 'Payment initiation failed.');
+      showNotification({ title: 'Payment failed', message: e?.message || 'Payment initiation failed.', type: 'error' });
       setLoading(false);
     }
   };

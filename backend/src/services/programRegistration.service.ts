@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../generated/prisma/index.js';
 import { ProgramRegistrationData } from '../interfaces/interfaces.js';
 import { da } from 'zod/locales';
 

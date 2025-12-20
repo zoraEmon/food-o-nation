@@ -1,10 +1,31 @@
-import { PrismaClient, DonorType, Gender, CivilStatus, HouseholdPosition, MainEmploymentStatus, IncomeSource } from '../generated/prisma/index.js';
+import { PrismaClient, DonorType, Gender, CivilStatus, HouseholdPosition, MainEmploymentStatus, IncomeSource, QuestionType } from '../generated/prisma/index.js';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting seed process...\n');
+
+
+  // ============================================
+  // 0. SEED FOOD SECURITY QUESTIONS
+  // ============================================
+  console.log('❓ Seeding Food Security Questions...');
+  const questions = [
+    { text: 'We are worried that the household would not have enough food to eat.', type: QuestionType.FOOD_SECURITY_SEVERITY },
+    { text: 'An adult member had to eat a smaller portion than they felt necessary because there wasn\'t enough food.', type: QuestionType.FOOD_SECURITY_SEVERITY },
+    { text: 'We had to rely on just a few kinds of low-cost food (or monotonous food) to feed the household.', type: QuestionType.FOOD_FREQUENCY },
+    { text: 'An adult member had to skip entire meals because there wasn\'t enough money or food.', type: QuestionType.FOOD_FREQUENCY },
+    { text: 'There was never any food to eat of any kind in our household because of a lack of resources.', type: QuestionType.FOOD_SECURITY_SEVERITY },
+    { text: 'A child in the household was not eating enough because we could not afford more food.', type: QuestionType.FOOD_SECURITY_SEVERITY },
+  ];
+  for (const q of questions) {
+    const exists = await prisma.question.findFirst({ where: { text: q.text } });
+    if (!exists) {
+      await prisma.question.create({ data: { text: q.text, type: q.type } });
+    }
+  }
+  console.log('   ✅ Beneficiary interview questions seeded.');
 
   // ============================================
   // 1. SEED ADMIN USER
@@ -49,31 +70,31 @@ async function main() {
       email: 'john.donor@test.com',
       password: 'TestPassword123!',
       displayName: 'John Generous Donor',
-      donorType: DonorType.INDIVIDUAL,
+      donorType: 'INDIVIDUAL',
     },
     {
       email: 'maria.philanthropist@test.com',
       password: 'TestPassword123!',
       displayName: 'Maria Philanthropist',
-      donorType: DonorType.INDIVIDUAL,
+      donorType: 'INDIVIDUAL',
     },
     {
       email: 'abc.corporation@test.com',
       password: 'TestPassword123!',
       displayName: 'ABC Corporation',
-      donorType: DonorType.ORGANIZATION,
+      donorType: 'ORGANIZATION',
     },
     {
       email: 'good.samaritan.foundation@test.com',
       password: 'TestPassword123!',
       displayName: 'Good Samaritan Foundation',
-      donorType: DonorType.ORGANIZATION,
+      donorType: 'ORGANIZATION',
     },
     {
       email: 'local.bakery@test.com',
       password: 'TestPassword123!',
       displayName: 'Local Bakery Shop',
-      donorType: DonorType.BUSINESS,
+      donorType: 'BUSINESS',
     },
   ];
 
@@ -104,7 +125,7 @@ async function main() {
         donorProfile: {
           create: {
             displayName: donor.displayName,
-            donorType: donor.donorType,
+            donorType: DonorType[donor.donorType as keyof typeof DonorType],
             totalDonation: 0,
             points: 0,
           },
@@ -279,7 +300,7 @@ async function main() {
       lastName: 'Santos',
       age: 34,
       birthDate: new Date('1991-03-15'),
-      gender: Gender.FEMALE,
+      gender: 'FEMALE',
       civilStatus: CivilStatus.MARRIED,
       occupation: 'Market Vendor',
       contactNumber: '+63 917 123 4567',
@@ -291,9 +312,9 @@ async function main() {
       pwdCount: 0,
       householdAnnualSalary: 120000,
       monthlyIncome: 10000,
-      householdPosition: HouseholdPosition.MOTHER,
-      mainEmploymentStatus: MainEmploymentStatus.EMPLOYED_FULL_TIME,
-      incomeSources: [IncomeSource.INFORMAL_GIG],
+      householdPosition: 'MOTHER',
+      mainEmploymentStatus: 'EMPLOYED_FULL_TIME',
+      incomeSources: ['INFORMAL_GIG'],
       receivingAid: false,
       specialDietRequired: false,
       declarationAccepted: true,
@@ -316,7 +337,7 @@ async function main() {
       lastName: 'Dela Cruz',
       age: 45,
       birthDate: new Date('1980-07-20'),
-      gender: Gender.MALE,
+      gender: 'MALE',
       civilStatus: CivilStatus.MARRIED,
       occupation: 'Construction Worker',
       contactNumber: '+63 917 234 5678',
@@ -328,9 +349,9 @@ async function main() {
       pwdCount: 0,
       householdAnnualSalary: 180000,
       monthlyIncome: 15000,
-      householdPosition: HouseholdPosition.MOTHER,
-      mainEmploymentStatus: MainEmploymentStatus.EMPLOYED_FULL_TIME,
-      incomeSources: [IncomeSource.FORMAL_SALARIED],
+      householdPosition: 'MOTHER',
+      mainEmploymentStatus: 'EMPLOYED_FULL_TIME',
+      incomeSources: ['FORMAL_SALARIED'],
       receivingAid: true,
       receivingAidDetail: 'Pantawid Pamilyang Pilipino Program (4Ps)',
       specialDietRequired: false,
@@ -354,7 +375,7 @@ async function main() {
       lastName: 'Garcia',
       age: 28,
       birthDate: new Date('1997-05-12'),
-      gender: Gender.FEMALE,
+      gender: 'FEMALE',
       civilStatus: CivilStatus.SINGLE,
       occupation: 'Housewife',
       contactNumber: '+63 917 345 6789',
@@ -366,9 +387,9 @@ async function main() {
       pwdCount: 0,
       householdAnnualSalary: 96000,
       monthlyIncome: 8000,
-      householdPosition: HouseholdPosition.MOTHER,
-      mainEmploymentStatus: MainEmploymentStatus.LONG_TERM_UNEMPLOYED,
-      incomeSources: [IncomeSource.GOV_ASSISTANCE],
+      householdPosition: 'MOTHER',
+      mainEmploymentStatus: 'LONG_TERM_UNEMPLOYED',
+      incomeSources: ['GOV_ASSISTANCE'],
       receivingAid: false,
       specialDietRequired: false,
       declarationAccepted: true,
@@ -391,7 +412,7 @@ async function main() {
       lastName: 'Ramos',
       age: 52,
       birthDate: new Date('1973-11-08'),
-      gender: Gender.MALE,
+      gender: 'MALE',
       civilStatus: CivilStatus.WIDOWED,
       occupation: 'Tricycle Driver',
       contactNumber: '+63 917 456 7890',
@@ -403,9 +424,9 @@ async function main() {
       pwdCount: 1,
       householdAnnualSalary: 108000,
       monthlyIncome: 9000,
-      householdPosition: HouseholdPosition.FATHER,
-      mainEmploymentStatus: MainEmploymentStatus.EMPLOYED_FULL_TIME,
-      incomeSources: [IncomeSource.INFORMAL_GIG],
+      householdPosition: 'FATHER',
+      mainEmploymentStatus: 'EMPLOYED_FULL_TIME',
+      incomeSources: ['INFORMAL_GIG'],
       receivingAid: false,
       specialDietRequired: true,
       specialDietDescription: 'One child requires gluten-free diet',
@@ -431,7 +452,7 @@ async function main() {
       lastName: 'Fernandez',
       age: 38,
       birthDate: new Date('1987-02-25'),
-      gender: Gender.FEMALE,
+      gender: 'FEMALE',
       civilStatus: CivilStatus.MARRIED,
       occupation: 'Office Clerk',
       contactNumber: '+63 917 567 8901',
@@ -443,9 +464,9 @@ async function main() {
       pwdCount: 0,
       householdAnnualSalary: 350000,
       monthlyIncome: 29000,
-      householdPosition: HouseholdPosition.MOTHER,
-      mainEmploymentStatus: MainEmploymentStatus.EMPLOYED_FULL_TIME,
-      incomeSources: [IncomeSource.FORMAL_SALARIED],
+      householdPosition: 'MOTHER',
+      mainEmploymentStatus: 'EMPLOYED_FULL_TIME',
+      incomeSources: ['FORMAL_SALARIED'],
       receivingAid: false,
       specialDietRequired: false,
       declarationAccepted: true,
@@ -470,7 +491,7 @@ async function main() {
       lastName: 'Reyes',
       age: 41,
       birthDate: new Date('1984-09-30'),
-      gender: Gender.MALE,
+      gender: 'MALE',
       civilStatus: CivilStatus.MARRIED,
       occupation: 'Factory Worker',
       contactNumber: '+63 917 678 9012',
@@ -482,9 +503,9 @@ async function main() {
       pwdCount: 0,
       householdAnnualSalary: 150000,
       monthlyIncome: 12500,
-      householdPosition: HouseholdPosition.FATHER,
-      mainEmploymentStatus: MainEmploymentStatus.EMPLOYED_FULL_TIME,
-      incomeSources: [IncomeSource.FORMAL_SALARIED],
+      householdPosition: 'FATHER',
+      mainEmploymentStatus: 'EMPLOYED_FULL_TIME',
+      incomeSources: ['FORMAL_SALARIED'],
       receivingAid: false,
       specialDietRequired: false,
       declarationAccepted: true,
@@ -531,7 +552,7 @@ async function main() {
             lastName: beneficiary.lastName,
             age: beneficiary.age,
             birthDate: beneficiary.birthDate,
-            gender: beneficiary.gender,
+            gender: beneficiary.gender ? Gender[beneficiary.gender as keyof typeof Gender] : undefined,
             civilStatus: beneficiary.civilStatus,
             occupation: beneficiary.occupation,
             contactNumber: beneficiary.contactNumber,
@@ -543,9 +564,9 @@ async function main() {
             pwdCount: beneficiary.pwdCount,
             householdAnnualSalary: beneficiary.householdAnnualSalary,
             monthlyIncome: beneficiary.monthlyIncome,
-            householdPosition: beneficiary.householdPosition,
-            mainEmploymentStatus: beneficiary.mainEmploymentStatus,
-            incomeSources: beneficiary.incomeSources,
+            householdPosition: HouseholdPosition[beneficiary.householdPosition as keyof typeof HouseholdPosition],
+            mainEmploymentStatus: beneficiary.mainEmploymentStatus ? MainEmploymentStatus[beneficiary.mainEmploymentStatus as keyof typeof MainEmploymentStatus] : undefined,
+            incomeSources: beneficiary.incomeSources.map((src: string) => IncomeSource[src as keyof typeof IncomeSource]),
             receivingAid: beneficiary.receivingAid,
             receivingAidDetail: beneficiary.receivingAidDetail,
             specialDietRequired: beneficiary.specialDietRequired,

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --watch src --ext ts,js,json --exec tsx src/server.ts",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:build": "tsc prisma/seed.ts --outDir prisma --module ESNext --target ES2022 --esModuleInterop --moduleResolution node",
+    "test": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -29,21 +31,35 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.10.0",
+    "@types/testing-library__react": "^10.0.1",
     "@types/uuid": "^10.0.0",
+    "axios": "^1.13.2",
     "dotenv": "^17.2.3",
+    "jsdom": "^27.3.0",
     "nodemon": "^3.1.10",
     "prisma": "^6.19.0",
+    "supertest": "^6.3.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "vitest": {
+    "test": {
+      "exclude": [
+        "tests/program-applications/**"
+      ]
+    }
   }
 }

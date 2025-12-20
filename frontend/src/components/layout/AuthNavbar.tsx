@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
-import { Moon, Sun } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Moon, Sun, ArrowLeft } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -20,6 +20,7 @@ export default function AuthNavbar({
   signUpLink = '/register/beneficiary'
 }: AuthNavbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -36,6 +37,11 @@ export default function AuthNavbar({
       <nav className="bg-primary text-white border-b border-primary/20 sticky top-0 z-50">
         <div className="container mx-auto flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
+            {( /^\/(login|register)/ ).test(pathname || '/') && (
+              <button aria-label="Go back" onClick={() => router.back()} className="p-2 rounded-md bg-white/10 hover:bg-white/20 text-white flex items-center justify-center mr-2">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
             <span className="font-hand text-4xl text-secondary">Logo</span>
           </div>
           

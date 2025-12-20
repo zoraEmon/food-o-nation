@@ -68,7 +68,52 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
             return res.status(400).json({ errors: result.error.format() });
         }
 
-        const data = result.data;
+        const data = result.data as any;
+
+        // Defensive fallbacks: when using multipart/form-data some complex fields
+        // may arrive as JSON strings despite Zod preprocessing — handle explicit parsing here.
+        const fallbackParse = (raw: any) => {
+            if (!raw) return undefined;
+            if (Array.isArray(raw)) return raw;
+            if (typeof raw === 'string') {
+                try { return JSON.parse(raw); } catch { return undefined; }
+            }
+            return undefined;
+        };
+
+        const householdMembers = data.householdMembers || fallbackParse(req.body.householdMembers) || undefined;
+        const incomeSourcesRaw = data.incomeSources || fallbackParse(req.body.incomeSources) || undefined;
+        const governmentIdType = data.governmentIdType || req.body.governmentIdType || undefined;
+
+        // Map human-friendly income source strings to Prisma enum values
+        const mapIncomeSource = (s: string) => {
+            if (!s || typeof s !== 'string') return undefined;
+            const v = s.trim().toLowerCase();
+            if (v.includes('formal') || v.includes('salar')) return 'FORMAL_SALARIED';
+            if (v.includes('inform') || v.includes('gig') || v.includes('odd') || v.includes('self')) return 'INFORMAL_GIG';
+            if (v.includes('gov') || v.includes('government') || v.includes('assistance')) return 'GOV_ASSISTANCE';
+            if (v.includes('remit') || v.includes('remittance')) return 'REMITTANCE';
+            if (v === 'none' || v === 'n/a' || v === 'na') return 'NONE';
+            // try match exact enum names
+            const up = s.toUpperCase().replace(/[^A-Z_]/g, '_');
+            if (['FORMAL_SALARIED','INFORMAL_GIG','GOV_ASSISTANCE','REMITTANCE','NONE'].includes(up)) return up;
+            return undefined;
+        };
+
+        const incomeSources = Array.isArray(incomeSourcesRaw)
+            ? incomeSourcesRaw.map((x: any) => mapIncomeSource(String(x))).filter(Boolean)
+            : (typeof incomeSourcesRaw === 'string' ? (mapIncomeSource(incomeSourcesRaw) ? [mapIncomeSource(incomeSourcesRaw)] : []) : undefined);
+
+        // Log parsed application fields to help debug missing associations
+        console.log('Parsed registration fields:');
+        console.log(' - householdMembers:', Array.isArray(householdMembers) ? householdMembers.length : householdMembers);
+        console.log(' - incomeSourcesRaw:', incomeSourcesRaw);
+        console.log(' - incomeSources(mapped):', incomeSources);
+        console.log(' - governmentIdType:', governmentIdType);
+        console.log(' - monthlyIncome:', data.monthlyIncome);
+        console.log(' - mainEmploymentStatus:', data.mainEmploymentStatus);
+        console.log(' - receivingAid:', data.receivingAid, 'detail:', data.receivingAidDetail);
+        console.log(' - declarationAccepted:', data.declarationAccepted, 'privacyAccepted:', data.privacyAccepted);
 
         // 3. Check for Existing Email - Verify email is unique across all users
         const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
@@ -102,8 +147,10 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
 
         // 6. Create User & Beneficiary Profile
-        const newUser = await prisma.user.create({
-            data: {
+        let newUser: any;
+        try {
+            newUser = await prisma.user.create({
+                data: {
                 // User Fields
                 email: data.email,
                 password: hashedPassword,
@@ -149,7 +196,7 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                         
                         // Economic
                         monthlyIncome: data.monthlyIncome,
-                        incomeSources: data.incomeSources,
+                        incomeSources: Array.isArray(incomeSources) && incomeSources.length > 0 ? incomeSources : undefined,
                         mainEmploymentStatus: data.mainEmploymentStatus,
                         receivingAid: data.receivingAid,
                         receivingAidDetail: data.receivingAidDetail,
@@ -170,9 +217,9 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                             }
                         },
                         
-                        // Household members
-                        householdMembers: data.householdMembers ? {
-                            create: data.householdMembers.map(member => ({
+                        // Household members (use parsed/fallback array)
+                        householdMembers: householdMembers ? {
+                            create: householdMembers.map((member: any) => ({
                                 fullName: member.fullName,
                                 birthDate: new Date(member.birthDate),
                                 age: member.age,
@@ -185,7 +232,15 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
             include: {
                 beneficiaryProfile: true
             }
-        });
+            });
+        } catch (dbErr) {
+            console.error('Register Beneficiary DB Error:', dbErr);
+            // Cleanup uploaded files
+            if (files?.profileImage?.[0]) fs.unlinkSync(files.profileImage[0].path);
+            if (files?.governmentIdFile?.[0]) fs.unlinkSync(files.governmentIdFile[0].path);
+            if (files?.signature?.[0]) fs.unlinkSync(files.signature[0].path);
+            return res.status(500).json({ message: 'Database error during registration', detail: String(dbErr) });
+        }
 
         // 7. Send OTP Email
         await emailService.sendOTP(newUser.email, otp);

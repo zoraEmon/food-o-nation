@@ -7,7 +7,7 @@ import { Button } from '../ui/Button';
 import { ThemeToggle } from './ThemeToggle';
 import { cn } from '@/lib/utils';
 import Modal from '../ui/Modal';
-import { HandHeart, HeartHandshake, LogOut, User, ChevronDown } from 'lucide-react';
+import { HandHeart, HeartHandshake, LogOut, User, ChevronDown, ArrowLeft } from 'lucide-react';
 import LoginForm from '@/components/features/auth/LoginForm';
 import AnonymousDonationModal from '@/components/ui/AnonymousDonationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -81,10 +81,16 @@ export default function Navbar() {
     <>
       <nav className="bg-primary text-white border-b border-primary/20 sticky top-0 z-50 transition-colors duration-300">
         <div className="container mx-auto flex items-center justify-between p-4">
-          
-          <Link href="/" className="font-hand text-4xl text-secondary hover:text-white transition-colors no-underline">
-            Logo
-          </Link>
+          <div className="flex items-center gap-3">
+            {(/^\/(login|register)/).test(pathname || '/') && (
+              <button aria-label="Go back" onClick={() => router.back()} className="p-2 rounded-md bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <Link href="/" className="font-hand text-4xl text-secondary hover:text-white transition-colors no-underline">
+              Logo
+            </Link>
+          </div>
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex gap-8 font-heading font-medium text-sm tracking-wide">
@@ -116,6 +122,13 @@ export default function Navbar() {
             >
               Donate!
             </button>
+
+            {/* Show small back button on mobile when on login/register as well */}
+            {(/^\/(login|register)/).test(pathname || '/') && (
+              <button aria-label="Go back" onClick={() => router.back()} className="p-2 rounded-md bg-white/10 hover:bg-white/20 text-white flex items-center justify-center sm:hidden">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
 
             {/* --- CONDITIONAL RENDERING --- */}
             {user ? (

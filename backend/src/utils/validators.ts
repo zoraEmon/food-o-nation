@@ -36,6 +36,61 @@ export const registerBeneficiarySchema = z.object({
     householdPosition: z.nativeEnum(HouseholdPosition),
     primaryPhone: z.string().min(11, 'Primary phone is required'),
 
+    // Additional fields submitted via FormData
+    householdPositionDetail: z.string().optional(),
+    governmentIdType: z.string().optional(),
+
+    // Counts
+    childrenCount: z.coerce.number().int().min(0).optional(),
+    adultCount: z.coerce.number().int().min(0).optional(),
+    seniorCount: z.coerce.number().int().min(0).optional(),
+    pwdCount: z.coerce.number().int().min(0).optional(),
+
+    // Special diet
+    specialDietRequired: z.preprocess((v) => {
+      if (typeof v === 'string') return v === 'true';
+      return v;
+    }, z.boolean()).optional(),
+    specialDietDescription: z.string().optional(),
+
+    // Economic
+    monthlyIncome: z.coerce.number().min(0).optional(),
+    incomeSources: z.preprocess((v) => {
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return undefined; }
+      }
+      return v;
+    }, z.array(z.string()).optional()),
+    mainEmploymentStatus: z.string().optional(),
+    receivingAid: z.preprocess((v) => {
+      if (typeof v === 'string') return v === 'true';
+      return v;
+    }, z.boolean()).optional(),
+    receivingAidDetail: z.string().optional(),
+
+    // Consents and signature handled by controller
+    declarationAccepted: z.preprocess((v) => {
+      if (typeof v === 'string') return v === 'true';
+      return v;
+    }, z.boolean()).optional(),
+    privacyAccepted: z.preprocess((v) => {
+      if (typeof v === 'string') return v === 'true';
+      return v;
+    }, z.boolean()).optional(),
+
+    // Household members (sent as JSON string in FormData)
+    householdMembers: z.preprocess((v) => {
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return undefined; }
+      }
+      return v;
+    }, z.array(z.object({
+      fullName: z.string().min(1),
+      birthDate: z.string().datetime(),
+      age: z.coerce.number().int(),
+      relationship: z.string().min(1)
+    })).optional()),
+
     // Address Info
     streetNumber: z.string().min(1, 'Street number is required'),
     barangay: z.string().min(1, 'Barangay is required'),

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../generated/prisma/index.js';
 import { DonationItemData } from "../interfaces/interfaces.js";
 
 const prisma = new PrismaClient();

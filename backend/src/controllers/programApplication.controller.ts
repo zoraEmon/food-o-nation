@@ -14,7 +14,7 @@ const emailService = new EmailService();
  * Shows which programs user has applied to and available slots
  */
 export const getProgramsWithUserStatus = async (req: Request, res: Response) => {
-  try {
+  try {x``
     const userId = (req as any).user?.userId;
     
     if (!userId) {

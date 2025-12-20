@@ -15,6 +15,9 @@ import benificaryAddressCountRoutes from './beneficiaryChartData.routes.js';
 import updateDetailsRoutes from './updateDetails.routers.js'; // Page details routes
 import programApplicationRoutes from './programApplication.routes.js';
 import metricsRoutes from './metrics.routes.js';
+import adminRoutes from './admin.routes.js';
+import questionRoutes from './question.routes.js';
+import psgcRoutes from './psgc.routes.js';
 
 // ruta for auth related endpoints [29/11/2025]
 const router = express.Router();
@@ -35,5 +38,9 @@ router.use('/programRegistration', programRigerstationRoutes);
 router.use('/donationItem', donationItemRoutes);
 router.use('/beneficiaryChartData', benificaryAddressCountRoutes);
 router.use('/page-details', updateDetailsRoutes);
+
+router.use('/', questionRoutes);
+router.use('/admin', adminRoutes);
+router.use('/psgc', psgcRoutes);
 
 export default router;

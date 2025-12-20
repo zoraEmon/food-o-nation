@@ -3,6 +3,7 @@ import { Inter, Poppins, Dancing_Script } from "next/font/google"; // Import sta
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext"; // Import AuthProvider
+import { NotificationProvider } from '@/components/ui/NotificationProvider'; // Global notification modal
 
 // 1. Configure Fonts
 const inter = Inter({
@@ -40,9 +41,11 @@ export default function RootLayout({
           defaultTheme="light"
           enableSystem={false}
         >
-          <AuthProvider> {/* Wrap with AuthProvider */}
-            {children}
-          </AuthProvider>
+          <NotificationProvider>
+            <AuthProvider> {/* Wrap with AuthProvider */}
+              {children}
+            </AuthProvider>
+          </NotificationProvider>
         </ThemeProvider>
       </body>
     </html>

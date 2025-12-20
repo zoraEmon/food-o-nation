@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import axios from "axios";
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 // Using server-provided QR image URL to avoid client-side generation
 
@@ -69,6 +70,7 @@ const TIME_SLOTS: TimeSlot[] = [
 ];
 
 export default function DonationSchedulePage() {
+  const { showNotification } = useNotification();
   const [currentStep, setCurrentStep] = useState(1);
   const [items, setItems] = useState<DonationItem[]>([]);
   const [donationCenters, setDonationCenters] = useState<DonationCenter[]>([]);
@@ -131,7 +133,7 @@ export default function DonationSchedulePage() {
 
   const addItem = () => {
     if (!itemName || !category || !quantity || !unit) {
-      alert("Please fill in all item fields");
+      showNotification({ title: 'Invalid input', message: 'Please fill in all item fields', type: 'error' });
       return;
     }
 
@@ -164,12 +166,12 @@ export default function DonationSchedulePage() {
   const handleNextStep = () => {
     if (currentStep === 1) {
       if (items.length === 0) {
-        alert("Please add at least one item to donate");
+        showNotification({ title: 'No items', message: 'Please add at least one item to donate', type: 'error' });
         return;
       }
     } else if (currentStep === 2) {
       if (!selectedCenter || !selectedDate || !selectedTimeSlot) {
-        alert("Please select location, date, and time slot");
+        showNotification({ title: 'Missing fields', message: 'Please select location, date, and time slot', type: 'error' });
         return;
       }
     }
@@ -231,7 +233,7 @@ export default function DonationSchedulePage() {
       }
     } catch (error: any) {
       console.error("Error scheduling donation:", error);
-      alert(error.response?.data?.message || "Failed to schedule donation. Please try again.");
+      showNotification({ title: 'Error', message: error.response?.data?.message || "Failed to schedule donation. Please try again.", type: 'error' });
     } finally {
       setLoading(false);
     }

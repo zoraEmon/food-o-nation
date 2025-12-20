@@ -1,0 +1,70 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  test-frontend:
+    name: Frontend Lint/Build/Tests
+    runs-on: ubuntu-latest
+    concurrency:
+      group: frontend-tests-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (frontend)
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run lint
+        working-directory: ./frontend
+        run: npm run lint || true
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Prepare test-results folder
+        working-directory: ./frontend
+        run: mkdir -p test-results
+
+      - name: Run frontend tests with coverage
+        working-directory: ./frontend
+        env:
+          CI: true
+        run: npm run test:coverage --silent
+
+      - name: Upload JUnit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: ./frontend/test-results/junit.xml
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: ./frontend/test-results/coverage
+
+      - name: Annotate frontend test results on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: dorny/test-reporter@v1
+        with:
+          name: frontend-tests
+          path: ./frontend/test-results/junit.xml
+          reporter: junit

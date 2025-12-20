@@ -1,0 +1,336 @@
+@baseUrl = http://localhost:5000/api
+@adminToken = your-admin-jwt-token-here
+@beneficiaryId = will-be-set-after-create
+
+### ============================================
+### BENEFICIARY APPLICATION - REST CLIENT TESTS
+### ============================================
+
+### 1. CREATE BENEFICIARY APPLICATION - FULL FORM
+POST {{baseUrl}}/beneficiaries
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Juan",
+  "lastName": "Dela Cruz",
+  "middleName": "Manuel",
+  "gender": "MALE",
+  "birthDate": "1985-05-15T00:00:00Z",
+  "age": 39,
+  "civilStatus": "MARRIED",
+  "contactNumber": "09171234567",
+  "occupation": "Construction Worker",
+  "householdNumber": 6,
+  "householdAnnualSalary": 180000,
+
+  
+  "householdPosition": "FATHER",
+  "householdPositionDetail": null,
+  "primaryPhone": "09171234567",
+  "activeEmail": "juan.delacruz@email.com",
+  "governmentIdType": "PhilID",
+  "governmentIdFileUrl": "https://example.com/id.jpg",
+  
+  "childrenCount": 3,
+  "adultCount": 2,
+  "seniorCount": 1,
+  "pwdCount": 1,
+  
+  "specialDietRequired": true,
+  "specialDietDescription": "Gluten-free diet due to celiac disease",
+  
+  "monthlyIncome": 15000,
+  "incomeSources": ["INFORMAL_GIG", "REMITTANCE"],
+  "mainEmploymentStatus": "EMPLOYED_PART_TIME",
+  "receivingAid": true,
+  "receivingAidDetail": "Currently receiving 4Ps and DSWD assistance",
+  
+  "declarationAccepted": true,
+  "privacyAccepted": true,
+  "signatureUrl": "https://example.com/signature.jpg",
+  
+  "address": {
+    "streetNumber": "123 Mabuhay Street",
+    "barangay": "Barangay Libis",
+    "municipality": "Quezon City",
+    "region": "NCR",
+    "country": "Philippines",
+    "zipCode": "1110"
+  },
+  
+  "householdMembers": [
+    {
+      "fullName": "Maria Dela Cruz",
+      "birthDate": "1988-03-20T00:00:00Z",
+      "age": 36,
+      "relationship": "Wife"
+    },
+    {
+      "fullName": "Ana Dela Cruz",
+      "birthDate": "2007-07-10T00:00:00Z",
+      "age": 17,
+      "relationship": "Daughter"
+    },
+    {
+      "fullName": "Carlos Dela Cruz",
+      "birthDate": "2010-11-25T00:00:00Z",
+      "age": 14,
+      "relationship": "Son"
+    },
+    {
+      "fullName": "Rosa Dela Cruz",
+      "birthDate": "2015-02-14T00:00:00Z",
+      "age": 9,
+      "relationship": "Daughter"
+    }
+  ]
+}
+
+###
+
+### 2. CREATE BENEFICIARY APPLICATION - MINIMAL DATA
+POST {{baseUrl}}/beneficiaries
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Maria",
+  "lastName": "Santos",
+  "gender": "FEMALE",
+  "birthDate": "1990-08-22T00:00:00Z",
+  "age": 34,
+  "civilStatus": "SINGLE",
+  "contactNumber": "09209876543",
+  "householdNumber": 2,
+  "userId": "user-uuid-here",
+  
+  "householdPosition": "OTHER_RELATIVE",
+  "householdPositionDetail": "Head of household",
+  "primaryPhone": "09209876543",
+  
+  "childrenCount": 0,
+  "adultCount": 2,
+  "seniorCount": 0,
+  "pwdCount": 0,
+  
+  "specialDietRequired": false,
+  
+  "receivingAid": false,
+  
+  "declarationAccepted": true,
+  "privacyAccepted": true,
+  
+  "address": {
+    "streetNumber": "456 Hope Street",
+    "barangay": "Barangay Pag-asa",
+    "municipality": "Caloocan City",
+    "zipCode": "1400"
+  }
+}
+
+###
+
+### 3. CREATE BENEFICIARY - INVALID (Missing required field - declaration)
+POST {{baseUrl}}/beneficiaries
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Invalid",
+  "lastName": "Applicant",
+  "gender": "MALE",
+  "birthDate": "1995-01-01T00:00:00Z",
+  "age": 29,
+  "civilStatus": "SINGLE",
+  "contactNumber": "09171234567",
+  "householdNumber": 1,
+  "userId": "user-uuid-here",
+  "householdPosition": "OTHER_RELATIVE",
+  "primaryPhone": "09171234567",
+  "childrenCount": 0,
+  "adultCount": 1,
+  "seniorCount": 0,
+  "pwdCount": 0,
+  "receivingAid": false,
+  "declarationAccepted": true,
+  "privacyAccepted": false,
+  "address": {
+    "streetNumber": "789 Test St",
+    "barangay": "Test Barangay",
+    "municipality": "Test City",
+    "zipCode": "1000"
+  }
+}
+
+###
+
+### 4. CREATE BENEFICIARY - INVALID (Bad phone format)
+POST {{baseUrl}}/beneficiaries
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "BadPhone",
+  "lastName": "User",
+  "gender": "FEMALE",
+  "birthDate": "1992-06-15T00:00:00Z",
+  "age": 32,
+  "civilStatus": "MARRIED",
+  "contactNumber": "123",
+  "householdNumber": 3,
+  "userId": "user-uuid-here",
+  "householdPosition": "MOTHER",
+  "primaryPhone": "123",
+  "childrenCount": 2,
+  "adultCount": 1,
+  "seniorCount": 0,
+  "pwdCount": 0,
+  "receivingAid": false,
+  "declarationAccepted": true,
+  "privacyAccepted": true,
+  "address": {
+    "streetNumber": "100 Bad Phone St",
+    "barangay": "Barangay Test",
+    "municipality": "Test City",
+    "zipCode": "1000"
+  }
+}
+
+###
+
+### 5. GET ALL BENEFICIARIES
+GET {{baseUrl}}/beneficiaries
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###
+
+### 6. GET BENEFICIARY BY ID
+GET {{baseUrl}}/beneficiaries/{{beneficiaryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###
+
+### 7. GET BENEFICIARY - NOT FOUND
+GET {{baseUrl}}/beneficiaries/nonexistent-id-12345
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###
+
+### 8. UPDATE BENEFICIARY - PARTIAL UPDATE
+PATCH {{baseUrl}}/beneficiaries/{{beneficiaryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "monthlyIncome": 18000,
+  "mainEmploymentStatus": "EMPLOYED_FULL_TIME",
+  "receivingAid": false,
+  "childrenCount": 2,
+  "adultCount": 2
+}
+
+###
+
+### 9. UPDATE BENEFICIARY - UPDATE HOUSEHOLD MEMBERS
+PATCH {{baseUrl}}/beneficiaries/{{beneficiaryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "householdMembers": [
+    {
+      "fullName": "Maria Dela Cruz",
+      "birthDate": "1988-03-20T00:00:00Z",
+      "age": 36,
+      "relationship": "Wife"
+    },
+    {
+      "fullName": "New Family Member",
+      "birthDate": "2020-01-15T00:00:00Z",
+      "age": 4,
+      "relationship": "Grandchild"
+    }
+  ]
+}
+
+###
+
+### 10. UPDATE BENEFICIARY - ADDRESS UPDATE
+PATCH {{baseUrl}}/beneficiaries/{{beneficiaryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "address": {
+    "streetNumber": "789 New Address Street",
+    "barangay": "Barangay Bagong Pag-asa",
+    "municipality": "Mandaluyong City",
+    "region": "NCR",
+    "zipCode": "1550"
+  }
+}
+
+###
+
+### ============================================
+### FOOD SECURITY SURVEY TESTS
+### ============================================
+
+### 11. CREATE FOOD SECURITY SURVEY
+POST {{baseUrl}}/beneficiaries/{{beneficiaryId}}/food-security-surveys
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "q1": "SOMETIMES",
+  "q2": "OFTEN",
+  "q3": "RARELY",
+  "q4": "SOMETIMES",
+  "q5": "NEVER",
+  "q6": "SOMETIMES",
+  "periodStart": "2025-11-12T00:00:00Z",
+  "periodEnd": "2025-12-12T00:00:00Z"
+}
+
+###
+
+### 12. CREATE FOOD SECURITY SURVEY - SEVERE CASE
+POST {{baseUrl}}/beneficiaries/{{beneficiaryId}}/food-security-surveys
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "q1": "OFTEN",
+  "q2": "OFTEN",
+  "q3": "OFTEN",
+  "q4": "OFTEN",
+  "q5": "SOMETIMES",
+  "q6": "OFTEN"
+}
+
+###
+
+### 13. GET FOOD SECURITY SURVEYS FOR BENEFICIARY
+GET {{baseUrl}}/beneficiaries/{{beneficiaryId}}/food-security-surveys
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###
+
+### 14. GET LATEST FOOD SECURITY SURVEY
+GET {{baseUrl}}/beneficiaries/{{beneficiaryId}}/food-security-surveys/latest
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###
+
+### 15. GET SURVEY BY ID
+GET {{baseUrl}}/beneficiaries/{{beneficiaryId}}/food-security-surveys/survey-id-here
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+###

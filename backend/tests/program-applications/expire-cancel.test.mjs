@@ -32,4 +32,10 @@ async function run() {
   console.log('\x1b[32m[PASS]\x1b[0m expire cancellation ran');
 }
 
-run().catch((e) => { console.error('\x1b[31m[FAIL]\x1b[0m', e?.message || e); process.exit(1); });
+if (import.meta.vitest) {
+  describe('Expire/cancel job (E2E) - skipped under unit test runner', () => {
+    it('is skipped in unit test runs', () => {});
+  });
+} else {
+  run().catch((e) => { console.error('\x1b[31m[FAIL]\x1b[0m', e?.message || e); process.exit(1); });
+}
