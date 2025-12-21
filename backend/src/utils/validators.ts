@@ -1,11 +1,19 @@
 import { email, string, z } from 'zod';
 import { Gender, CivilStatus, DonorType, DonationStatus, HouseholdPosition } from "../../generated/prisma/index.js";
 
+// Password policy: at least 12 chars (min enforced separately), must include
+// - at least one uppercase letter
+// - at least one digit
+// - at least one special character
+const PASSWORD_REGEX = /(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=\[\]{};':"\\|,.<>\/?]).+/; // eslint-disable-line no-useless-escape
+
+
 // Common Login Schema
 
 export const loginSchema = z.object({
     email: z.string().email(),
-    password: z.string().min(12, 'Password is too short - required at least 12 characters'),
+    password: z.string().min(12, 'Password is too short - required at least 12 characters')
+      .regex(PASSWORD_REGEX, { message: 'Password must include at least one uppercase letter, one number, and one special character' }),
 
     // I have updated this part para flexible ang login depende sa login form na su-submit.
     loginType: z.enum(['BENEFICIARY', 'DONOR', 'ADMIN'], {
@@ -17,7 +25,8 @@ export const loginSchema = z.object({
 export const registerBeneficiarySchema = z.object({
     // Account Info
     email: z.string().email(),
-    password: z.string().min(12, 'Password is too short - required at least 12 characters'),
+    password: z.string().min(12, 'Password is too short - required at least 12 characters')
+      .regex(PASSWORD_REGEX, { message: 'Password must include at least one uppercase letter, one number, and one special character' }),
 
     // profileImage: z.string().optional(),
 
@@ -108,13 +117,14 @@ export const registerBeneficiarySchema = z.object({
     province: z.string().optional(),
     municipality: z.string().min(1, 'Municipality is required'),
     region: z.string().optional(),
-    zipCode: z.string().optional(),
+    zipCode: z.string().regex(/^\d{4}$/, 'Zip code must be 4 digits').optional(),
 });
 
 //Para sa donor registration.
 export const registerDonorSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(12, 'Password is too short - required at least 12 characters'), // Synchronized with loginSchema
+  password: z.string().min(12, 'Password is too short - required at least 12 characters')
+    .regex(PASSWORD_REGEX, { message: 'Password must include at least one uppercase letter, one number, and one special character' }), // Synchronized with loginSchema
   
   displayName: z.string().min(2, 'Display name is required (min 2 characters)'),
   donorType: z.nativeEnum(DonorType),
