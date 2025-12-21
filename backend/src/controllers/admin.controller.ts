@@ -378,6 +378,36 @@ export const getBeneficiaryDetails = async (req: Request, res: Response) => {
 };
 
 /**
+ * Dev-only: Get beneficiary details without auth for quick verification
+ * GET /api/admin/debug/beneficiaries/:id
+ */
+export const getBeneficiaryDetailsDebug = async (req: Request, res: Response) => {
+  try {
+    // Only enable in non-production to avoid accidental exposure
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ success: false, message: 'Not available in production' });
+    }
+
+    const { id } = req.params;
+    const beneficiary = await prisma.beneficiary.findUnique({
+      where: { id },
+      include: {
+        householdMembers: true,
+        address: true,
+        user: {
+          select: { id: true, email: true }
+        }
+      }
+    });
+    if (!beneficiary) return res.status(404).json({ success: false, message: 'Beneficiary not found' });
+    return res.status(200).json({ success: true, data: beneficiary });
+  } catch (error) {
+    console.error('Error fetching beneficiary details (debug):', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch beneficiary details', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+/**
  * Get all donors with pagination and filtering
  * GET /api/admin/donors
  */

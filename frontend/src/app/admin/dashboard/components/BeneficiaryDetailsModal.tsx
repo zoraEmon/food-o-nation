@@ -1,5 +1,6 @@
 
 import React from "react";
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 function getImageUrl(path?: string) {
   if (!path) return 'https://placehold.co/128x128?text=No+Image';
@@ -59,6 +60,8 @@ interface BeneficiaryDetailsModalProps {
 
 export const BeneficiaryDetailsModal: React.FC<BeneficiaryDetailsModalProps> = ({ beneficiary, onClose }) => {
   const [showSurvey, setShowSurvey] = React.useState(false);
+  const { showNotification } = useNotification();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="bg-white dark:bg-[#16202a] rounded-2xl shadow-2xl w-full max-w-2xl relative custom-scrollbar overflow-y-auto max-h-[95vh] border border-gray-200 dark:border-[#1a2a2a]">
@@ -256,8 +259,13 @@ export const BeneficiaryDetailsModal: React.FC<BeneficiaryDetailsModalProps> = (
             </div>
           </section>
           <div className="flex justify-between mt-2">
-            <button onClick={() => setShowSurvey(true)} className="px-5 py-2 rounded bg-blue-500 text-white font-semibold hover:bg-blue-600 shadow">View Survey</button>
-            <button onClick={onClose} className="px-5 py-2 rounded bg-yellow-400 text-[#004225] font-semibold hover:bg-yellow-300 dark:bg-[#004225] dark:text-[#FFB000] dark:hover:bg-[#FFB000] dark:hover:text-[#004225] shadow">Close</button>
+            <div className="flex items-center gap-2">
+                {/* Dev OTP helper removed */}
+              </div>
+            <div>
+              <button onClick={() => setShowSurvey(true)} className="px-5 py-2 rounded bg-blue-500 text-white font-semibold hover:bg-blue-600 shadow mr-3">View Survey</button>
+              <button onClick={onClose} className="px-5 py-2 rounded bg-yellow-400 text-[#004225] font-semibold hover:bg-yellow-300 dark:bg-[#004225] dark:text-[#FFB000] dark:hover:bg-[#FFB000] dark:hover:text-[#004225] shadow">Close</button>
+            </div>
           </div>
           {showSurvey && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">

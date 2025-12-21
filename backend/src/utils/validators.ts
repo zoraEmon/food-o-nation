@@ -91,9 +91,21 @@ export const registerBeneficiarySchema = z.object({
       relationship: z.string().min(1)
     })).optional()),
 
+    // Survey answers (sent as JSON string in FormData)
+    surveyAnswers: z.preprocess((v) => {
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return undefined; }
+      }
+      return v;
+    }, z.array(z.object({
+      questionId: z.string().min(1),
+      response: z.string().min(1)
+    })).optional()),
+
     // Address Info
     streetNumber: z.string().min(1, 'Street number is required'),
     barangay: z.string().min(1, 'Barangay is required'),
+    province: z.string().optional(),
     municipality: z.string().min(1, 'Municipality is required'),
     region: z.string().optional(),
     zipCode: z.string().optional(),

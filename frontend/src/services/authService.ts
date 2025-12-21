@@ -1,10 +1,13 @@
 import axios from 'axios';
 
-// Ensure this matches your backend URL
-const API_URL = 'http://localhost:5000/api/auth'; 
+// Ensure this matches your backend URL. Use NEXT_PUBLIC_BACKEND_URL when available.
+const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+const API_URL = `${BACKEND_BASE}/api/auth`;
 
 const api = axios.create({
   baseURL: API_URL,
+  // Set a short timeout so network issues fail quickly in the browser
+  timeout: 10_000,
 });
 
 interface RegisterResponse {
@@ -66,12 +69,25 @@ export const authService = {
     if (Array.isArray(data.incomeSources)) {
       formData.append('incomeSources', JSON.stringify(data.incomeSources));
     }
+    // Survey answers: support either an array of { questionId, response }
+    // or an object map { [questionId]: response }
+    if (Array.isArray(data.surveyAnswers)) {
+      formData.append('surveyAnswers', JSON.stringify(data.surveyAnswers));
+    } else if (data.surveyAnswers && typeof data.surveyAnswers === 'object') {
+      try {
+        const arr = Object.entries(data.surveyAnswers).map(([questionId, response]) => ({ questionId, response }));
+        formData.append('surveyAnswers', JSON.stringify(arr));
+      } catch (e) {
+        // fallback: stringify whatever was provided
+        formData.append('surveyAnswers', JSON.stringify(data.surveyAnswers));
+      }
+    }
     
     // Handle all other non-file fields
     Object.keys(data).forEach((key) => {
       // Skip files and arrays (already handled above)
       if (key === 'profileImage' || key === 'governmentIdFile' || key === 'signature' || 
-          key === 'householdMembers' || key === 'incomeSources') {
+          key === 'householdMembers' || key === 'incomeSources' || key === 'surveyAnswers') {
         return;
       }
       
@@ -90,9 +106,14 @@ export const authService = {
       const response = await api.post<RegisterResponse>('/register/beneficiary', formData);
       return { success: true, ...response.data };
     } catch (err: any) {
+      // Detect network / CORS / unreachable backend errors
+      const isNetworkError = !err.response || err.code === 'ECONNABORTED' || /Network Error/i.test(err.message);
+      const message = isNetworkError
+        ? `Backend unreachable or CORS error: ${err.message || 'network error'}. Ensure backend is running at ${BACKEND_BASE} and that CORS allows ${process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'}`
+        : err.response?.data?.message || 'Registration failed';
       return {
         success: false,
-        message: err.response?.data?.message || 'Registration failed',
+        message,
         userId: '',
       };
     }
@@ -120,6 +141,16 @@ export const authService = {
     }
   },
   
+  // Helper: ping backend root to confirm reachability (useful before form submit)
+  pingBackend: async () => {
+    try {
+      await axios.get(`${BACKEND_BASE}/`, { timeout: 3000 });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
   // 3. Login
   login: async (email: string, password: string, loginType: string): Promise<LoginResponse> => {
     try {

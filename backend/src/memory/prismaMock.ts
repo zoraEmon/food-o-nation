@@ -72,6 +72,10 @@ export class PrismaMock {
   activityLogs: ActivityLog[] = [];
   appMetricData: AppMetric | null = null;
 
+  // Minimal user storage for auth-related tests
+  users: any[] = [];
+  beneficiaries: any[] = [];
+
   constructor() {
     // Seed basic donor + center so tests can run
     const donorId = '00000000-0000-0000-0000-000000000001';
@@ -240,6 +244,45 @@ export class PrismaMock {
     findMany: async () => [],
     updateMany: async () => ({ count: 0 }),
   };
+
+  // Minimal user model functions used in auth controller tests
+  user = {
+    findUnique: async ({ where }: any) => {
+      if (where?.email) return this.users.find(u => u.email === where.email) || null;
+      if (where?.id) return this.users.find(u => u.id === where.id) || null;
+      return null;
+    },
+    create: async ({ data, include }: any) => {
+      const id = uuid();
+      const user: any = {
+        id,
+        email: data.email,
+        password: data.password,
+        status: data.status,
+        isVerified: data.isVerified,
+        otpCode: data.otpCode,
+        otpExpiresAt: data.otpExpiresAt,
+        profileImage: data.profileImage,
+        primaryPhone: data.primaryPhone,
+        beneficiaryProfile: null,
+        donorProfile: null,
+        ...data
+      };
+
+      if (data.beneficiaryProfile?.create) {
+        const bp = { id: uuid(), ...data.beneficiaryProfile.create };
+        this.beneficiaries.push(bp);
+        user.beneficiaryProfile = bp;
+      }
+
+      this.users.push(user);
+
+      if (include?.beneficiaryProfile) user.beneficiaryProfile = user.beneficiaryProfile || null;
+
+      return user;
+    },
+  };
 }
+
 
 export default PrismaMock;

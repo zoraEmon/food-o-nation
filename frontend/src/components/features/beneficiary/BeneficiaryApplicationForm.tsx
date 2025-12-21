@@ -53,7 +53,7 @@ interface ApplicationFormData {
   
 
   // Economic Status
-  monthlyIncome: number;
+  monthlyIncome: number | string;
   incomeSources: string[];
   mainEmploymentStatus?: string;
   receivingAid: boolean;
@@ -70,9 +70,10 @@ interface ApplicationFormData {
   // Address fields
   streetNumber?: string;
   barangay?: string;
-  municipality?: string;
-  region?: string;
-  zipCode?: string;
+  province?: string;
+  municipality?: string; // Added for clarity
+  region?: string; // Added for clarity
+  zipCode?: string; // Added for clarity
 }
 
 export default function BeneficiaryApplicationForm({ userData, onSubmit }: { userData: any, onSubmit?: (data: ApplicationFormData) => void }) {
@@ -176,7 +177,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
     pwdCount: 0,
     hasSpecialDiet: false,
     specialDietSpecify: '',
-    monthlyIncome: 0,
+    monthlyIncome: '',
     incomeSources: [],
     mainEmploymentStatus: undefined,
     receivingAid: false,
@@ -190,6 +191,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
     municipality: '',
     region: '',
     zipCode: '',
+    province: '',
   });
 
   // PSGC address typeahead state
@@ -197,20 +199,41 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
   const [regionOptions, setRegionOptions] = useState<Array<{ code: string; name?: string; regionName?: string }>>([]);
   const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(null);
   const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
-
-  const [municipalityQuery, setMunicipalityQuery] = useState('');
+  const [selectedRegionIsNCR, setSelectedRegionIsNCR] = useState<boolean>(false);
   const [municipalityOptions, setMunicipalityOptions] = useState<Array<{ code: string; name: string }>>([]);
   const [selectedMunicipalityCode, setSelectedMunicipalityCode] = useState<string | null>(null);
   const [selectedMunicipalityName, setSelectedMunicipalityName] = useState<string | null>(null);
 
+  const [provinceQuery, setProvinceQuery] = useState('');
+  const [provinceOptions, setProvinceOptions] = useState<Array<{ code: string; name: string }>>([]);
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState<string | null>(null);
+  const [selectedProvinceName, setSelectedProvinceName] = useState<string | null>(null);
+
+  const [municipalityQuery, setMunicipalityQuery] = useState('');
   const [barangayQuery, setBarangayQuery] = useState('');
   const [barangayOptions, setBarangayOptions] = useState<Array<{ code: string; name: string }>>([]);
 
   // Fetch regions once and filter locally
   const handleRegionQuery = async (q: string) => {
     setRegionQuery(q);
+    // if input cleared, reset region and downstream selections
     if (!q) {
       setRegionOptions([]);
+      setSelectedRegionCode(null);
+      setSelectedRegionName(null);
+      setSelectedRegionIsNCR(false);
+      handleInputChange('region', '');
+      // reset province/municipality/barangay
+      setProvinceOptions([]);
+      setSelectedProvinceCode(null);
+      setSelectedProvinceName(null);
+      handleInputChange('province', '');
+      setMunicipalityOptions([]);
+      setSelectedMunicipalityCode(null);
+      setSelectedMunicipalityName(null);
+      handleInputChange('municipality', '');
+      setBarangayOptions([]);
+      handleInputChange('barangay', '');
       return;
     }
     try {
@@ -228,18 +251,67 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
     setSelectedRegionCode(r.code);
     const name = r.regionName || r.name || '';
     setSelectedRegionName(name);
+    const isNCR = /national capital region|\bNCR\b/i.test(name);
+    setSelectedRegionIsNCR(isNCR);
     handleInputChange('region', name);
     setRegionQuery(name);
     setRegionOptions([]);
     // clear downstream selections
+    setProvinceOptions([]);
+    setSelectedProvinceCode(null);
+    setSelectedProvinceName(null);
+    handleInputChange('province', isNCR ? 'Not Applied' : '');
     setMunicipalityOptions([]);
     setSelectedMunicipalityCode(null);
     setSelectedMunicipalityName(null);
     handleInputChange('municipality', '');
     handleInputChange('barangay', '');
-    // fetch municipalities / cities for region
+
+    // If NCR, skip province fetching and fetch municipalities directly
+    if (isNCR) {
+      try {
+        const url = `https://psgc.gitlab.io/api/regions/${r.code}/cities-municipalities.json`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        setMunicipalityOptions((data || []).map((m: any) => ({ code: m.code, name: m.name })));
+      } catch (e) {
+        console.error('Municipality lookup failed for NCR', e);
+      }
+      return;
+    }
+
+    // fetch provinces for region
     try {
-      const url = `https://psgc.gitlab.io/api/regions/${r.code}/cities-municipalities.json`;
+      const url = `https://psgc.gitlab.io/api/regions/${r.code}/provinces.json`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setProvinceOptions((data || []).map((p: any) => ({ code: p.code, name: p.name })));
+      } else {
+        // fallback: try general provinces list
+        const fallRes = await fetch('https://psgc.gitlab.io/api/provinces.json');
+        if (fallRes.ok) {
+          const all = await fallRes.json();
+          const matches = (all || []).filter((p: any) => String(p.regionCode || p.regCode || '').toLowerCase() === String(r.code || '').toLowerCase());
+          setProvinceOptions(matches.map((p: any) => ({ code: p.code, name: p.name })));
+        }
+      }
+    } catch (e) {
+      console.error('Province lookup failed', e);
+    }
+  };
+
+  const selectProvince = async (p: { code: string; name: string }) => {
+    setSelectedProvinceCode(p.code);
+    setSelectedProvinceName(p.name);
+    handleInputChange('province', p.name);
+    setProvinceQuery(p.name);
+    setProvinceOptions([]);
+    // when province is selected, fetch municipalities for region (same endpoint used previously)
+    try {
+      if (!selectedRegionCode) return;
+      const url = `https://psgc.gitlab.io/api/regions/${selectedRegionCode}/cities-municipalities.json`;
       const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
@@ -249,10 +321,36 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
     }
   };
 
+  const handleProvinceQuery = (q: string) => {
+    setProvinceQuery(q);
+    // When cleared, reset province and downstream selections
+    if (!q) {
+      setProvinceOptions([]);
+      setSelectedProvinceCode(null);
+      setSelectedProvinceName(null);
+      handleInputChange('province', '');
+      setMunicipalityOptions([]);
+      setSelectedMunicipalityCode(null);
+      setSelectedMunicipalityName(null);
+      handleInputChange('municipality', '');
+      setBarangayOptions([]);
+      handleInputChange('barangay', '');
+      return;
+    }
+    setProvinceOptions(prev => prev.filter(p => p.name.toLowerCase().includes(q.toLowerCase())));
+  };
+
   const handleMunicipalityQuery = (q: string) => {
     setMunicipalityQuery(q);
+    // when cleared, reset municipality and barangay selections
     if (!q) {
-      return setMunicipalityOptions(prev => prev);
+      setMunicipalityOptions([]);
+      setSelectedMunicipalityCode(null);
+      setSelectedMunicipalityName(null);
+      handleInputChange('municipality', '');
+      setBarangayOptions([]);
+      handleInputChange('barangay', '');
+      return;
     }
     setMunicipalityOptions(prev => prev.filter(m => m.name.toLowerCase().includes(q.toLowerCase())));
   };
@@ -329,6 +427,14 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
 
   const sanitizeLetters = (v: string) => v.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'\-\s]/g, '');
   const sanitizeDigits = (v: string) => v.replace(/[^0-9]/g, '');
+
+  const formatCurrency = (v: number) => {
+    try {
+      return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } catch (e) {
+      return String(v);
+    }
+  };
 
   const handleArrayChange = (field: keyof ApplicationFormData, value: string, checked: boolean) => {
     const currentArray = (formData[field] as string[]) || [];
@@ -500,12 +606,12 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
           contactNumber: formattedPhone,
           occupation: formData.occupation,
           householdNumber: formData.totalHouseholdMembers,
-          householdAnnualSalary: formData.monthlyIncome ? Number(formData.monthlyIncome) * 12 : 0,
+          householdAnnualSalary: formData.monthlyIncome !== '' && formData.monthlyIncome !== undefined ? Number(formData.monthlyIncome) * 12 : undefined,
           householdPosition: formData.householdPosition || undefined,
           primaryPhone: formattedPhone,
           activeEmail: formData.email,
           governmentIdType: formData.governmentIdType,
-          monthlyIncome: formData.monthlyIncome,
+          monthlyIncome: formData.monthlyIncome !== '' && formData.monthlyIncome !== undefined ? Number(formData.monthlyIncome) : undefined,
           incomeSources: formData.incomeSources,
           mainEmploymentStatus: formData.mainEmploymentStatus,
           receivingAid: formData.receivingAid,
@@ -520,6 +626,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
           privacyAccepted: formData.privacyAccepted,
           streetNumber: formData.streetNumber,
           barangay: formData.barangay,
+          province: formData.province,
           municipality: formData.municipality,
           region: formData.region,
           zipCode: formData.zipCode,
@@ -562,6 +669,13 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
           console.warn('DEBUG: failed to build FormData preview', dbgErr);
         }
 
+        // Quick backend reachability check to give clearer error for CORS/network issues
+        const backendOk = await authService.pingBackend();
+        if (!backendOk) {
+          showNotification({ title: 'Submission failed', message: `Backend appears unreachable or CORS blocked requests to the backend. Ensure backend is running at ${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'} and CORS allows ${process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'}.`, type: 'error' });
+          return;
+        }
+
         const res = await authService.registerBeneficiary(payload);
         if (res.success) {
           // Use global notification and redirect to login for beneficiary
@@ -600,20 +714,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
       <div className="w-full flex items-center justify-center mb-4">
         <ProgressIndicator sections={sections} currentSection={currentSection} />
       </div>
-
-      {showSectionErrors && Object.keys(errors).length > 0 && (
-        <div className={`mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-current`}>
-          <strong>Can't proceed:</strong>
-          <ul className="mt-2 list-disc pl-5 text-sm">
-            {Object.entries(errors).slice(0,5).map(([k, v]) => (
-              <li key={k}>{v}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* SECTION 1: PERSONAL INFORMATION */}
         {currentSection === 1 && (
           <SectionWrapper title="Personal Information">
             <div className="space-y-4">
@@ -674,13 +775,33 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                       )}
                     </div>
 
-                    {/* Municipality/City (reveals after region) */}
-                    <div className={`transition-all ${selectedRegionCode ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                    {/* Province (reveals after region unless the region is NCR) */}
+                    <div className={`transition-all ${selectedRegionCode && !selectedRegionIsNCR ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                      <div>
+                        <input
+                          placeholder={selectedRegionName ? `Type province in ${selectedRegionName}...` : 'Select a region first'}
+                          value={provinceQuery || formData.province || ''}
+                          onChange={(e) => handleProvinceQuery(e.target.value)}
+                          disabled={!selectedRegionCode}
+                          className="w-full p-3 rounded-xl border border-gray-300 dark:border-[#2e4d3d] bg-white dark:bg-[#0f2b1f] focus:border-[#FFB000] focus:ring-2 focus:ring-[#FFB000]/30 shadow-sm"
+                        />
+                        {provinceOptions.length > 0 && provinceQuery && (
+                          <ul className="max-h-40 overflow-auto bg-white dark:bg-[#05261a] border border-gray-200 dark:border-[#123826] rounded-lg mt-1">
+                            {provinceOptions.map((p) => (
+                              <li key={p.code} onClick={() => selectProvince(p)} className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-[#0b3b2a] cursor-pointer">{p.name}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Municipality/City (reveals after province is filled) */}
+                    <div className={`transition-all ${formData.province ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                       <input
                         placeholder={selectedRegionName ? `Type municipality/city in ${selectedRegionName}...` : 'Select a region first'}
                         value={municipalityQuery}
                         onChange={(e) => handleMunicipalityQuery(e.target.value)}
-                        disabled={!selectedRegionCode}
+                        disabled={!formData.province}
                         className="w-full p-3 rounded-xl border border-gray-300 dark:border-[#2e4d3d] bg-white dark:bg-[#0f2b1f] focus:border-[#FFB000] focus:ring-2 focus:ring-[#FFB000]/30 shadow-sm"
                       />
                       {municipalityOptions.length > 0 && municipalityQuery && (
@@ -934,14 +1055,30 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                   A. What is the total combined gross monthly income of all household members from all sources?
                 </label>
                 <input
+                  name="monthlyIncome"
                   type="number"
                   min="0"
                   step="0.01"
                   value={formData.monthlyIncome}
-                  onChange={(e) => handleInputChange('monthlyIncome', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    // allow clearing the field (empty string) instead of forcing 0
+                    if (v === '') return handleInputChange('monthlyIncome', '');
+                    const parsed = parseFloat(v);
+                    handleInputChange('monthlyIncome', Number.isNaN(parsed) ? '' : parsed);
+                  }}
                   className="w-full p-3 rounded-xl border border-gray-300 dark:border-[#2e4d3d] bg-gray-50 dark:bg-[#1a2b23] focus:border-[#FFB000] focus:ring-2 focus:ring-[#FFB000]/30 shadow-sm transition-colors duration-200"
                   placeholder="0.00"
                 />
+                <div className="mt-3">
+                  <label className="text-sm font-bold text-current">Estimated Annual Household Income</label>
+                  <div className="w-full mt-1 p-3 rounded-xl border border-gray-200 bg-gray-50 dark:bg-[#1a2b23] text-current">
+                    {formData.monthlyIncome !== '' && formData.monthlyIncome !== undefined
+                      ? `₱ ${formatCurrency(Number(formData.monthlyIncome) * 12)}`
+                      : '—'}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Calculated as monthly income × 12 (read-only).</p>
+                </div>
               </div>
 
               <div>

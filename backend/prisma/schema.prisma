@@ -85,13 +85,12 @@ model Beneficiary {
 model Address {
   streetNumber  String
   barangay      String
+  province      String
   municipality  String
   region        String
   country       String      @default("Philippines")
   zipCode       String
   beneficiaryId String      @unique
-    monthlyIncome           Float?                // Monthly income as a float
-    gender                  Gender?               // Gender of the beneficiary
   id            String      @id @default(uuid())
   beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
 }
@@ -111,7 +110,6 @@ model FoodSecuritySurvey {
   beneficiaryId String
   // Removed periodStart and periodEnd
   answers       Answer[]
-  questions     Question[] @relation("SurveyQuestions")
   totalScore    Int                  @default(0)
   severity      FoodSecuritySeverity @default(SECURE)
   createdAt     DateTime             @default(now())
@@ -133,7 +131,6 @@ model Question {
   type      QuestionType
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
-  surveys   FoodSecuritySurvey[] @relation("SurveyQuestions")
   answers   Answer[]
 }
 model Answer {

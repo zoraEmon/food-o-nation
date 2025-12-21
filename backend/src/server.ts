@@ -58,7 +58,17 @@ async function retryAsync<T>(
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  
+
+  // Dev debug endpoint info
+  if (process.env.NODE_ENV !== 'production') {
+    const devToken = process.env.DEV_DEBUG_TOKEN;
+    if (devToken) {
+      console.log('[Dev] OTP debug endpoint enabled and requires x-dev-debug-token header');
+    } else {
+      console.log('[Dev] OTP debug endpoint enabled (no token configured) — set DEV_DEBUG_TOKEN to require header authentication');
+    }
+  }
+
   // Skip cron jobs in test mode
   if (process.env.TEST_USE_MEMORY === 'true') {
     console.log('[Test Mode] Skipping cron jobs');

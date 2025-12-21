@@ -4,6 +4,7 @@ import {
   getRecentActivity,
   getAllBeneficiariesForAdmin,
   getBeneficiaryDetails,
+  getBeneficiaryDetailsDebug,
   getAllDonorsForAdmin,
   getDonorDetails,
   approveBeneficiary,
@@ -35,13 +36,10 @@ router.get('/dashboard-stats', authToken, getDashboardStats);
 router.get('/recent-activity', authToken, getRecentActivity);
 
 // Beneficiary management
-// Temporary test-only endpoint: returns beneficiary (with householdMembers) when provided the correct secret via ?secret=...
-// NOTE: This endpoint is intentionally not authenticated via regular admin JWT; it is protected by an env var and intended for local testing only.
-import { getBeneficiaryForTest } from '../controllers/admin.test.controller.js';
-router.get('/beneficiaries/:id/verify', getBeneficiaryForTest);
-
 router.get('/beneficiaries', authToken, getAllBeneficiariesForAdmin);
 router.get('/beneficiaries/:id', authToken, getBeneficiaryDetails);
+// Dev-only debug endpoint (no auth) for quick verification in local/dev environments
+router.get('/debug/beneficiaries/:id', getBeneficiaryDetailsDebug);
 
 // Donor management
 router.get('/donors', authToken, getAllDonorsForAdmin);

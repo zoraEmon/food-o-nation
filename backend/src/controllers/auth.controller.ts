@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient } from '../../generated/prisma/index.js';
 import PrismaMock from '../memory/prismaMock.js';
 import { loginSchema, registerBeneficiarySchema, registerDonorSchema } from '../utils/validators.js';
+import { SURVEY_OPTIONS } from '../constants/surveyOptions.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { EmailService } from '../services/email.service.js';
@@ -18,6 +19,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'foodONationSecret';
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
 };
+
+// Dev OTP storage removed (SMS/dev-OTP flow disabled)
 
 // Helper to hash OTP (similar to password hashing)
 const hashOTP = async (otp: string) => {
@@ -69,6 +72,7 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         }
 
         const data = result.data as any;
+        console.log('[Auth] Validation passed for', data.email);
 
         // Defensive fallbacks: when using multipart/form-data some complex fields
         // may arrive as JSON strings despite Zod preprocessing — handle explicit parsing here.
@@ -82,6 +86,7 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         };
 
         const householdMembers = data.householdMembers || fallbackParse(req.body.householdMembers) || undefined;
+        const surveyAnswersRaw = data.surveyAnswers || fallbackParse(req.body.surveyAnswers) || undefined;
         const incomeSourcesRaw = data.incomeSources || fallbackParse(req.body.incomeSources) || undefined;
         const governmentIdType = data.governmentIdType || req.body.governmentIdType || undefined;
 
@@ -114,9 +119,12 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         console.log(' - mainEmploymentStatus:', data.mainEmploymentStatus);
         console.log(' - receivingAid:', data.receivingAid, 'detail:', data.receivingAidDetail);
         console.log(' - declarationAccepted:', data.declarationAccepted, 'privacyAccepted:', data.privacyAccepted);
+        console.log(' - surveyAnswersRaw:', Array.isArray(surveyAnswersRaw) ? surveyAnswersRaw.length : surveyAnswersRaw);
 
         // 3. Check for Existing Email - Verify email is unique across all users
+        console.log('[Auth] Checking existing user for', data.email);
         const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+        console.log('[Auth] Existing user check result:', !!existingUser);
         if (existingUser) {
             // Cleanup uploaded files
             if (files?.profileImage?.[0]) fs.unlinkSync(files.profileImage[0].path);
@@ -145,10 +153,118 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         const otp = generateOTP();
         const hashedOtp = await hashOTP(otp);
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
+        // Dev OTP storage removed; OTP will only be sent via email for now
 
-        // 6. Create User & Beneficiary Profile
+        // 6. Prepare optional survey answers data and Create User & Beneficiary Profile
         let newUser: any;
         try {
+            // Build nested create payload for food security survey answers if provided
+            let foodSecuritySurveysData: any = undefined;
+            if (Array.isArray(surveyAnswersRaw) && surveyAnswersRaw.length > 0) {
+                try {
+                    // collect questionIds from provided answers
+                    const questionIds = surveyAnswersRaw.map((a: any) => String(a.questionId)).filter(Boolean);
+                    // fetch questions to determine the question type
+                    const questions = await prisma.question.findMany({ where: { id: { in: questionIds } } });
+                    const questionMap: Record<string, any> = {};
+                    questions.forEach((q: any) => { questionMap[q.id] = q; });
+
+                    const answersCreate = surveyAnswersRaw.map((ans: any) => {
+                        const q = questionMap[String(ans.questionId)];
+                        const rawResp = ans.response;
+                        if (!q || rawResp === undefined || rawResp === null) {
+                            // Unknown question or missing response - skip
+                            return null;
+                        }
+
+                        // Map human label or value to enum value using SURVEY_OPTIONS
+                        const options = SURVEY_OPTIONS[q.type] || [];
+                        const respStr = String(rawResp).trim();
+                        // try exact value match
+                        let mapped = options.find(o => o.value === respStr.toUpperCase());
+                        if (!mapped) {
+                            // try label match (case-insensitive)
+                            mapped = options.find(o => o.label.toLowerCase() === respStr.toLowerCase());
+                        }
+                        if (!mapped) {
+                            // also accept raw enum-like tokens (e.g., 'RARELY')
+                            const upper = respStr.toUpperCase().replace(/[^A-Z_]/g, '_');
+                            mapped = options.find(o => o.value === upper);
+                        }
+                        if (!mapped) {
+                            // Could not map response to enum - log and skip
+                            console.warn(`Survey answer skipped: questionId=${q.id} response=${respStr} (no matching option)`);
+                            return null;
+                        }
+
+                        if (q.type === 'FOOD_FREQUENCY') {
+                            return { questionId: q.id, foodFrequencyResponse: mapped.value };
+                        }
+                        if (q.type === 'FOOD_SECURITY_SEVERITY') {
+                            return { questionId: q.id, foodSeverityResponse: mapped.value };
+                        }
+                        // default fallback
+                        return { questionId: q.id, foodFrequencyResponse: mapped.value };
+                    }).filter(Boolean);
+
+                    if (answersCreate.length > 0) {
+                        foodSecuritySurveysData = {
+                            create: [
+                                {
+                                    answers: { create: answersCreate }
+                                }
+                            ]
+                        };
+                    }
+                } catch (err) {
+                    console.error('Error preparing survey answers for persistence:', err);
+                    foodSecuritySurveysData = undefined;
+                }
+            }
+            // Compute ages and household composition server-side
+            const calcAge = (d: any) => {
+                try {
+                    const bd = new Date(d);
+                    if (isNaN(bd.getTime())) return null;
+                    const diff = Date.now() - bd.getTime();
+                    const ageDt = new Date(diff);
+                    return Math.abs(ageDt.getUTCFullYear() - 1970);
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            const applicantAge = calcAge(data.birthDate) ?? (typeof data.age === 'number' ? data.age : undefined);
+
+            const membersArray = Array.isArray(householdMembers) ? householdMembers : [];
+            const membersWithAge = membersArray.map((m: any) => ({
+                fullName: m.fullName,
+                birthDate: new Date(m.birthDate),
+                age: (calcAge(m.birthDate) ?? (typeof m.age === 'number' ? m.age : null)),
+                relationship: m.relationship
+            }));
+
+            // Category thresholds: child <18, adult 18-59, senior >=60
+            let computedChildren = 0;
+            let computedAdult = 0;
+            let computedSenior = 0;
+
+            const tallyAge = (ageVal: any) => {
+                if (ageVal === null || ageVal === undefined) return;
+                const a = Number(ageVal);
+                if (Number.isNaN(a)) return;
+                if (a < 18) computedChildren++;
+                else if (a >= 60) computedSenior++;
+                else computedAdult++;
+            };
+
+            // Tally household members
+            membersWithAge.forEach(m => tallyAge(m.age));
+            // Include applicant in counts
+            tallyAge(applicantAge);
+
+            const computedHouseholdNumber = membersWithAge.length + 1; // members + applicant
+
             newUser = await prisma.user.create({
                 data: {
                 // User Fields
@@ -170,10 +286,10 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                         civilStatus: data.civilStatus,
                         occupation: data.occupation,
                         
-                        age: data.age,
+                        age: applicantAge ?? data.age,
                         birthDate: new Date(data.birthDate),
                         contactNumber: data.contactNumber,
-                        householdNumber: data.householdNumber,
+                        householdNumber: computedHouseholdNumber,
                         householdAnnualSalary: data.householdAnnualSalary,
                         
                         // Application details
@@ -184,10 +300,10 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                         governmentIdType: data.governmentIdType,
                         governmentIdFileUrl: governmentIdPath,
                         
-                        // Household composition
-                        childrenCount: data.childrenCount,
-                        adultCount: data.adultCount,
-                        seniorCount: data.seniorCount,
+                        // Household composition (computed server-side)
+                        childrenCount: computedChildren,
+                        adultCount: computedAdult,
+                        seniorCount: computedSenior,
                         pwdCount: data.pwdCount,
                         
                         // Health/Diet
@@ -210,6 +326,7 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                             create: {
                                 streetNumber: data.streetNumber,
                                 barangay: data.barangay,
+                                province: data.province,
                                 municipality: data.municipality,
                                 region: data.region || 'NCR',
                                 zipCode: data.zipCode || '0000',
@@ -218,14 +335,17 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
                         },
                         
                         // Household members (use parsed/fallback array)
-                        householdMembers: householdMembers ? {
-                            create: householdMembers.map((member: any) => ({
+                        householdMembers: membersWithAge && membersWithAge.length > 0 ? {
+                            create: membersWithAge.map((member: any) => ({
                                 fullName: member.fullName,
-                                birthDate: new Date(member.birthDate),
+                                birthDate: member.birthDate,
                                 age: member.age,
                                 relationship: member.relationship
                             }))
-                        } : undefined
+                        } : undefined,
+
+                                                // Optional: persist provided food security survey answers
+                                                foodSecuritySurveys: foodSecuritySurveysData
                     }
                 }
             },
@@ -243,7 +363,15 @@ export const registerBeneficiary = async (req: MulterRequest, res: Response) => 
         }
 
         // 7. Send OTP Email
-        await emailService.sendOTP(newUser.email, otp);
+        try {
+            console.log('[Auth] sending OTP email to', newUser.email);
+            await emailService.sendOTP(newUser.email, otp);
+            console.log('[Auth] OTP email sent to', newUser.email);
+        } catch (emailErr) {
+            console.error('[Auth] Failed to send OTP email:', emailErr);
+        }
+
+        // SMS sending disabled: OTP will be delivered via email only
 
         res.status(201).json({ 
             message: "Registration successful! Please check your email (or phone) for your verification code to log in.", 
@@ -313,6 +441,7 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
         const otp = generateOTP();
         const hashedOtp = await hashOTP(otp);
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
+        // Dev OTP storage removed; OTP will only be sent via email for now
 
         // 5. Create User with Donor Profile (Status: PENDING - waiting for admin approval)
         const newUser = await prisma.user.create({
@@ -337,6 +466,8 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
 
         // 6. Send OTP Email
         await emailService.sendOTP(newUser.email, otp);
+
+        // SMS sending disabled: OTP will be delivered via email only
 
         res.status(201).json({
             message: "Registration successful! Please check your email for your verification code. After verification, your account will be pending admin approval.",
@@ -425,7 +556,7 @@ export const login = async (req: Request, res: Response) => {
                     }
                 });
 
-                // Send new OTP email
+                // SMS sending and dev-OTP storage disabled; a new OTP is sent via email only
                 await emailService.sendOTP(user.email, newOtp);
             }
 
@@ -585,6 +716,8 @@ export const verifyOTP = async (req: Request, res: Response) => {
                 adminProfile: true,
             },
         });
+
+        // Dev OTP clearing removed (dev OTP feature disabled)
 
         const roles: string[] = [];
         let displayName = updatedUser.email;

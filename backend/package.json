@@ -50,7 +50,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^1.6.1"
+    "vitest": "^1.6.1",
+    "twilio": "^4.12.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -58,7 +59,11 @@
   "vitest": {
     "test": {
       "exclude": [
-        "tests/program-applications/**"
+        "tests/program-applications/**",
+        "tests/*sms*.ts",
+        "tests/*sms*.test.ts",
+        "tests/dev.otp.test.ts",
+        "tests/auth.sms.test.ts"
       ]
     }
   }

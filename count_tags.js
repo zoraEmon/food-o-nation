@@ -1,0 +1,12 @@
+const fs = require('fs');
+const path = 'c:/Users/Zora/Desktop/food-o-nation/frontend/src/components/features/beneficiary/BeneficiaryApplicationForm.tsx';
+const s = fs.readFileSync(path,'utf8');
+const opens = (s.match(/<div\b/g) || []).length;
+const closes = (s.match(/<\/div>/g) || []).length;
+console.log('div opens',opens,'div closes',closes);
+const opens2 = (s.match(/<form\b/g) || []).length;
+const closes2 = (s.match(/<\/form>/g) || []).length;
+console.log('form opens',opens2,'form closes',closes2);
+const opens3 = (s.match(/<SectionWrapper\b/g) || []).length;
+const closes3 = (s.match(/<\/SectionWrapper>/g) || []).length;
+console.log('SectionWrapper opens',opens3,'SectionWrapper closes',closes3);

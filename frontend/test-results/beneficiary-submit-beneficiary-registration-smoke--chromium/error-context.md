@@ -1,0 +1,145 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - button "Go back" [ref=e6]:
+            - img [ref=e7]
+          - generic [ref=e9]: Logo
+        - generic [ref=e10]:
+          - button "Switch to dark mode" [ref=e11]:
+            - img [ref=e12]
+          - button "Login" [ref=e14]
+    - main [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - heading "Beneficiary Application" [level=1] [ref=e18]
+          - paragraph [ref=e19]: Please fill out your details accurately.
+        - generic [ref=e20]:
+          - generic [ref=e25]:
+            - generic [ref=e26]:
+              - img [ref=e28]
+              - generic [ref=e31]: Personal Information
+            - generic [ref=e33]:
+              - img [ref=e35]
+              - generic [ref=e40]: Household Details
+            - generic [ref=e42]:
+              - img [ref=e44]
+              - generic [ref=e46]: Economic Status
+            - generic [ref=e48]:
+              - img [ref=e50]
+              - generic [ref=e54]: Beneficiary Interview
+            - generic [ref=e56]:
+              - img [ref=e58]
+              - generic [ref=e63]: Authorization
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - heading "Economic Status" [level=2] [ref=e66]
+              - generic [ref=e67]:
+                - generic [ref=e68]:
+                  - generic [ref=e69]: A. What is the total combined gross monthly income of all household members from all sources?
+                  - spinbutton [active] [ref=e70]: "5000"
+                - generic [ref=e71]:
+                  - generic [ref=e72]: B. What are the current sources of income for the household? (Select all that apply.)
+                  - generic [ref=e73]:
+                    - generic [ref=e74]:
+                      - checkbox "Formal/Salaried Employment" [ref=e75]
+                      - generic [ref=e76]: Formal/Salaried Employment
+                    - generic [ref=e77]:
+                      - checkbox "Informal/Gig Work" [ref=e78]
+                      - generic [ref=e79]: Informal/Gig Work
+                    - generic [ref=e80]:
+                      - checkbox "Government Assistance/Benefits" [ref=e81]
+                      - generic [ref=e82]: Government Assistance/Benefits
+                    - generic [ref=e83]:
+                      - checkbox "Remittances/Financial Help from Family/Friends" [ref=e84]
+                      - generic [ref=e85]: Remittances/Financial Help from Family/Friends
+                    - generic [ref=e86]:
+                      - checkbox "None (Unemployed and not receiving benefits)" [ref=e87]
+                      - generic [ref=e88]: None (Unemployed and not receiving benefits)
+                - generic [ref=e89]:
+                  - generic [ref=e90]: C. What is the current employment status of the main working adult in the household? *
+                  - combobox [ref=e91]:
+                    - option "Select one..." [selected]
+                    - option "Employed Full-Time"
+                    - option "Employed Part-Time"
+                    - option "Recently Unemployed"
+                    - option "Long-Term Unemployed"
+                    - option "Retired/Disabled"
+                - generic [ref=e92]:
+                  - generic [ref=e93]: D. Are you currently receiving, or have you recently applied for, any government or NGO food/cash aid?
+                  - generic [ref=e94]:
+                    - generic [ref=e95]:
+                      - radio "Yes" [ref=e96]
+                      - generic [ref=e97]: "Yes"
+                    - generic [ref=e98]:
+                      - radio "No" [checked] [ref=e99]
+                      - generic [ref=e100]: "No"
+            - generic [ref=e101]:
+              - button "Back" [ref=e102]:
+                - img [ref=e103]
+                - text: Back
+              - button "Next" [ref=e106]:
+                - text: Next
+                - img [ref=e107]
+    - contentinfo [ref=e109]:
+      - generic [ref=e110]:
+        - generic [ref=e111]:
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - generic [ref=e114]: FoodONation
+              - paragraph [ref=e115]: Bridging the gap in the food aid ecosystem. We connect resources to those who need them most through transparency and care.
+            - generic [ref=e116]:
+              - generic [ref=e117]:
+                - heading "Contact No:" [level=4] [ref=e118]:
+                  - img [ref=e119]
+                  - text: "Contact No:"
+                - paragraph [ref=e121]: +63 912 345 6789
+              - generic [ref=e122]:
+                - heading "Location:" [level=4] [ref=e123]:
+                  - img [ref=e124]
+                  - text: "Location:"
+                - paragraph [ref=e127]: Quezon City, PH
+              - generic [ref=e128]:
+                - heading "Email:" [level=4] [ref=e129]:
+                  - img [ref=e130]
+                  - text: "Email:"
+                - paragraph [ref=e133]: hello@foodonation.org
+              - generic [ref=e134]:
+                - heading "Hours:" [level=4] [ref=e135]:
+                  - img [ref=e136]
+                  - text: "Hours:"
+                - paragraph [ref=e139]: "Mon-Fri: 9AM - 5PM"
+            - generic [ref=e140]:
+              - link "Home" [ref=e141] [cursor=pointer]:
+                - /url: /
+              - link "About Us" [ref=e142] [cursor=pointer]:
+                - /url: /about
+              - link "Programs" [ref=e143] [cursor=pointer]:
+                - /url: /programs
+              - link "Contact" [ref=e144] [cursor=pointer]:
+                - /url: /contact
+          - generic [ref=e145]:
+            - heading "Get Involved" [level=3] [ref=e146]
+            - paragraph [ref=e147]:
+              - text: Select
+              - strong [ref=e148]: Apply
+              - text: if you are a beneficiary seeking aid, or
+              - strong [ref=e149]: Partner
+              - text: if you wish to collaborate.
+            - generic [ref=e150]:
+              - textbox "Enter your email address" [ref=e151]
+              - generic [ref=e152]:
+                - combobox [ref=e153] [cursor=pointer]:
+                  - option "Apply for Volunteer" [selected]
+                  - option "Partner With Us"
+                - generic: ▼
+              - button "Submit" [ref=e154]
+        - paragraph [ref=e156]: © 2025 Food-O-Nation. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e162] [cursor=pointer]:
+    - img [ref=e163]
+  - alert [ref=e166]
+```
