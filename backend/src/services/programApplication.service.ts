@@ -173,13 +173,13 @@ export const getProgramApplicationService = async (applicationId: string) => {
             },
           },
         },
-        scans: {
-          include: {
-            scannedByAdmin: true,
-          },
-          orderBy: { scannedAt: 'desc' },
-        },
-        qrCodeScannedByAdmin: true,
+            scans: {
+              include: {
+                admin: true,
+              },
+              orderBy: { scannedAt: 'desc' },
+            },
+            admin: true,
       },
     });
 
@@ -214,11 +214,11 @@ export const getBeneficiaryApplicationsService = async (beneficiaryId: string) =
         },
         scans: {
           include: {
-            scannedByAdmin: true,
+            admin: true,
           },
           orderBy: { scannedAt: 'desc' },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -249,7 +249,7 @@ export const scanApplicationQRCodeService = async (
             beneficiary: true,
           },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
     });
 
@@ -269,7 +269,7 @@ export const scanApplicationQRCodeService = async (
         notes,
       },
       include: {
-        scannedByAdmin: true,
+        admin: true,
       },
     });
 
@@ -291,11 +291,11 @@ export const scanApplicationQRCodeService = async (
         },
         scans: {
           include: {
-            scannedByAdmin: true,
+            admin: true,
           },
           orderBy: { scannedAt: 'desc' },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
     });
 
@@ -428,11 +428,11 @@ export const getProgramApplicationsService = async (programId: string) => {
         },
         scans: {
           include: {
-            scannedByAdmin: true,
+            admin: true,
           },
           orderBy: { scannedAt: 'desc' },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
       orderBy: { createdAt: 'desc' },
     });

@@ -1,5 +1,7 @@
 import { PrismaClient, DonorType, Gender, CivilStatus, HouseholdPosition, MainEmploymentStatus, IncomeSource, QuestionType } from '../generated/prisma/index.js';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -590,6 +592,75 @@ async function main() {
     createdBeneficiaries.push(newUser.beneficiaryProfile!);
     console.log(`   ✅ Created beneficiary: ${beneficiary.firstName} ${beneficiary.lastName} (${beneficiary.status})`);
   }
+
+  // ============================================
+  // 6. SEED PROGRAMS FROM CSV
+  // ============================================
+  async function seedProgramsFromCSV() {
+    try {
+      const csvUrl = new URL('./programs.csv', import.meta.url);
+      const csvPath = csvUrl.pathname.startsWith('/') && process.platform === 'win32' ? csvUrl.pathname.slice(1) : csvUrl.pathname;
+      const csv = fs.readFileSync(csvPath, 'utf8');
+      const lines = csv.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length <= 1) {
+        console.log('   ℹ️  No program rows found in programs.csv');
+        return;
+      }
+      const header = lines.shift()!.split(',').map(h => h.trim());
+      let created = 0;
+      for (const line of lines) {
+        const cols = line.split(',');
+        const row: Record<string, string> = {};
+        for (let i = 0; i < header.length; i++) row[header[i]] = (cols[i] || '').trim();
+
+        const title = row.title;
+        if (!title) continue;
+        const exists = await prisma.program.findFirst({ where: { title } });
+        if (exists) {
+          console.log(`   ℹ️  Program already exists: ${title}`);
+          continue;
+        }
+
+        // Ensure place exists (create if missing)
+        let placeId: string | undefined;
+        if (row.placeName) {
+          let place = await prisma.place.findFirst({ where: { name: row.placeName } });
+          if (!place) {
+            place = await prisma.place.create({ data: {
+              name: row.placeName,
+              address: row.placeAddress || undefined,
+              latitude: row.latitude ? parseFloat(row.latitude) : undefined,
+              longitude: row.longitude ? parseFloat(row.longitude) : undefined,
+            }});
+          }
+          placeId = place.id;
+        }
+
+        const date = row.date ? new Date(row.date) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const maxParticipants = row.maxParticipants ? parseInt(row.maxParticipants, 10) : undefined;
+        const stallCapacity = row.stallCapacity ? parseInt(row.stallCapacity, 10) : undefined;
+
+        await prisma.program.create({ data: {
+          title: row.title,
+          description: row.description || undefined,
+          date,
+          placeId: placeId,
+          maxParticipants: maxParticipants || undefined,
+          stallCapacity: stallCapacity || undefined,
+          reservedStalls: 0,
+          status: (row.status as any) || 'SCHEDULED',
+        }});
+        created++;
+        console.log(`   ✅ Created program: ${title}`);
+      }
+      console.log(`   ✅ Programs seeded from CSV: ${created}`);
+    } catch (e) {
+      console.log('   ⚠️  Failed to seed programs from CSV:', (e as any).message);
+    }
+  }
+
+  // seed programs from CSV (if present)
+  await seedProgramsFromCSV();
 
   // ============================================
   // 5. SUMMARY

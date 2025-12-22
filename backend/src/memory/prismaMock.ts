@@ -71,6 +71,8 @@ export class PrismaMock {
   donationItems: DonationItem[] = [];
   activityLogs: ActivityLog[] = [];
   appMetricData: AppMetric | null = null;
+  // Questions for survey tests
+  questions: { id: string; text: string; type: string; createdAt: Date }[] = [];
 
   // Minimal user storage for auth-related tests
   users: any[] = [];
@@ -79,10 +81,17 @@ export class PrismaMock {
   constructor() {
     // Seed basic donor + center so tests can run
     const donorId = '00000000-0000-0000-0000-000000000001';
-    const centerId = '00000000-0000-0000-0000-000000000002';
+    const centerId = '11111111-1111-4111-8111-111111111111';
     this.donors.push({ id: donorId, displayName: 'Test Donor', donorType: 'INDIVIDUAL', creditBalance: 0, user: { email: 'donor@test.local' } });
     this.donationCenters.push({ id: centerId, place: { name: 'Test Center', address: '123 Test St' }, contactInfo: '123-4567' });
     this.appMetricData = { id: 'app-metrics', totalMonetary: 0, updatedAt: new Date() };
+
+    // Seed minimal survey questions so tests and services reading questions are fast
+    this.questions.push(
+      { id: 'q-1', text: 'How often do you eat fruits?', type: 'FOOD_FREQUENCY', createdAt: new Date(2020, 0, 1) },
+      { id: 'q-2', text: 'How many meals per day?', type: 'MEAL_FREQUENCY', createdAt: new Date(2020, 0, 2) },
+      { id: 'q-3', text: 'Do you worry about food running out?', type: 'FOOD_SECURITY_SEVERITY', createdAt: new Date(2020, 0, 3) }
+    );
   }
 
   donor = {
@@ -189,6 +198,29 @@ export class PrismaMock {
         monetarySum = list.reduce((acc, d) => acc + (d.monetaryAmount || 0), 0);
       }
       return { _sum: { monetaryAmount: monetarySum } };
+    },
+  };
+
+  // Minimal question model stub for tests
+  question = {
+    findMany: async ({ select, orderBy }: any) => {
+      let list = [...this.questions];
+      if (orderBy?.createdAt === 'asc') {
+        list.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      } else if (orderBy?.createdAt === 'desc') {
+        list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+      // Apply select projection
+      if (select) {
+        return list.map(q => {
+          const out: any = {};
+          if (select.id) out.id = q.id;
+          if (select.text) out.text = q.text;
+          if (select.type) out.type = q.type;
+          return out;
+        });
+      }
+      return list;
     },
   };
 

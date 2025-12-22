@@ -1,3 +1,9 @@
+import { Request, Response } from 'express';
+import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
+
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
+
 /**
  * List pending beneficiaries
  * GET /api/admin/beneficiaries/pending
@@ -92,15 +98,27 @@ export const deleteDonor = async (req: Request, res: Response) => {
 export const approveBeneficiary = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { reason } = req.body;
     const beneficiary = await prisma.beneficiary.update({
       where: { id },
       data: {
         status: 'APPROVED',
         reviewedAt: new Date(),
-        reviewReason: null
+        reviewReason: reason || null
       }
     });
-    return res.status(200).json({ success: true, message: 'Beneficiary approved', data: beneficiary });
+    // Also update linked User.status to APPROVED for consistency
+    if (beneficiary?.userId) {
+      try {
+        await prisma.user.update({ where: { id: beneficiary.userId }, data: { status: 'APPROVED', updatedAt: new Date() } });
+      } catch (e) {
+        console.error('Failed to update linked user status for beneficiary approval:', e);
+      }
+    }
+
+    // Return beneficiary including the linked user for frontend convenience
+    const updatedBeneficiary = await prisma.beneficiary.findUnique({ where: { id }, include: { user: true } });
+    return res.status(200).json({ success: true, message: 'Beneficiary approved', data: updatedBeneficiary });
   } catch (error) {
     console.error('Error approving beneficiary:', error);
     return res.status(500).json({ success: false, message: 'Failed to approve beneficiary', error: error instanceof Error ? error.message : 'Unknown error' });
@@ -123,17 +141,49 @@ export const rejectBeneficiary = async (req: Request, res: Response) => {
         reviewReason: reason || null
       }
     });
-    return res.status(200).json({ success: true, message: 'Beneficiary rejected', data: beneficiary });
+    // Also update linked User.status to REJECTED for consistency
+    if (beneficiary?.userId) {
+      try {
+        await prisma.user.update({ where: { id: beneficiary.userId }, data: { status: 'REJECTED', updatedAt: new Date() } });
+      } catch (e) {
+        console.error('Failed to update linked user status for beneficiary rejection:', e);
+      }
+    }
+
+    // Return beneficiary including the linked user for frontend convenience
+    const updatedBeneficiary = await prisma.beneficiary.findUnique({ where: { id }, include: { user: true } });
+    return res.status(200).json({ success: true, message: 'Beneficiary rejected', data: updatedBeneficiary });
   } catch (error) {
     console.error('Error rejecting beneficiary:', error);
     return res.status(500).json({ success: false, message: 'Failed to reject beneficiary', error: error instanceof Error ? error.message : 'Unknown error' });
   }
 };
-import { Request, Response } from 'express';
-import { PrismaClient } from '../../generated/prisma/index.js';
-import PrismaMock from '../memory/prismaMock.js';
 
-const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
+/**
+ * Touch beneficiary to update updatedAt (used when admin views/reviews an application)
+ * PATCH /api/admin/beneficiaries/:id/touch
+ */
+export const touchBeneficiary = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    // Use updateMany so we can return 404 if no record matched
+    const result = await prisma.beneficiary.updateMany({
+      where: { id },
+      data: {
+        updatedAt: new Date()
+      }
+    });
+    if (result.count === 0) {
+      return res.status(404).json({ success: false, message: 'Beneficiary not found' });
+    }
+    // Return the updated beneficiary
+    const beneficiary = await prisma.beneficiary.findUnique({ where: { id } });
+    return res.status(200).json({ success: true, message: 'Beneficiary touched', data: beneficiary });
+  } catch (error) {
+    console.error('Error touching beneficiary:', error);
+    return res.status(500).json({ success: false, message: 'Failed to touch beneficiary', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
 
 /**
  * Get admin dashboard statistics
@@ -274,12 +324,10 @@ export const getAllBeneficiariesForAdmin = async (req: Request, res: Response) =
     const status = req.query.status as string;
     const skip = (page - 1) * limit;
 
-    // Build where clause
+    // Build where clause (filter by beneficiary.status)
     const where: any = {};
     if (status) {
-      where.user = {
-        status: status
-      };
+      where.status = status;
     }
 
     // Get beneficiaries with pagination
@@ -305,13 +353,20 @@ export const getAllBeneficiariesForAdmin = async (req: Request, res: Response) =
       }
     });
 
+    // Enhance each beneficiary with convenient date fields used by the admin UI
+    const enhancedBeneficiaries = beneficiaries.map((b: any) => ({
+      ...b,
+      dateApplied: b.user?.createdAt || null,
+      dateDecision: b.updatedAt || null // date approved/rejected (updatedAt)
+    }));
+
     // Get total count for pagination
     const totalCount = await prisma.beneficiary.count({ where });
 
     return res.status(200).json({
       success: true,
       data: {
-        beneficiaries,
+        beneficiaries: enhancedBeneficiaries,
         pagination: {
           page,
           limit,
@@ -364,13 +419,32 @@ export const getBeneficiaryDetails = async (req: Request, res: Response) => {
           orderBy: {
             registeredAt: 'desc'
           }
+        },
+        // include latest food security surveys and the nested answers & questions so the admin can review
+        foodSecuritySurveys: {
+          include: {
+            answers: {
+              include: {
+                question: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
         }
       }
     });
     if (!beneficiary) {
       return res.status(404).json({ success: false, message: 'Beneficiary not found' });
     }
-    return res.status(200).json({ success: true, data: beneficiary });
+    // Add convenient date fields for frontend
+    const enriched = {
+      ...beneficiary,
+      dateApplied: beneficiary.user?.createdAt || null,
+      dateDecision: beneficiary.updatedAt || null
+    };
+    return res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Error fetching beneficiary details:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch beneficiary details', error: error instanceof Error ? error.message : 'Unknown error' });
@@ -421,9 +495,8 @@ export const getAllDonorsForAdmin = async (req: Request, res: Response) => {
     // Build where clause
     const where: any = {};
     if (status) {
-      where.user = {
-        status: status
-      };
+      // Filter donors by donor.status (not user.status)
+      where.status = status;
     }
 
     // Get donors with pagination
@@ -437,7 +510,9 @@ export const getAllDonorsForAdmin = async (req: Request, res: Response) => {
             id: true,
             email: true,
             status: true,
-            createdAt: true
+            createdAt: true,
+            updatedAt: true,
+            profileImage: true
           }
         }
       },
@@ -490,6 +565,7 @@ export const getDonorDetails = async (req: Request, res: Response) => {
             email: true,
             status: true,
             createdAt: true,
+            updatedAt: true,
             profileImage: true
           }
         },
@@ -503,7 +579,7 @@ export const getDonorDetails = async (req: Request, res: Response) => {
             program: {
               select: {
                 title: true,
-                eventDate: true
+                date: true
               }
             }
           },
@@ -532,5 +608,144 @@ export const getDonorDetails = async (req: Request, res: Response) => {
       message: 'Failed to fetch donor details',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+};
+
+/**
+ * Touch donor to update user's updatedAt (used when admin views/reviews an application)
+ * PATCH /api/admin/donors/:id/touch
+ */
+export const touchDonor = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const donor = await prisma.donor.findUnique({ where: { id }, select: { userId: true } });
+    if (!donor) {
+      return res.status(404).json({ success: false, message: 'Donor not found' });
+    }
+    const result = await prisma.user.updateMany({ where: { id: donor.userId }, data: { updatedAt: new Date() } });
+    if (result.count === 0) {
+      return res.status(404).json({ success: false, message: 'User not found for donor' });
+    }
+    const updated = await prisma.donor.findUnique({ where: { id }, include: { user: { select: { id: true, createdAt: true, updatedAt: true, profileImage: true } } } });
+    return res.status(200).json({ success: true, message: 'Donor touched', data: updated });
+  } catch (error) {
+    console.error('Error touching donor:', error);
+    return res.status(500).json({ success: false, message: 'Failed to touch donor', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+/**
+ * Approve a donor application
+ * PATCH /api/admin/donors/:id/approve
+ */
+export const approveDonor = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Update donor record
+    const donor = await prisma.donor.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        reviewReason: reason || null,
+        reviewedAt: new Date()
+      }
+    });
+
+    // Also update related User.status to APPROVED for consistency
+    if (donor?.userId) {
+      try {
+        await prisma.user.update({ where: { id: donor.userId }, data: { status: 'APPROVED', updatedAt: new Date() } });
+      } catch (e) {
+        console.error('Failed to update linked user status:', e);
+      }
+    }
+
+    // Return the donor including the linked user for frontend convenience
+    const updatedDonor = await prisma.donor.findUnique({ where: { id }, include: { user: true } });
+    return res.status(200).json({ success: true, message: 'Donor approved', data: updatedDonor });
+  } catch (error) {
+    console.error('Error approving donor:', error);
+    return res.status(500).json({ success: false, message: 'Failed to approve donor', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+/**
+ * Reject a donor application
+ * PATCH /api/admin/donors/:id/reject
+ */
+export const rejectDonor = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const donor = await prisma.donor.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        reviewReason: reason || null,
+        reviewedAt: new Date()
+      }
+    });
+
+    // Also update related User.status to REJECTED for consistency
+    if (donor?.userId) {
+      try {
+        await prisma.user.update({ where: { id: donor.userId }, data: { status: 'REJECTED', updatedAt: new Date() } });
+      } catch (e) {
+        console.error('Failed to update linked user status:', e);
+      }
+    }
+
+    // Return the donor including the linked user for frontend convenience
+    const updatedDonor = await prisma.donor.findUnique({ where: { id }, include: { user: true } });
+    return res.status(200).json({ success: true, message: 'Donor rejected', data: updatedDonor });
+  } catch (error) {
+    console.error('Error rejecting donor:', error);
+    return res.status(500).json({ success: false, message: 'Failed to reject donor', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+/**
+ * Get drop-off schedule for non-monetary donations grouped by status
+ * GET /api/admin/dropoff-schedule
+ */
+export const getDropoffSchedule = async (req: Request, res: Response) => {
+  try {
+    // Fetch donations where monetaryAmount IS NULL (non-monetary) and include donor/profile info
+    const donations = await prisma.donation.findMany({
+      where: { monetaryAmount: null },
+      include: {
+        donor: {
+          include: {
+            user: {
+              select: { id: true, email: true, profileImage: true }
+            }
+          }
+        },
+        items: true,
+        donationCenter: true
+      },
+      orderBy: { scheduledDate: 'asc' }
+    });
+
+    // Group by status
+    const grouped: Record<string, any[]> = {
+      SCHEDULED: [],
+      COMPLETED: [],
+      CANCELLED: []
+    };
+
+    for (const d of donations) {
+      const status = d.status || 'SCHEDULED';
+      if (grouped[status]) grouped[status].push(d);
+      else grouped[status] = [d];
+    }
+
+    return res.status(200).json({ success: true, data: grouped });
+  } catch (error: any) {
+    console.error('Error fetching dropoff schedule:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch dropoff schedule', error: error.message });
   }
 };

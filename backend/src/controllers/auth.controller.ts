@@ -458,6 +458,7 @@ export const registerDonor = async (req: MulterRequest, res: Response) => { // U
                     create: {
                         displayName: data.displayName,
                         donorType: data.donorType,
+                        primaryPhone: data.primaryPhone || undefined,
                         totalDonation: 0,
                     }
                 }

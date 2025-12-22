@@ -61,11 +61,12 @@ export const updateDonationItem = async (req:Request,res:Response)=>{
     try{
         const donationItemId = req.params.id;
         const updateData: Partial<DonationItemData> = req.body;
-        const updatedDonationItem = await updateDonationItemService(donationItemId, updateData);
-        if(!updatedDonationItem){
+        const result = await updateDonationItemService(donationItemId, updateData);
+        if(!result || !result.updatedDonationItem){
             return res.status(404).json({ success: false, error: 'DonationItem not found' });
-        }   
-        res.status(200).json({ success: true, data: updatedDonationItem });
+        }
+
+        res.status(200).json({ success: true, data: { item: result.updatedDonationItem, approvalVerdict: result.approvalVerdict } });
     }
     catch(error:any){
         res.status(500).json({ success: false, error: error.message });

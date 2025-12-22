@@ -1,0 +1,21 @@
+title,description,date,placeName,placeAddress,latitude,longitude,maxParticipants,stallCapacity,status
+Community Food Drive 1,Weekend food distribution for east neighborhood,2026-01-15T09:00:00Z,Eastside Community Hall,12 East St.,14.7000,121.0000,200,0,SCHEDULED
+Community Food Drive 2,Weekend food distribution for west neighborhood,2026-01-22T09:00:00Z,Westside Community Hall,34 West Ave.,14.6500,121.0200,180,0,SCHEDULED
+School Lunch Support,Providing lunch packs to elementary students,2026-02-01T11:00:00Z,North Elementary Gym,101 School Rd.,14.6200,121.0300,150,0,SCHEDULED
+Senior Meal Program,Hot meals for senior citizens every month,2026-02-05T12:00:00Z,Senior Activity Center,5 Old Lane,14.6300,121.0400,120,0,SCHEDULED
+Night Kitchen Pop-up,Evening meals for nearby communities,2026-02-10T18:00:00Z,Downtown Plaza,9 Central Ave.,14.6400,121.0500,250,0,SCHEDULED
+Market Food Rescue,Collect surplus market food for redistribution,2026-02-15T08:00:00Z,Central Market Grounds,Market Rd.,14.6505,121.0555,100,10,SCHEDULED
+Holiday Relief Drive,Special distribution for holiday season,2026-03-01T09:30:00Z,Holiday Hall,77 Festive St.,14.6600,121.0600,300,0,SCHEDULED
+Community Pantry Launch,Opening of new community pantry,2026-03-10T10:00:00Z,Greenfield Community Pantry,12 Greenfield Ave.,14.6700,121.0700,80,0,SCHEDULED
+Nutrition Workshop,Workshop + food packs for families,2026-03-20T13:00:00Z,Health Center Auditorium,2 Health St.,14.6800,121.0800,60,0,SCHEDULED
+Harvest Redistribution,Collect and distribute harvest produce,2026-03-25T07:00:00Z,Farmers Field,Route 5,14.6900,121.0900,220,5,SCHEDULED
+Back-to-School Packs,School supplies + food for students,2026-04-05T10:00:00Z,Community Center Hall,45 Community Ln.,14.6950,121.0950,170,0,SCHEDULED
+Mobile Pantry Run,Mobile van distribution in barangays,2026-04-12T09:00:00Z,Mobile Route Stop A,Various,14.7005,121.1005,200,0,SCHEDULED
+Refugee Support Distribution,Emergency relief for displaced families,2026-04-20T11:00:00Z,Relief Camp Building,Relief Rd.,14.7050,121.1050,400,0,SCHEDULED
+Nutrition for Mothers,Targeted packs for expectant mothers,2026-05-01T10:00:00Z,Maternal Care Center,8 Mother St.,14.7100,121.1100,90,0,SCHEDULED
+Teen Meal Program,Meals and skill sessions for teens,2026-05-10T15:00:00Z,Youth Hub,21 Youth Ave.,14.7150,121.1150,110,0,SCHEDULED
+Faith-Based Drive,Community church-led distribution,2026-05-18T09:00:00Z,St. Mary's Church,Church Rd.,14.7200,121.1200,140,0,SCHEDULED
+Corporate Match Event,Donor matched donations and distribution,2026-05-25T09:00:00Z,Corporate Plaza,88 Business Park,14.7250,121.1250,260,20,SCHEDULED
+Rural Outreach,Food packs for rural barangays,2026-06-01T08:00:00Z,Rural Outreach Site,Rural Rd.,14.7300,121.1300,320,0,SCHEDULED
+Emergency Response Drill,Training + mock distribution exercise,2026-06-10T09:00:00Z,Training Grounds,12 Drill Ave.,14.7350,121.1350,50,0,SCHEDULED
+Community Market Day 2,Second market day with stalls for donors,2026-06-15T08:00:00Z,Main Distribution Center - Quezon City,123 Commonwealth Avenue,14.6760,121.0437,300,15,SCHEDULED

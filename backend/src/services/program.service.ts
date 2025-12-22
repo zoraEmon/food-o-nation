@@ -7,22 +7,23 @@ const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : 
 // Service to get all programs
 export const getAllProgramsService = async () => {
     return await prisma.program.findMany({
-        include: {
-            place: true, // Include related Place data
-            donations: true, // Include related Donations
-        },
+      include: {
+        place: true, // Include related Place data
+        registrations: true,
+        stallReservations: true
+      },
     });
 };
 
 // Service to get a program by ID
 export const getProgramByIdService = async (id: string) => {
     return await prisma.program.findUnique({
-        where: { id },
-        include: {
-            place: true, // Include related Place data
-            donations: true, // Include related Donations
-            registrations: true, // Include related Registrations
-        },
+      where: { id },
+      include: {
+        place: true, // Include related Place data
+        registrations: true, // Include related Registrations
+        stallReservations: true
+      },
     });
 };
 export const createProgramService  = async (data:ProgramData)=>{

@@ -5,23 +5,28 @@ import fs from 'fs';
 // 1. Configuration: Where to store files
 const uploadDir = 'uploads/';
 
-// Ensure the upload directory exists automatically
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// 2. Storage Engine: Defines Name and Destination
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir); 
-    },
-    filename: function (req, file, cb) {
-        // Generates: timestamp-random-originalName
-        // Example: 1715604000123-999-avatar.jpg
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+// Prefer memory storage in test/memory mode to avoid disk I/O
+let storage: any;
+if (process.env.TEST_USE_MEMORY === 'true' || process.env.NODE_ENV === 'test') {
+    storage = multer.memoryStorage();
+} else {
+    // Ensure the upload directory exists automatically
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
     }
-});
+
+    // 2. Storage Engine: Defines Name and Destination
+    storage = multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, uploadDir);
+        },
+        filename: function (req, file, cb) {
+            // Generates: timestamp-random-originalName
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            cb(null, uniqueSuffix + path.extname(file.originalname));
+        }
+    });
+}
 
 // 3. File Filter: Security check (Images only)
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {

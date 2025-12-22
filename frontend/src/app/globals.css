@@ -16,12 +16,16 @@
 
   --muted: #eaddcf;      /* Darker cream for borders/cards */
   --accent: #FFB000;
+  --dashboard-bg: #f4fbf8; /* light dashboard bg in light mode */
+  --danger: #dc2626;
+  --danger-fg: #ffffff;
 }
 
 /* 2. Define Dark Mode (Professional "Dark Luxury" Theme) */
 .dark {
-  --background: #051A10; /* Very Dark Forest Green (Not Pitch Black) */
+  --background: #031009; /* Darker forest green for app background in dark mode */
   --foreground: #e2e8f0; /* Off-white text */
+  --dashboard-bg: #021507; /* Distinct darkest green for admin dashboard background */
   
   --primary: #004225;    /* Keep brand green, maybe slightly lighter for contrast if needed */
   --primary-fg: #ffffff;
@@ -31,6 +35,8 @@
 
   --muted: #0a291a;      /* Lighter dark green for cards */
   --accent: #FFB000;
+  --card-bg: var(--muted); /* card background in dark mode */
+  --card-fg: var(--primary-fg); /* card foreground in dark mode */
 }
 
 /* 3. Wire up Tailwind Variables */
@@ -45,6 +51,8 @@
   --color-secondary-fg: var(--secondary-fg);
   
   --color-muted: var(--muted);
+  --card-bg: #ffffff; /* card background in light mode */
+  --card-fg: #1c1c1c; /* card foreground in light mode */
 
   /* Fonts mapping */
   --font-sans: var(--font-inter);      /* Default Body Text */

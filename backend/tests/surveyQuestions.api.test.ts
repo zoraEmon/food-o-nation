@@ -1,3 +1,7 @@
+// Enable fast static questions and in-memory mock before importing application code
+process.env.TEST_USE_MEMORY = 'true';
+process.env.USE_STATIC_QUESTIONS = 'true';
+
 import { describe, it, expect } from 'vitest';
 import express from 'express';
 import request from 'supertest';

@@ -1,3 +1,7 @@
+// Ensure test-mode fast paths are enabled before importing application code
+process.env.TEST_USE_MEMORY = 'true';
+process.env.USE_STATIC_QUESTIONS = 'true';
+
 import { describe, it, expect } from 'vitest';
 import { getAllSurveyQuestionsService } from '../src/services/question.service';
 import { SURVEY_OPTIONS } from '../src/constants/surveyOptions';

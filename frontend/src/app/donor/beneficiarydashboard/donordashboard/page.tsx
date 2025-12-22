@@ -18,6 +18,8 @@ interface DonationItem {
   foodType: string;
   quantity: number;
   unit: string;
+  imageUrl?: string;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 interface Location {

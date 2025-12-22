@@ -30,7 +30,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all">
       {/* Modal Content */}
-      <div className="bg-background border-2 border-primary/20 dark:border-white/10 w-full max-w-md rounded-xl shadow-2xl scale-100 animate-in fade-in zoom-in duration-200">
+      <div className="bg-background border-2 border-primary/20 dark:border-white/10 w-full max-w-4xl md:max-w-3xl rounded-lg shadow-2xl scale-100 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-primary/10">
@@ -43,7 +43,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
         </div>
 
         {/* Body */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto custom-scrollbar" style={{ minHeight: '56vh' }}>
           {children}
         </div>
 

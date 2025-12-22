@@ -1,4 +1,4 @@
-import { PrismaClient } from '../../generated/prisma/index.js';
+import { PrismaClient, DonationStatus } from '../../generated/prisma/index.js';
 import { DonationItemData } from "../interfaces/interfaces.js";
 
 const prisma = new PrismaClient();
@@ -77,7 +77,26 @@ export const updateDonationItemService = async (id: string, data: Partial<Donati
                 quantity: data.quantity !== undefined ? validatePositiveNumber(parseFloat(data.quantity.toString())) : undefined,
             },
         });
-        return updatedDonationItem;
+        // After updating the item, compute aggregated approval verdict for the parent donation
+        const donationItems = await prisma.donationItem.findMany({
+            where: { donationId: updatedDonationItem.donationId },
+        });
+
+        const approvalVerdict = computeApprovalVerdict(donationItems);
+
+        // Only persist the aggregated verdict when ALL items have been reviewed (i.e., no PENDING items)
+        try {
+            if (updatedDonationItem.donationId && approvalVerdict) {
+                await prisma.donation.update({
+                    where: { id: updatedDonationItem.donationId },
+                    data: { approvalVerdict, status: DonationStatus.COMPLETED },
+                });
+            }
+        } catch (err:any) {
+            console.error('Failed to persist approvalVerdict on Donation:', err.message || err);
+        }
+
+        return { updatedDonationItem, approvalVerdict };
     } catch (error: any) {
         console.error('Error in updateDonationItemService:', error);
 
@@ -88,4 +107,30 @@ export const updateDonationItemService = async (id: string, data: Partial<Donati
         throw new Error('Failed to update DonationItem: ' + error.message);
     }
 
+}
+
+export function computeApprovalVerdict(items: Array<any>): string | null {
+    if (!items || items.length === 0) return null;
+    const total = items.length;
+    let approved = 0;
+    let rejected = 0;
+    let pending = 0;
+    for (const it of items) {
+        if (it.status === 'APPROVED') approved++;
+        else if (it.status === 'REJECTED') rejected++;
+        else pending++;
+    }
+
+    // If any items are still pending review, do not compute/persist an aggregated verdict yet
+    if (pending > 0) return null;
+
+    // All items reviewed; compute verdict
+    if (approved === total) return 'COMPLETELY_APPROVED';
+    if (rejected === total) return 'REJECTED';
+    if (approved / total >= 0.75) return 'EXTREMELY_APPROVED';
+    if (approved / total >= 0.5) return 'FAIRLY_APPROVED';
+    if (approved > rejected) return 'BARELY_APPROVED';
+
+    // Fallback
+    return 'MIXED';
 }
