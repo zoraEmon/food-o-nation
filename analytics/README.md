@@ -4,7 +4,7 @@ This service provides analytics endpoints and Plotly chart payloads for the Food
 
 Quick start (local):
 
-1. Copy .env.example to .env and set DATABASE_URL with a read-only DB user.
+1. Create a `.env` file and set `DATABASE_URL` to your NeonDB (or other Postgres) connection string. Do NOT commit this file; it should remain local and secret. See the backend Prisma schema (`backend/prisma/schema.prisma`) for table/field references.
 2. Build and run locally:
    - python -m venv .venv && . .venv/bin/activate
    - pip install -r requirements.txt
