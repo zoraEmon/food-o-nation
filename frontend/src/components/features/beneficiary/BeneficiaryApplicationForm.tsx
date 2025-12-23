@@ -148,6 +148,10 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSectionErrors, setShowSectionErrors] = useState(false);
+
+  // Client-side password rules (must match backend rules): min 12 enforced separately
+  const PASSWORD_REGEX = /(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=\[\]{};':"\\|,.<>\/\?]).+/;
+  const ZIPCODE_REGEX = /^\d{4}$/;
   const router = useRouter();
   const { showNotification } = useNotification();
   const [formData, setFormData] = useState<ApplicationFormData>({
@@ -497,6 +501,11 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
       if (!formData.email) newErrors.email = 'Required';
       if (!formData.password) newErrors.password = 'Password is required';
       if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+      if (formData.password && (formData.password.length < 12 || !PASSWORD_REGEX.test(formData.password))) {
+        newErrors.password = 'Password must be at least 12 chars and include uppercase, lowercase, a digit, and a special character';
+      }
+      if (!formData.zipCode) newErrors.zipCode = 'ZIP code is required';
+      else if (!ZIPCODE_REGEX.test(formData.zipCode)) newErrors.zipCode = 'ZIP code must be 4 digits';
 
       // Age validation (must be at least 13) and not a future date
       if (formData.birthDate) {
@@ -838,6 +847,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                 <div>
                   <label className="text-sm font-bold text-current">ZIP Code</label>
                   <input name="zipCode" value={formData.zipCode} onChange={(e) => handleInputChange('zipCode', e.target.value)} className="w-full p-3 rounded-xl border border-gray-300 dark:border-[#2e4d3d] bg-gray-50 dark:bg-[#1a2b23] focus:border-[#FFB000] focus:ring-2 focus:ring-[#FFB000]/30 shadow-sm transition-colors duration-200" placeholder="0000" />
+                  {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode}</p>}
                 </div>
 
                 <div>
@@ -862,6 +872,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                 <div className="relative">
                   <label className="text-sm font-bold text-current">Password <span className="text-red-500">*</span></label>
                   <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value)} className="w-full p-3 rounded-xl border border-gray-300 dark:border-[#2e4d3d] bg-gray-50 dark:bg-[#1a2b23] focus:border-[#FFB000] focus:ring-2 focus:ring-[#FFB000]/30 shadow-sm transition-colors duration-200" placeholder="Minimum 12 characters" required />
+                  <p className="text-xs text-gray-400 mt-1">Password must be at least 12 characters and include an uppercase, lowercase, a number, and a special character.</p>
                   <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-3 top-8 text-gray-500">
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -1029,7 +1040,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                 calculateAge={calculateAge}
               />
               {/* Special Diet checkbox + description */}
-              <div className="mt-2 p-3 border rounded-lg bg-[#FAF7F0] dark:bg-[#07311e] border-[#004225] dark:border-[#05402a]">
+              <div className="mt-2 p-3 border rounded-lg bg-background dark:bg-[#07311e] border-[#004225] dark:border-[#05402a]">
                 <label className="flex items-center gap-3">
                   <input type="checkbox" checked={formData.hasSpecialDiet} onChange={(e) => handleInputChange('hasSpecialDiet', e.target.checked)} className="w-5 h-5 accent-[#FFB000]" />
                   <span className="text-current">Special diet required</span>
@@ -1087,7 +1098,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                 </label>
                 <div className="space-y-2">
                   {['Formal/Salaried Employment', 'Informal/Gig Work', 'Government Assistance/Benefits', 'Remittances/Financial Help from Family/Friends', 'None (Unemployed and not receiving benefits)'].map((source) => (
-                    <label key={source} className="flex items-center gap-2 p-2 hover:bg-[#FAF7F0] rounded">
+                    <label key={source} className="flex items-center gap-2 p-2 hover:bg-background/95 rounded">
                       <input
                         type="checkbox"
                         checked={formData.incomeSources.includes(source)}

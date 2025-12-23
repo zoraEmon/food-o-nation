@@ -30,20 +30,20 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all">
       {/* Modal Content */}
-      <div className="bg-background border-2 border-primary/20 dark:border-white/10 w-full max-w-md rounded-xl shadow-2xl scale-100 animate-in fade-in zoom-in duration-200">
+      <div className="border-2 dark:border-white/10 w-full max-w-4xl md:max-w-3xl rounded-lg shadow-2xl scale-100 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-hidden" style={{ background: 'var(--card-bg)', color: 'var(--card-fg)' }}>
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-primary/10">
-          <h3 className="font-heading text-xl font-bold text-primary dark:text-secondary">
+          <h3 className="font-heading text-xl font-bold" style={{ color: 'var(--primary)' }}>
             {title}
           </h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-red-500 transition-colors">
+          <button onClick={onClose} className="transition-colors" style={{ color: 'var(--muted-text)' }}>
             <X size={24} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto custom-scrollbar" style={{ minHeight: '56vh' }}>
           {children}
         </div>
 

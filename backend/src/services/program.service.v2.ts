@@ -10,7 +10,6 @@ export const getAllProgramsService = async (filters = {}) => {
       where: filters,
       include: {
         place: true,
-        donations: true,
         registrations: {
           include: {
             beneficiary: {
@@ -19,15 +18,30 @@ export const getAllProgramsService = async (filters = {}) => {
               }
             }
           }
-        }
+        },
+        stallReservations: true
       },
       orderBy: { createdAt: 'desc' }
     });
 
+    // Sanitize place fields: do not return suspiciously short name/address values to clients
+    const sanitized = programs.map((p:any) => {
+      if (p.place) {
+        try {
+          if (!p.place.name || typeof p.place.name !== 'string' || p.place.name.trim().length < 3) p.place.name = '';
+          if (!p.place.address || typeof p.place.address !== 'string' || p.place.address.trim().length < 3) p.place.address = '';
+        } catch (e) {
+          p.place.name = p.place.name || '';
+          p.place.address = p.place.address || '';
+        }
+      }
+      return p;
+    });
+
     return {
       success: true,
-      data: programs,
-      count: programs.length
+      data: sanitized,
+      count: sanitized.length
     };
   } catch (error:any) {
     return {
@@ -51,14 +65,6 @@ export const getProgramByIdService = async (id:any) => {
       where: { id },
       include: {
         place: true,
-        donations: {
-          include: {
-            donor: {
-              include: { user: true }
-            },
-            items: true
-          }
-        },
         registrations: {
           include: {
             beneficiary: {
@@ -68,7 +74,8 @@ export const getProgramByIdService = async (id:any) => {
               }
             }
           }
-        }
+        },
+        stallReservations: true
       }
     });
 
@@ -78,6 +85,17 @@ export const getProgramByIdService = async (id:any) => {
         error: `Program with ID ${id} not found`,
         code: 'NOT_FOUND'
       };
+    }
+
+    // Sanitize place fields to avoid returning tiny/invalid values
+    if (program.place) {
+      try {
+        if (!program.place.name || typeof program.place.name !== 'string' || program.place.name.trim().length < 3) program.place.name = '';
+        if (!program.place.address || typeof program.place.address !== 'string' || program.place.address.trim().length < 3) program.place.address = '';
+      } catch (e) {
+        program.place.name = program.place.name || '';
+        program.place.address = program.place.address || '';
+      }
     }
 
     return {
@@ -120,11 +138,20 @@ export const createProgramService = async (data:any) => {
       };
     }
 
-    if (!data.maxParticipants || isNaN(data.maxParticipants) || data.maxParticipants <= 0) {
+    // Allow maxParticipants to be 0 to indicate registration disabled
+    if (data.maxParticipants === undefined || data.maxParticipants === null || isNaN(data.maxParticipants) || data.maxParticipants < 0) {
       return {
         success: false,
-        error: 'Max participants must be a positive number',
+        error: 'Max participants must be a non-negative number',
         field: 'maxParticipants'
+      };
+    }
+
+    if (data.stallCapacity !== undefined && (isNaN(data.stallCapacity) || data.stallCapacity < 0)) {
+      return {
+        success: false,
+        error: 'Stall capacity must be a non-negative number',
+        field: 'stallCapacity'
       };
     }
 
@@ -177,14 +204,15 @@ export const createProgramService = async (data:any) => {
         title: data.title.trim(),
         description: data.description.trim(),
         date: programDate,
-        maxParticipants: parseInt(data.maxParticipants),
-        placeId: data.placeId
+        maxParticipants: parseInt(data.maxParticipants) || 0,
+        placeId: data.placeId,
+        stallCapacity: data.stallCapacity !== undefined ? parseInt(data.stallCapacity) : 0
         // status defaults to PENDING via schema
       },
       include: {
         place: true,
         registrations: true,
-        donations: true
+        stallReservations: true
       }
     });
 
@@ -238,11 +266,30 @@ export const updateProgramService = async (id:any, updateData:any) => {
         };
       }
 
-      if (isNaN(updateData.maxParticipants) || updateData.maxParticipants <= 0) {
+      if (isNaN(updateData.maxParticipants) || updateData.maxParticipants < 0) {
         return {
           success: false,
-          error: 'Max participants must be a positive number',
+          error: 'Max participants must be a non-negative number',
           field: 'maxParticipants'
+        };
+      }
+    }
+
+    // Validate stallCapacity updates
+    if (updateData.stallCapacity !== undefined && updateData.stallCapacity !== null) {
+      if (programStarted || currentProgram.status === 'APPROVED') {
+        return {
+          success: false,
+          error: 'Cannot update stall capacity for scheduled or ongoing programs',
+          field: 'stallCapacity'
+        };
+      }
+
+      if (isNaN(updateData.stallCapacity) || updateData.stallCapacity < 0) {
+        return {
+          success: false,
+          error: 'Stall capacity must be a non-negative number',
+          field: 'stallCapacity'
         };
       }
     }
@@ -312,7 +359,7 @@ export const updateProgramService = async (id:any, updateData:any) => {
     }
 
     // Build update data with only allowed fields
-    const allowedFields = ['title', 'description', 'date', 'maxParticipants', 'status', 'placeId'];
+    const allowedFields = ['title', 'description', 'date', 'maxParticipants', 'status', 'placeId', 'stallCapacity'];
     const dataToUpdate = {};
 
     for (const key of Object.keys(updateData)) {
@@ -320,6 +367,8 @@ export const updateProgramService = async (id:any, updateData:any) => {
         if (key === 'date') {
           dataToUpdate[key] = new Date(updateData[key]);
         } else if (key === 'maxParticipants') {
+          dataToUpdate[key] = parseInt(updateData[key]);
+        } else if (key === 'stallCapacity') {
           dataToUpdate[key] = parseInt(updateData[key]);
         } else if (key === 'title' || key === 'description') {
           dataToUpdate[key] = updateData[key].trim();
@@ -337,6 +386,36 @@ export const updateProgramService = async (id:any, updateData:any) => {
     }
 
     // Update program
+    // If decreasing maxParticipants, remove excess registrations (latest registrations removed)
+    if (dataToUpdate.maxParticipants !== undefined && dataToUpdate.maxParticipants < currentProgram.maxParticipants) {
+      const newMax = dataToUpdate.maxParticipants;
+      const regs = await prisma.programRegistration.findMany({ where: { programId: id }, orderBy: { registeredAt: 'asc' } });
+      if (regs.length > newMax) {
+        const toRemove = regs.slice(newMax); // keep earliest `newMax`, remove later ones
+        for (const r of toRemove) {
+          // Delete any program applications tied to this registration
+          await prisma.programApplication.deleteMany({ where: { registrationId: r.id } });
+          // Delete the registration
+          await prisma.programRegistration.delete({ where: { id: r.id } });
+        }
+      }
+    }
+
+    // If decreasing stallCapacity, remove excess stall reservations (latest reserved removed)
+    if (dataToUpdate.stallCapacity !== undefined && dataToUpdate.stallCapacity < (currentProgram.stallCapacity || 0)) {
+      const newCapacity = dataToUpdate.stallCapacity;
+      const stalls = await prisma.stallReservation.findMany({ where: { programId: id }, orderBy: { reservedAt: 'asc' } });
+      if (stalls.length > newCapacity) {
+        const toRemoveStalls = stalls.slice(newCapacity);
+        for (const s of toRemoveStalls) {
+          // Delete related stall application if exists
+          await prisma.stallApplication.deleteMany({ where: { stallReservationId: s.id } });
+          // Delete the reservation
+          await prisma.stallReservation.delete({ where: { id: s.id } });
+        }
+      }
+    }
+
     const updatedProgram = await prisma.program.update({
       where: { id },
       data: dataToUpdate,
@@ -351,7 +430,7 @@ export const updateProgramService = async (id:any, updateData:any) => {
             }
           }
         },
-        donations: true
+        stallReservations: true
       }
     });
 
@@ -421,47 +500,46 @@ export const publishProgramService = async (id:any) => {
   }
 };
 
-// Cancel program
+// Cancel program — delete program and related data
 export const cancelProgramService = async (id:any, reason = '') => {
   try {
-    const program = await prisma.program.findUnique({
-      where: { id }
-    });
+    const program = await prisma.program.findUnique({ where: { id } });
 
     if (!program) {
-      return {
-        success: false,
-        error: 'Program not found',
-        code: 'NOT_FOUND'
-      };
+      return { success: false, error: 'Program not found', code: 'NOT_FOUND' };
     }
 
     if (program.status === 'CLAIMED') {
-      return {
-        success: false,
-        error: 'Cannot cancel a program that has already been completed'
-      };
+      return { success: false, error: 'Cannot delete a program that has already been completed' };
     }
 
-    const updated = await prisma.program.update({
-      where: { id },
-      data: { status: 'CANCELED' },
-      include: {
-        place: true,
-        registrations: true,
-        donations: true
-      }
-    });
+    // Collect related registrations and stall reservations
+    const registrations = await prisma.programRegistration.findMany({ where: { programId: id } });
+    const registrationIds = registrations.map((r:any) => r.id);
+
+    const stallReservations = await prisma.stallReservation.findMany({ where: { programId: id } });
+    const stallIds = stallReservations.map((s:any) => s.id);
+
+    // Perform deletions in a transaction for safety
+    await prisma.$transaction([
+      // delete program applications tied to registrations
+      prisma.programApplication.deleteMany({ where: { registrationId: { in: registrationIds.length ? registrationIds : ['__none__'] } } }),
+      // delete registrations
+      prisma.programRegistration.deleteMany({ where: { id: { in: registrationIds.length ? registrationIds : ['__none__'] } } }),
+      // delete stall applications tied to stall reservations
+      prisma.stallApplication.deleteMany({ where: { stallReservationId: { in: stallIds.length ? stallIds : ['__none__'] } } }),
+      // delete stall reservations
+      prisma.stallReservation.deleteMany({ where: { id: { in: stallIds.length ? stallIds : ['__none__'] } } }),
+      // finally delete the program itself
+      prisma.program.delete({ where: { id } })
+    ]);
 
     return {
       success: true,
-      data: updated,
-      message: `Program canceled successfully${reason ? ': ' + reason : ''}`
+      data: { id },
+      message: `Program deleted successfully${reason ? ': ' + reason : ''}`
     };
   } catch (error:any) {
-    return {
-      success: false,
-      error: `Failed to cancel program: ${error.message}`
-    };
+    return { success: false, error: `Failed to delete program: ${error.message}` };
   }
 };

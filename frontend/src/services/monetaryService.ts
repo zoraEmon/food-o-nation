@@ -34,7 +34,7 @@ export type InitCreditCardCheckoutResponse = {
   };
 };
 
-export async function initMayaCheckout(donorId: string | null, amount: number, description?: string, email?: string) {
+export async function initMayaCheckout(donorId: string | null, amount: number, description?: string, email?: string, phone?: string) {
   const headers: any = {};
   try {
     const token = localStorage.getItem('token');
@@ -45,6 +45,7 @@ export async function initMayaCheckout(donorId: string | null, amount: number, d
     amount,
     description,
     email,
+    phone,
   }, { headers });
   if (!res.data.success || !res.data.data?.redirectUrl) {
     throw new Error(res.data.message || 'Failed to initialize Maya checkout');
@@ -52,7 +53,7 @@ export async function initMayaCheckout(donorId: string | null, amount: number, d
   return res.data.data;
 }
 
-export async function initPayPalCheckout(donorId: string | null, amount: number, description?: string, email?: string) {
+export async function initPayPalCheckout(donorId: string | null, amount: number, description?: string, email?: string, phone?: string) {
   const headers: any = {};
   try {
     const token = localStorage.getItem('token');
@@ -63,6 +64,7 @@ export async function initPayPalCheckout(donorId: string | null, amount: number,
     amount,
     description,
     email,
+    phone,
   }, { headers });
   if (!res.data.success || !res.data.data?.redirectUrl) {
     throw new Error(res.data.message || 'Failed to initialize PayPal checkout');
@@ -82,7 +84,8 @@ export async function finalizeMonetaryDonation(
   paymentMethod: string, 
   paymentReference: string,
   guestName?: string,
-  guestEmail?: string
+  guestEmail?: string,
+  guestMobile?: string
 ) {
   const payload: any = {
     amount,
@@ -96,6 +99,7 @@ export async function finalizeMonetaryDonation(
     // For guest donations, include name and email
     payload.guestName = guestName;
     payload.guestEmail = guestEmail;
+    if (guestMobile) payload.guestMobileNumber = guestMobile;
   }
 
   const headers: any = {};

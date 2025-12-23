@@ -6,6 +6,7 @@ describe('Validators: password & zip code rules', () => {
   const invalids = {
     short: 'Ab1!a',
     noUpper: 'weakpass1!@#',
+    noLower: 'WEAKPASS1!@#',
     noNumber: 'Weakpass!@#$',
     noSpecial: 'Weakpass1234'
   };
@@ -22,6 +23,11 @@ describe('Validators: password & zip code rules', () => {
 
   it('rejects passwords without number', () => {
     const res = loginSchema.safeParse({ email: 'a@b.com', password: invalids.noNumber, loginType: 'BENEFICIARY' });
+    expect(res.success).toBe(false);
+  });
+
+  it('rejects passwords without lowercase', () => {
+    const res = loginSchema.safeParse({ email: 'a@b.com', password: invalids.noLower, loginType: 'BENEFICIARY' });
     expect(res.success).toBe(false);
   });
 

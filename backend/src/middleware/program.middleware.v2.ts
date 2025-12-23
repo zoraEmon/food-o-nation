@@ -44,13 +44,13 @@ export const validateCreateProgram = (req: Request, res: Response, next: NextFun
     }
   }
 
-  // Check maxParticipants
-  if (!maxParticipants && maxParticipants !== 0) {
-    errors.push({ field: 'maxParticipants', message: 'Maximum participants is required' });
+  // Check maxParticipants (allow 0 to indicate registration disabled)
+  if (maxParticipants === undefined || maxParticipants === null) {
+    errors.push({ field: 'maxParticipants', message: 'Maximum participants is required (use 0 to disable)'});
   } else {
     const num = parseInt(maxParticipants);
-    if (isNaN(num) || num <= 0) {
-      errors.push({ field: 'maxParticipants', message: 'Maximum participants must be a positive number' });
+    if (isNaN(num) || num < 0) {
+      errors.push({ field: 'maxParticipants', message: 'Maximum participants must be a non-negative number' });
     } else if (num > 10000) {
       errors.push({ field: 'maxParticipants', message: 'Maximum participants cannot exceed 10000' });
     }
@@ -78,7 +78,7 @@ export const validateCreateProgram = (req: Request, res: Response, next: NextFun
 
 // Validate update program request
 export const validateUpdateProgram = (req: Request, res: Response, next: NextFunction) => {
-  const allowedFields = ['title', 'description', 'date', 'maxParticipants', 'status', 'placeId'];
+  const allowedFields = ['title', 'description', 'date', 'maxParticipants', 'status', 'placeId', 'stallCapacity'];
   const errors = [];
 
   // Check for invalid fields
@@ -124,8 +124,8 @@ export const validateUpdateProgram = (req: Request, res: Response, next: NextFun
 
   if (req.body.maxParticipants !== undefined) {
     const num = parseInt(req.body.maxParticipants);
-    if (isNaN(num) || num <= 0) {
-      errors.push({ field: 'maxParticipants', message: 'Maximum participants must be a positive number' });
+    if (isNaN(num) || num < 0) {
+      errors.push({ field: 'maxParticipants', message: 'Maximum participants must be a non-negative number' });
     } else if (num > 10000) {
       errors.push({ field: 'maxParticipants', message: 'Maximum participants cannot exceed 10000' });
     }
@@ -143,6 +143,15 @@ export const validateUpdateProgram = (req: Request, res: Response, next: NextFun
       errors.push({ field: 'placeId', message: 'Place ID must be a string' });
     } else if (req.body.placeId.trim().length === 0) {
       errors.push({ field: 'placeId', message: 'Place ID cannot be empty' });
+    }
+  }
+
+  if (req.body.stallCapacity !== undefined) {
+    const sc = parseInt(req.body.stallCapacity);
+    if (isNaN(sc) || sc < 0) {
+      errors.push({ field: 'stallCapacity', message: 'Stall capacity must be a non-negative number' });
+    } else if (sc > 10000) {
+      errors.push({ field: 'stallCapacity', message: 'Stall capacity cannot exceed 10000' });
     }
   }
 

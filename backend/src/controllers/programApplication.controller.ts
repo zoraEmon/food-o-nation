@@ -14,7 +14,7 @@ const emailService = new EmailService();
  * Shows which programs user has applied to and available slots
  */
 export const getProgramsWithUserStatus = async (req: Request, res: Response) => {
-  try {x``
+  try {
     const userId = (req as any).user?.userId;
     
     if (!userId) {
@@ -209,38 +209,50 @@ export const applyForProgram = async (req: Request, res: Response) => {
       });
     }
 
-    // Create registration
-    const registration = await prisma.programRegistration.create({
-      data: {
-        programId,
-        beneficiaryId: beneficiary.id,
-        status: 'PENDING'
-      },
-      include: {
-        program: {
-          select: {
-            title: true,
-            date: true
-          }
-        }
-      }
-    });
-
-    // Generate QR code for the application
+    // Generate QR code value for the application early
     const qrCodeValue = uuidv4(); // Unique identifier for this application
     const scheduledDeliveryDate = program.date; // Use program date as scheduled delivery
 
-    const qrCodeImageUrl = await qrCodeService.generateQRCode(qrCodeValue);
-
-    // Create program application with QR code
-    const application = await prisma.programApplication.create({
-      data: {
-        registrationId: registration.id,
-        qrCodeValue,
-        qrCodeImageUrl,
-        scheduledDeliveryDate,
-        applicationStatus: 'PENDING'
+    // Create registration + application inside a transaction to ensure atomicity
+    const [registration, application] = await prisma.$transaction(async (tx) => {
+      // Re-check program capacity inside the transaction to avoid race conditions
+      if (program.maxParticipants) {
+        const currentCount = await tx.programRegistration.count({ where: { programId } });
+        if (currentCount >= program.maxParticipants) {
+          throw new Error('Program is full');
+        }
       }
+
+      const createdRegistration = await tx.programRegistration.create({
+        data: {
+          programId,
+          beneficiaryId: beneficiary.id,
+          status: 'PENDING'
+        },
+        include: {
+          program: {
+            select: {
+              title: true,
+              date: true
+            }
+          }
+        }
+      });
+
+      // Generate QR code image URL (can be async) before creating application so value exists
+      const qrCodeImageUrl = await qrCodeService.generateQRCode(qrCodeValue);
+
+      const createdApplication = await tx.programApplication.create({
+        data: {
+          registrationId: createdRegistration.id,
+          qrCodeValue,
+          qrCodeImageUrl,
+          scheduledDeliveryDate,
+          applicationStatus: 'PENDING'
+        }
+      });
+
+      return [createdRegistration, createdApplication];
     });
 
     // Get beneficiary email from user
@@ -296,12 +308,16 @@ export const applyForProgram = async (req: Request, res: Response) => {
       }
     }
 
+    // Return registration and the created application so frontend can see registrationId on the application
     res.status(201).json({
       success: true,
       message: 'Successfully registered for the program',
       data: {
         registration,
-        qrCode: qrCodeImageUrl,
+        application,
+        // Backwards-compatible helper for frontends expecting programRegistrationId
+        programRegistrationId: registration.id,
+        qrCode: application?.qrCodeImageUrl,
         qrCodeValue,
         programTitle: program.title,
         programDate: program.date

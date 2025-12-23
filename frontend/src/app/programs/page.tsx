@@ -9,10 +9,10 @@ import {
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import QrModal from "@/components/qr/QrModal";
 import { authService } from "@/services/authService";
 import BeneficiaryApplicationForm from "@/components/features/beneficiary/BeneficiaryApplicationForm";
 import axios from "axios";
-import { useNotification } from '@/components/ui/NotificationProvider';
 import { useNotification } from '@/components/ui/NotificationProvider';
 
 // Dynamically import LocationMap to avoid SSR issues with Leaflet
@@ -81,7 +81,7 @@ const PendingView = ({ userData, onShowForm }: { userData: any; onShowForm: () =
       <p className="text-gray-600 text-lg font-medium mb-8">
         Your application is currently being processed
       </p>
-      <div className="bg-[#FAF7F0] border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner min-h-[120px] flex flex-col">
+      <div className="bg-background border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner min-h-[120px] flex flex-col">
         <span className="font-bold text-[#004225] text-sm uppercase tracking-wide mb-2 block border-b border-gray-300 pb-2">
           What to expect:
         </span>
@@ -125,7 +125,7 @@ const RejectedView = ({ reason, actionCode }: { reason: string; actionCode: stri
           Status: <span className="text-red-600">Rejected</span>
         </h2>
         <p className="text-gray-600 text-lg font-medium mb-8">Your application was not approved</p>
-        <div className="bg-[#FAF7F0] border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner">
+        <div className="bg-background border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner">
           <span className="font-bold text-[#004225] text-sm uppercase tracking-wide mb-2 block border-b border-gray-300 pb-2">
             Reason:
           </span>
@@ -226,7 +226,7 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole, userStatus
         </div>
 
         {/* Body */}
-        <div className="p-6 lg:p-8 space-y-8 flex-grow bg-[#FAF7F0]">
+        <div className="p-6 lg:p-8 space-y-8 flex-grow bg-background">
           {isCompleted && (
             <div className="bg-gray-200 border-l-4 border-gray-600 p-4 rounded-r-lg flex items-center gap-3">
               <History className="w-6 h-6 text-gray-600" />
@@ -251,6 +251,11 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole, userStatus
                     <p className="text-gray-700 flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-[#FFB000]" /> {location}
                     </p>
+                    {program.place?.donationCenter?.contactNumber && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-[#FFB000]" /> Contact: {program.place.donationCenter.contactNumber}
+                      </p>
+                    )}
                     <LocationMap
                       location={location}
                       latitude={program.place?.latitude}
@@ -277,7 +282,7 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole, userStatus
             </div>
 
             {/* Slots Information */}
-            <div className="bg-[#FAF7F0] p-4 rounded-lg border-l-4 border-[#FFB000]">
+            <div className="bg-background p-4 rounded-lg border-l-4 border-[#FFB000]">
               <p className="font-bold text-[#004225] mb-2">
                 {isDonor ? "Stall Availability" : "Participant Slots"}
               </p>
@@ -351,6 +356,11 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole, userStatus
               <button
                 onClick={onConfirm}
                 disabled={(isDonor ? donorHasReserved : userHasApplied) || isFull || userStatus === 'PENDING'}
+                aria-disabled={(isDonor ? donorHasReserved : userHasApplied) || isFull || userStatus === 'PENDING'}
+                title={
+                  userStatus === 'PENDING' ? 'Your account is pending admin approval' :
+                  (isDonor ? (donorHasReserved ? 'You already have a reservation' : (isFull ? 'All stalls reserved' : '')) : (userHasApplied ? 'You have already applied for this program' : (isFull ? 'Program is full' : '')))
+                }
                 className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
                   (isDonor ? donorHasReserved : userHasApplied) || isFull || userStatus === 'PENDING'
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -478,7 +488,7 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                       </div>
 
                       {/* Post Footer - Action Button */}
-                      <div className="px-6 py-4 bg-[#FAF7F0] border-t-2 border-[#004225]/10">
+                      <div className="px-6 py-4 bg-background border-t-2 border-[#004225]/10">
                         <button
                           onClick={() => setSelectedProgram(program)}
                           className="w-full bg-gradient-to-r from-[#004225] to-[#005a33] text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
@@ -772,7 +782,18 @@ function ProgramsPage() {
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        showNotification({ title: 'Stall reserved', message: 'Stall reserved successfully! Check your email for the QR code.', type: 'success', autoClose: 5000 });
+        // If backend returned QR data (qrCodeUrl / qrCodeRef), show the same QR modal used for beneficiaries
+        const resData = response.data?.data;
+        if (resData && (resData.qrCodeUrl || resData.qrCode)) {
+          setQrCodeData({
+            qrCode: resData.qrCodeUrl || resData.qrCode || null,
+            programTitle: selectedProgram.title,
+            programDate: selectedProgram.date || selectedProgram.startDate,
+          });
+          setShowQRCode(true);
+        } else {
+          showNotification({ title: 'Stall reserved', message: 'Stall reserved successfully! Check your email for the QR code.', type: 'success', autoClose: 5000 });
+        }
       } else {
         // Beneficiary: Apply for food program
         response = await axios.post(
@@ -911,7 +932,7 @@ function ProgramsPage() {
                               </div>
 
                               {/* Right: Date/Time */}
-                              <div className="rounded-xl border border-[#004225]/15 bg-[#FAF7F0] p-4">
+                              <div className="rounded-xl border border-[#004225]/15 bg-background p-4">
                                 <div className="flex items-center gap-2 text-[#004225]">
                                   <Calendar className="w-5 h-5 text-[#FFB000]" />
                                   <span className="font-bold">{startDate}</span>
@@ -1032,90 +1053,15 @@ function ProgramsPage() {
                 {selectedProgram && <ProgramDetailsModal program={selectedProgram} onClose={() => setSelectedProgram(null)} onConfirm={handleJoinProgram} userRole={userData?.role} userStatus={userData?.status} />}
                 
                 {/* QR Code Modal */}
-                {showQRCode && qrCodeData && (
-                  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center my-8 max-h-[90vh] overflow-y-auto relative">
-                      <button
-                        onClick={() => {
-                          setShowQRCode(false);
-                          setQrCodeData(null);
-                        }}
-                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        <X className="w-6 h-6" />
-                      </button>
-                      <div className="mb-6">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <CheckCircle className="w-10 h-10 text-green-600" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-[#004225] mb-2">Registration Successful!</h2>
-                        <p className="text-gray-600">You have successfully registered for</p>
-                        <p className="text-lg font-bold text-[#FFB000] mt-1">{qrCodeData.programTitle}</p>
-                      </div>
-
-                      <div className="bg-[#FAF7F0] rounded-xl p-4 mb-4">
-                        <p className="text-sm font-bold text-[#004225] uppercase tracking-wide mb-3">Your QR Code</p>
-                        <div className="bg-white p-3 rounded-lg inline-block">
-                          <img 
-                            id="qr-code-image" 
-                            src={qrCodeData.qrCode} 
-                            alt="Registration QR Code" 
-                            className="w-40 h-40 mx-auto" 
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-3">Present this QR code at the program venue</p>
-                      </div>
-
-                      <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-4">
-                        <div className="flex items-start gap-2">
-                          <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
-                          <p className="text-sm text-blue-800">
-                            <strong>QR Code sent to your email!</strong>
-                            <br />
-                            <span className="text-blue-600">Check your inbox for the confirmation email with your QR code.</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 text-sm text-left bg-gray-50 rounded-lg p-3 mb-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Status:</span>
-                          <span className="font-bold text-yellow-600">PENDING</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Program Date:</span>
-                          <span className="font-semibold text-[#004225]">{formatDateDisplay(qrCodeData.programDate)}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = qrCodeData.qrCode;
-                            link.download = `QR-${qrCodeData.programTitle.replace(/\s+/g, '-')}-${Date.now()}.png`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }}
-                          className="flex-1 px-6 py-3 bg-[#FFB000] text-[#004225] rounded-xl font-bold hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Download className="w-5 h-5" />
-                          Download QR
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowQRCode(false);
-                            setQrCodeData(null);
-                          }}
-                          className="flex-1 px-6 py-3 bg-[#004225] text-white rounded-xl font-bold hover:bg-[#005a33] transition-colors"
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <QrModal
+                  open={showQRCode && !!qrCodeData}
+                  onClose={() => { setShowQRCode(false); setQrCodeData(null); }}
+                  qrImage={qrCodeData?.qrCode || qrCodeData?.qrCodeUrl || qrCodeData?.qrCodeImageUrl || null}
+                  title={qrCodeData?.programTitle || 'Registration Successful!'}
+                  subtitle={qrCodeData?.programTitle ? `You have successfully registered for ${qrCodeData.programTitle}` : undefined}
+                  details={qrCodeData ? [{ label: 'Program Date', value: formatDateDisplay(qrCodeData.programDate || qrCodeData.programDate) }] : undefined}
+                  emailed={true}
+                />
               </div>
             )}
 

@@ -35,7 +35,7 @@ async function main() {
           },
         },
       },
-    });
+    }); 
     console.log(`   ✅ Created admin user: ${adminUser.email}`);
   }
 
@@ -50,3 +50,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+  

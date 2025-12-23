@@ -8,7 +8,7 @@ import Footer from "@/components/layout/Footer";
 
 export default function DonateSelectionPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF7F0]">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-grow flex flex-col justify-center items-center py-12 px-4 sm:px-6">
         <div className="max-w-4xl w-full">

@@ -8,23 +8,26 @@ import { ThemeToggle } from './ThemeToggle';
 import { cn } from '@/lib/utils';
 import Modal from '../ui/Modal';
 import { HandHeart, HeartHandshake, LogOut, User, ChevronDown, ArrowLeft } from 'lucide-react';
-import LoginForm from '@/components/features/auth/LoginForm';
+import DonorManagement from '@/app/admin/dashboard/components/DonorManagement';
 import AnonymousDonationModal from '@/components/ui/AnonymousDonationModal';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoggedIn, logout, loading } = useAuth();
+  const { user, logout } = useAuth();
   
   // --- STATE MANAGEMENT ---
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAnonymousModal, setShowAnonymousModal] = useState(false);
-  const [loginRole, setLoginRole] = useState<"BENEFICIARY" | "DONOR" | null>(null);
+
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showDonorPanel, setShowDonorPanel] = useState(false);
 
   const isActive = (path: string) => pathname === path;
+  // Hide donate button when already in any donate flow (/donate and its children)
+  const hideDonate = !!(pathname && pathname.startsWith('/donate'));
 
   // Handle Logout
   const handleLogout = () => {
@@ -34,7 +37,6 @@ export default function Navbar() {
 
   const closeLoginModal = () => {
     setShowLoginModal(false);
-    setLoginRole(null);
   };
 
   // ✅ New Handler for Donate Click
@@ -116,12 +118,14 @@ export default function Navbar() {
             </div>
 
             {/* ✅ DONATE BUTTON - Visible for everyone (guests and authenticated users) */}
-            <button 
-              onClick={handleDonateClick}
-              className="font-hand text-2xl text-secondary hover:text-white transition-colors hidden sm:block bg-transparent border-none cursor-pointer"
-            >
-              Donate!
-            </button>
+            {!hideDonate && (
+              <button 
+                onClick={handleDonateClick}
+                className="font-hand text-2xl text-secondary hover:text-white transition-colors hidden sm:block bg-transparent border-none cursor-pointer"
+              >
+                Donate!
+              </button>
+            )}
 
             {/* Show small back button on mobile when on login/register as well */}
             {(/^\/(login|register)/).test(pathname || '/') && (
@@ -159,6 +163,16 @@ export default function Navbar() {
                     >
                       <User className="w-4 h-4" /> My Dashboard
                     </Link>
+                    {/* Admin links */}
+                    {user?.roles?.includes('ADMIN') && (
+                      <>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        <button onClick={() => { setShowDonorPanel(!showDonorPanel); setShowDropdown(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#004225] flex items-center gap-2">
+                          <HeartHandshake className="w-4 h-4" /> Donor Management
+                        </button>
+                        {/* Drop-off Schedule moved into Donor Management accordion in the sidebar */}
+                      </>
+                    )}
                     
                     <div className="border-t border-gray-100 my-1"></div>
 
@@ -288,6 +302,18 @@ export default function Navbar() {
         onClose={() => setShowAnonymousModal(false)} 
         onConfirm={handleAnonymousConfirm} 
       />
+      {/* Donor Management slide-out panel (admin) */}
+      {showDonorPanel && (
+        <div className="fixed right-0 top-0 h-full w-full md:w-2/5 bg-black/40 z-50 flex">
+          <div className="ml-auto w-full md:w-2/5 bg-white dark:bg-[#022] p-6 overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-[#004225]">Donor Management</h3>
+              <button onClick={() => setShowDonorPanel(false)} className="text-gray-600">Close</button>
+            </div>
+            <DonorManagement />
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -15,22 +15,81 @@
   --secondary-fg: #000000;
 
   --muted: #eaddcf;      /* Darker cream for borders/cards */
+  --muted-text: #6b7280;  /* Muted text (light mode) - Tailwind gray-500 */
   --accent: #FFB000;
+  --dashboard-bg: #f4fbf8; /* light dashboard bg in light mode */
+  --danger: #dc2626;
+  --danger-fg: #ffffff;
+
+  /* Dedicated navbar/footer tokens (kept constant across themes) */
+  --navbar-bg: #004225;    /* Brand green (light mode) — preserved in dark mode */
+  --navbar-fg: #ffffff;
+  --navbar-border: rgba(255, 176, 0, 0.12);
+
+  --footer-bg: #004225;    /* Footer uses same brand green */
+  --footer-fg: #ffffff;
+
+  /* Hero / Section accent background (tunable per theme) */
+  --section-hero-bg: #2fa26f;    /* Light-mode accent for big hero sections */
+  --section-hero-bg-dark: #0b5a38; /* Dark-mode hero: slightly lighter than navbar for distinction */
+
+  /* Generic section background (cards/sections) */
+  --section-bg: #ffffff;         /* Light mode section bg */
+  --section-bg-dark: #071f16;    /* Dark mode section bg: rich dark green for contrast */
+
+}
+
+/* Section hero class */
+.bg-section-hero {
+  background-color: var(--section-hero-bg);
+  background-image: linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.02));
+  background-blend-mode: overlay;
+}
+
+/* Dark mode override for section hero */
+:where(.dark, .dark *) .bg-section-hero {
+  background-color: var(--section-hero-bg-dark) !important;
+  background-image: linear-gradient(rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  background-blend-mode: overlay;
+}
+
+/* Generic section bg utility */
+.bg-section {
+  background-color: var(--section-bg);
+}
+
+:where(.dark, .dark *) .bg-section {
+  background-color: var(--section-bg-dark) !important;
 }
 
 /* 2. Define Dark Mode (Professional "Dark Luxury" Theme) */
 .dark {
-  --background: #051A10; /* Very Dark Forest Green (Not Pitch Black) */
+  --background: #071a12; /* Tuned dark background (modern, slightly desaturated) */
   --foreground: #e2e8f0; /* Off-white text */
+  --dashboard-bg: #021507; /* Distinct darkest green for admin dashboard background */
   
-  --primary: #004225;    /* Keep brand green, maybe slightly lighter for contrast if needed */
+  /* Preserve brand color token — navbar/footer will use dedicated tokens so we can fine-tune appearance */
+  --primary: #2fa26f;    /* Slightly lighter green in dark theme for in-content accents */
   --primary-fg: #ffffff;
   
   --secondary: #FFB000;  /* Gold pops beautifully on dark green */
   --secondary-fg: #000000;
 
-  --muted: #0a291a;      /* Lighter dark green for cards */
+  --muted: #071f16;      /* Lighter dark green for cards to improve contrast */
+  --muted-text: #9fb7b8;  /* Muted text (dark mode) - softer gray (improved contrast) */
   --accent: #FFB000;
+  --card-bg: var(--muted); /* card background in dark mode */
+  --card-fg: var(--primary-fg); /* card foreground in dark mode */
+
+  /* Section-specific dark tokens */
+  --section-bg: #071f16;          /* section background in dark mode */
+  --section-hero-bg: var(--section-hero-bg-dark);
+
+  /* Keep navbar/footer brand tone stable across themes */
+  --navbar-bg: #004225;    /* ensure preserved */
+  --navbar-fg: #ffffff;
+  --footer-bg: #004225;
+  --footer-fg: #ffffff; 
 }
 
 /* 3. Wire up Tailwind Variables */
@@ -45,6 +104,8 @@
   --color-secondary-fg: var(--secondary-fg);
   
   --color-muted: var(--muted);
+  --card-bg: #ffffff; /* card background in light mode */
+  --card-fg: #1c1c1c; /* card foreground in light mode */
 
   /* Fonts mapping */
   --font-sans: var(--font-inter);      /* Default Body Text */
@@ -58,6 +119,35 @@ body {
   font-family: var(--font-sans); /* Inter is default */
 }
 
+/* Ensure Navbar & Footer keep brand appearance in both themes and remain readable */
+nav.bg-primary {
+  background-color: var(--navbar-bg) !important;
+  color: var(--navbar-fg) !important;
+  border-bottom-color: var(--navbar-border) !important;
+}
+
+footer.bg-primary {
+  background-color: var(--footer-bg) !important;
+  color: var(--footer-fg) !important;
+  border-top-color: var(--secondary) !important;
+}
+
+/* Provide contrast-preserving variants for elements inside nav/footer */
+nav.bg-primary a,
+nav.bg-primary .text-white,
+footer.bg-primary a,
+footer.bg-primary .text-white {
+  color: var(--navbar-fg) !important;
+}
+
+/* Small usability improvements for dark mode backgrounds */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #071a12;
+    --dashboard-bg: #021507;
+    --muted: #071f16;
+  }
+}
 /* Custom Utilities for Headers */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading); /* Poppins for all headers */

@@ -1,26 +1,26 @@
-/* Custom scrollbar for dark/light mode */
+/* Custom scrollbar using CSS variables so it follows color mode */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #FFB000 #16202a;
+  scrollbar-color: var(--secondary) var(--background);
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #FFB000;
+  background: var(--secondary);
   border-radius: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #16202a;
+  background: var(--background);
 }
 @media (prefers-color-scheme: light) {
   .custom-scrollbar {
-    scrollbar-color: #FFB000 #f3f3f3;
+    scrollbar-color: var(--secondary) var(--background);
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #FFB000;
+    background: var(--secondary);
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f3f3f3;
+    background: var(--background);
   }
 }

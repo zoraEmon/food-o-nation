@@ -173,13 +173,13 @@ export const getProgramApplicationService = async (applicationId: string) => {
             },
           },
         },
-        scans: {
-          include: {
-            scannedByAdmin: true,
-          },
-          orderBy: { scannedAt: 'desc' },
-        },
-        qrCodeScannedByAdmin: true,
+            scans: {
+              include: {
+                admin: true,
+              },
+              orderBy: { scannedAt: 'desc' },
+            },
+            admin: true,
       },
     });
 
@@ -214,11 +214,11 @@ export const getBeneficiaryApplicationsService = async (beneficiaryId: string) =
         },
         scans: {
           include: {
-            scannedByAdmin: true,
+            admin: true,
           },
           orderBy: { scannedAt: 'desc' },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -249,12 +249,26 @@ export const scanApplicationQRCodeService = async (
             beneficiary: true,
           },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
     });
 
     if (!application) {
       throw new Error('Invalid QR code - Application not found');
+    }
+
+    // If the application is already scanned/completed, avoid creating a duplicate scan
+    if (application.applicationStatus === 'COMPLETED') {
+      const lastScan = await prisma.programApplicationScan.findFirst({
+        where: { applicationId: application.id },
+        include: { admin: true },
+        orderBy: { scannedAt: 'desc' },
+      });
+      const timePart = lastScan?.scannedAt ? ` at ${lastScan.scannedAt.toISOString()}` : '';
+      const err = new Error(`QR code already scanned${timePart}`);
+      (err as any).scan = lastScan;
+      (err as any).application = application;
+      throw err;
     }
 
     // Get current date for comparison
@@ -269,7 +283,7 @@ export const scanApplicationQRCodeService = async (
         notes,
       },
       include: {
-        scannedByAdmin: true,
+        admin: true,
       },
     });
 
@@ -291,11 +305,11 @@ export const scanApplicationQRCodeService = async (
         },
         scans: {
           include: {
-            scannedByAdmin: true,
+            admin: true,
           },
           orderBy: { scannedAt: 'desc' },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
     });
 
@@ -428,11 +442,11 @@ export const getProgramApplicationsService = async (programId: string) => {
         },
         scans: {
           include: {
-            scannedByAdmin: true,
+            admin: true,
           },
           orderBy: { scannedAt: 'desc' },
         },
-        qrCodeScannedByAdmin: true,
+        admin: true,
       },
       orderBy: { createdAt: 'desc' },
     });

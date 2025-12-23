@@ -21,6 +21,11 @@ export class PaymentGatewayService {
     raw?: unknown;
     failureReason?: string;
   }> {
+    // Fast-path in test mode to avoid external network calls
+    if (process.env.TEST_USE_MEMORY === 'true' || process.env.NODE_ENV === 'test') {
+      const id = `TEST-PAYPAL-${Date.now()}`;
+      return { success: true, orderId: id, redirectUrl: `http://localhost/mock-paypal/${id}` };
+    }
     const base = process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com';
     const clientId = process.env.PAYPAL_CLIENT_ID;
     const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
@@ -115,6 +120,11 @@ export class PaymentGatewayService {
     raw?: unknown;
     failureReason?: string;
   }> {
+    // Fast-path in test mode to avoid external network calls
+    if (process.env.TEST_USE_MEMORY === 'true' || process.env.NODE_ENV === 'test') {
+      const id = `TEST-MAYA-${Date.now()}`;
+      return { success: true, checkoutId: id, redirectUrl: `http://localhost/mock-maya/${id}` };
+    }
     const base = process.env.MAYA_API_BASE || 'https://pg-sandbox.paymaya.com';
     const secret = process.env.MAYA_SECRET_KEY;
     const pub = process.env.MAYA_PUBLIC_KEY;

@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+asyncpg
+pandas
+numpy
+plotly
+kaleido
+python-dotenv
+httpx
+pytest
+pytest-asyncio

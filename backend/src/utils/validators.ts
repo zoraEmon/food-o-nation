@@ -1,11 +1,11 @@
 import { email, string, z } from 'zod';
-import { Gender, CivilStatus, DonorType, DonationStatus, HouseholdPosition } from "../../generated/prisma/index.js";
+import { Gender, CivilStatus, DonorType, DonationStatus, HouseholdPosition, DonationItemStatus } from "../../generated/prisma/index.js";
 
 // Password policy: at least 12 chars (min enforced separately), must include
 // - at least one uppercase letter
 // - at least one digit
 // - at least one special character
-const PASSWORD_REGEX = /(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=\[\]{};':"\\|,.<>\/?]).+/; // eslint-disable-line no-useless-escape
+const PASSWORD_REGEX = /(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=\[\]{};':"\\|,.<>\/\?]).+/; // eslint-disable-line no-useless-escape
 
 
 // Common Login Schema
@@ -128,6 +128,10 @@ export const registerDonorSchema = z.object({
   
   displayName: z.string().min(2, 'Display name is required (min 2 characters)'),
   donorType: z.nativeEnum(DonorType),
+  primaryPhone: z.string().optional().refine((v) => {
+    if (!v) return true;
+    return /^(09\d{9}|\+63\d{10})$/.test(v);
+  }, { message: 'Primary phone must be local (09XXXXXXXXX) or international (+63XXXXXXXXXX)' }),
 });
 
 // ============================================
@@ -142,6 +146,8 @@ export const donationItemSchema = z.object({
   category: z.string().min(1, 'Item category is required'),
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required (e.g., kg, pcs, liters)'),
+  imageUrl: z.string().url('Invalid image URL').optional(),
+  status: z.nativeEnum(DonationItemStatus).optional(),
 });
 
 /**
@@ -167,6 +173,7 @@ export const createMonetaryDonationSchema = z.object({
     .max(100, 'Payment reference is too long'),
   guestName: z.string().min(2, 'Guest name must be at least 2 characters').optional(),
   guestEmail: z.string().email('Invalid guest email').optional(),
+  guestMobileNumber: z.string().min(7, 'Mobile number is too short').optional(),
 });
 
 /**

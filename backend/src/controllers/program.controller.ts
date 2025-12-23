@@ -226,9 +226,14 @@ export const scanQRCode = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Error in scanQRCode:', error);
+        const errMsg = error?.message || 'Failed to scan QR code';
+        if (String(errMsg).toLowerCase().includes('already scanned')) {
+          const data = { scan: error?.scan, application: error?.application };
+          return res.status(409).json({ success: false, error: errMsg, data });
+        }
         res.status(400).json({
             success: false,
-            error: error.message || 'Failed to scan QR code',
+            error: errMsg,
         });
     }
 };

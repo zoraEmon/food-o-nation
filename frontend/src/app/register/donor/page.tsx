@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Eye, EyeOff, ArrowLeft, AlertTriangle } from "lucide-react";
 import AuthNavbar from "@/components/layout/AuthNavbar";
+import { cn } from '@/lib/utils';
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/services/authService";
@@ -30,11 +31,19 @@ export default function DonorRegisterPage() {
     displayName: "",
     donorType: "INDIVIDUAL" as "INDIVIDUAL" | "ORGANIZATION" | "BUSINESS",
     profileImage: null as File | null,
+    primaryPhone: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    setError("");
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow only digits and limit to 11 characters (local format e.g., 09171234567)
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+    setFormData({ ...formData, primaryPhone: raw });
     setError("");
   };
 
@@ -61,6 +70,8 @@ export default function DonorRegisterPage() {
 
   // OTP verification removed - now handled on login page
 
+  const PASSWORD_REGEX = /(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=\[\]{};':"\\|,.<>\/\?]).+/;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -71,8 +82,8 @@ export default function DonorRegisterPage() {
       return setError("Please fill in all required fields.");
     }
 
-    if (formData.password.length < 12) {
-      return setError("Password must be at least 12 characters.");
+    if (formData.password.length < 12 || !PASSWORD_REGEX.test(formData.password)) {
+      return setError("Password must be at least 12 characters and include uppercase, lowercase, a digit, and a special character.");
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -82,11 +93,22 @@ export default function DonorRegisterPage() {
     setLoading(true);
     
     try {
+      // Validate phone: must be 11 digits and start with 09
+      if (!/^[0][9]\d{9}$/.test(formData.primaryPhone)) {
+        setError('Phone number must be 11 digits and start with 09');
+        setLoading(false);
+        return;
+      }
+
+      // Format to E.164 (+63) before sending
+      const formattedPhone = '+63' + formData.primaryPhone.slice(1);
+
       const response = await authService.registerDonor({
         email: formData.email,
         password: formData.password,
         displayName: formData.displayName,
         donorType: formData.donorType,
+        primaryPhone: formattedPhone,
       });
       
       if (response.success) {
@@ -212,6 +234,34 @@ export default function DonorRegisterPage() {
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center px-3 py-3 rounded-l-lg bg-gray-100 dark:bg-white/5 border border-r-0 border-gray-200 dark:border-white/10 text-sm font-bold text-gray-700">
+                  +63
+                </div>
+                <input
+                  required
+                  name="primaryPhone"
+                  value={formData.primaryPhone ? formData.primaryPhone.slice(1) : ''}
+                  onChange={(e) => {
+                    // User types the 10-digit local part without leading 0 (e.g., 9171234567)
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    // Prepend leading 0 to store consistent local format (0917...)
+                    const local = raw ? '0' + raw : '';
+                    setFormData({ ...formData, primaryPhone: local });
+                    setError('');
+                  }}
+                  className={cn(inputClass, 'rounded-r-lg')}
+                  placeholder="9XXXXXXXXX"
+                  inputMode="tel"
+                />
+              </div>
+              <p className="text-[10px] text-gray-400">Enter 10 digits (e.g. 9123456789). We'll send it as <code>+63XXXXXXXXXX</code>.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500">
                 Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -232,7 +282,7 @@ export default function DonorRegisterPage() {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400">Must be at least 12 characters.</p>
+              <p className="text-[10px] text-gray-400">Password must be at least 12 characters and include an uppercase, lowercase, a number, and a special character.</p>
             </div>
 
             <div className="space-y-2">

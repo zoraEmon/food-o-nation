@@ -3,6 +3,7 @@ import { DonationService } from '../services/donation.service.js';
 import { PaymentGatewayService } from '../services/paymentGateway.service.js';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '../../generated/prisma/index.js';
+import PrismaMock from '../memory/prismaMock.js';
 import {
   createMonetaryDonationSchema,
   createProduceDonationSchema,
@@ -13,7 +14,7 @@ import {
 import { ZodError } from 'zod';
 
 const donationService = new DonationService();
-const prisma = new PrismaClient();
+const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'foodONationSecret';
 
 /**
@@ -22,11 +23,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'foodONationSecret';
 function handleValidationError(error: ZodError | any, res: Response): void {
   // Handle Zod validation errors
   if (error instanceof ZodError) {
-    const errors = (error.errors || []).map(err => ({
+    try { console.error('Zod validation errors (errors):', JSON.stringify(error.errors, null, 2)); } catch (e) {}
+    try { console.error('Zod validation issues (issues):', JSON.stringify((error as any).issues, null, 2)); } catch (e) {}
+
+    const rawIssues = (error as any).issues || (error as any).errors || [];
+    const errors = rawIssues.map((err: any) => ({
       field: (err.path || []).join('.'),
       message: err.message,
     }));
-    
+
     res.status(400).json({
       success: false,
       message: 'Validation error',
@@ -45,9 +50,14 @@ function handleValidationError(error: ZodError | any, res: Response): void {
  */
 function handleServiceError(error: any, res: Response): void {
   console.error('Service error:', error);
-  
-  const statusCode = error.message?.includes('not found') ? 404 : 500;
-  
+
+  const message = String(error?.message || '').toLowerCase();
+
+  // Map common service errors to appropriate HTTP status codes
+  let statusCode = 500;
+  if (message.includes('not found')) statusCode = 404;
+  else if (message.includes('invalid') || message.includes('qr') || message.includes('does not match') || message.includes('cancelled')) statusCode = 400;
+
   res.status(statusCode).json({
     success: false,
     message: error.message || 'Internal server error',
@@ -103,7 +113,8 @@ export class DonationController {
         validatedData.paymentMethod,
         validatedData.paymentReference,
         validatedData.guestName,
-        validatedData.guestEmail
+        validatedData.guestEmail,
+        (validatedData as any).guestMobileNumber
       );
 
       res.status(201).json({
@@ -128,7 +139,7 @@ export class DonationController {
    */
   async initMayaCheckout(req: Request, res: Response): Promise<void> {
     try {
-      let { donorId, amount, description, email } = req.body || {};
+      let { donorId, amount, description, email, phone } = req.body || {};
       const numericAmount = Number(amount);
       if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
         res.status(400).json({ success: false, message: 'Positive amount is required' });
@@ -158,7 +169,7 @@ export class DonationController {
       }
 
       const pg = new PaymentGatewayService();
-      const created = await pg.createMayaCheckout(numericAmount, description || 'Food Donation', { email });
+      const created = await pg.createMayaCheckout(numericAmount, description || 'Food Donation', { email, phone });
       if (!created.success) {
         res.status(502).json({ success: false, message: created.failureReason || 'Failed to create Maya checkout' });
         return;
@@ -185,7 +196,7 @@ export class DonationController {
    */
   async initPayPalCheckout(req: Request, res: Response): Promise<void> {
     try {
-      let { donorId, amount, description, email } = req.body || {};
+      let { donorId, amount, description, email, phone } = req.body || {};
       const numericAmount = Number(amount);
       if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
         res.status(400).json({ success: false, message: 'Positive amount is required' });
@@ -260,9 +271,37 @@ export class DonationController {
         }
       }
 
+      // Ensure parsedItems is an array to avoid runtime errors further down
+      if (!Array.isArray(parsedItems)) {
+        res.status(400).json({ success: false, message: 'Invalid items: expected an array of item objects' });
+        return;
+      }
+
+      // Debug: log incoming parsed values to help diagnose validation failures in tests
+      try {
+        console.debug('[CreateProduceDonation] raw body keys:', Object.keys(req.body || {}));
+        console.debug('[CreateProduceDonation] donationCenterId:', donationCenterId);
+        console.debug('[CreateProduceDonation] scheduledDate:', scheduledDate);
+        console.debug('[CreateProduceDonation] items (raw):', typeof items === 'string' ? items : JSON.stringify(items));
+      } catch (e) {}
+
+      // If donorId is not provided, try to derive it from Authorization bearer token
+      let derivedDonorId = donorId;
+      if (!derivedDonorId && req.headers.authorization) {
+        try {
+          const token = (req.headers.authorization || '').split(' ')[1];
+          const decoded: any = jwt.verify(token, JWT_SECRET);
+          if (decoded?.donorId) derivedDonorId = decoded.donorId;
+          // If token contains only userId, let the service handle lookup by userId
+          if (!derivedDonorId && decoded?.userId) derivedDonorId = decoded.userId;
+        } catch (e) {
+          // ignore token parsing errors; validation will handle missing donor info
+        }
+      }
+
       // Validate the data
       const validatedData = createProduceDonationSchema.parse({
-        donorId,
+        donorId: derivedDonorId,
         donationCenterId,
         scheduledDate,
         items: parsedItems,
@@ -270,18 +309,36 @@ export class DonationController {
         guestEmail,
       });
 
-      // Extract image URLs from uploaded files
-      const imageUrls = req.files
-        ? (req.files as Express.Multer.File[]).map(file => file.path)
-        : [];
+      // Pass uploaded files and optional fileIndexMap to service for explicit mapping
+      const uploadedFiles = req.files ? (req.files as Express.Multer.File[]) : undefined;
+      let fileIndexMap: number[] | undefined = undefined;
+      if (req.body && req.body.fileIndexMap) {
+        try {
+          fileIndexMap = typeof req.body.fileIndexMap === 'string'
+            ? JSON.parse(req.body.fileIndexMap)
+            : req.body.fileIndexMap;
+        } catch (e) {
+          // ignore parse errors; validation will handle mismatches later
+        }
+      }
+      let fileMeta: any = undefined;
+      if (req.body && req.body.fileMeta) {
+        try {
+          fileMeta = typeof req.body.fileMeta === 'string' ? JSON.parse(req.body.fileMeta) : req.body.fileMeta;
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
 
-      // Create donation
+      // Create donation (service will map files to items using fileIndexMap when provided)
       const donation = await donationService.createProduceDonation(
         validatedData.donorId,
         validatedData.donationCenterId,
         new Date(validatedData.scheduledDate),
         validatedData.items,
-        imageUrls,
+        uploadedFiles,
+        fileIndexMap,
+        fileMeta,
         validatedData.guestName,
         validatedData.guestEmail
       );
@@ -314,7 +371,7 @@ export class DonationController {
 
       res.status(200).json({
         success: true,
-        message: 'Donation scanned successfully',
+        message: 'Donation found',
         data: { donation },
       });
     } catch (error) {

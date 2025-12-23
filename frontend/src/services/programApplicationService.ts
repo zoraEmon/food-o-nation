@@ -160,10 +160,15 @@ export const programApplicationService = {
       const response = await api.post('/scan-qr', data);
       return response.data;
     } catch (error: any) {
+      // If this is a 'already scanned' conflict (409), log as debug and rethrow so callers (UI) can show a friendly modal
+      if (error?.response?.status === 409) {
+        console.debug('QR scan conflict (already scanned):', error?.response?.data?.error);
+        throw error;
+      }
+
+      // For other errors, log as error and rethrow
       console.error('Error scanning QR code:', error);
-      throw new Error(
-        error.response?.data?.error || 'Failed to scan QR code'
-      );
+      throw error;
     }
   },
 

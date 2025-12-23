@@ -13,13 +13,31 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Configure CORS
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200
-}));
+// Configure CORS. Be permissive in development to avoid preflight/network blocking during local testing.
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors({ origin: true, credentials: true }));
+  // Handle OPTIONS preflight explicitly to avoid router path parsing issues
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      const origin = req.headers.origin || '*';
+      res.header('Access-Control-Allow-Origin', origin as string);
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', (req.headers['access-control-request-headers'] as string) || 'Content-Type,Authorization');
+      return res.sendStatus(200);
+    }
+    next();
+  });
+  console.log('[CORS] Development mode: permissive CORS enabled (OPTIONS handled)');
+} else {
+  app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 200
+  }));
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api', router);

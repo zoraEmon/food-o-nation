@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from "react";import { useNotification } from '@/components/ui/NotificationProvider';import { adminService } from "@/services/adminService";
+import React, { useState, useEffect } from "react";
+import { useNotification } from '@/components/ui/NotificationProvider';
+import { adminService } from "@/services/adminService";
 import { DonorDetailsModal } from "./DonorDetailsModal";
+import { AdminTabs } from './AdminTabs';
+import ActionButton from '@/components/ui/ActionButton';
+import { useRouter } from 'next/navigation';
 
 interface Donor {
   id: string;
@@ -12,193 +17,187 @@ interface Donor {
 
 export function DonorManagement() {
   const { showNotification } = useNotification();
-  const [subtab, setSubtab] = useState<'applications' | 'official' | 'rejected'>('applications');
+  const router = useRouter();
   const [pending, setPending] = useState<Donor[]>([]);
   const [approved, setApproved] = useState<Donor[]>([]);
   const [rejected, setRejected] = useState<Donor[]>([]);
   const [detailModal, setDetailModal] = useState<Donor | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [reasonModal, setReasonModal] = useState<{ type: 'approve' | 'reject'; id: string } | null>(null);
+  const [reasonText, setReasonText] = useState('');
+  const [reasonSubmitting, setReasonSubmitting] = useState(false);
 
   const fetchDonors = async () => {
-    setLoading(true);
     try {
-      const allDonors = await adminService.getAllDonors();
-      setPending(allDonors.filter((d: any) => d.status === 'pending'));
-      setApproved(allDonors.filter((d: any) => d.status === 'approved'));
-      setRejected(allDonors.filter((d: any) => d.status === 'rejected'));
+      // Use dedicated pending endpoint to reliably get applicants under review
+      const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+        adminService.getPendingDonors(),
+        adminService.getAllDonors(1, 100, 'APPROVED'),
+        adminService.getAllDonors(1, 100, 'REJECTED')
+      ]);
+      // getPendingDonors returns an array of donors (response.data.data === donors[])
+      const pendingList = Array.isArray(pendingRes) ? pendingRes : (pendingRes.donors || []);
+      setPending(pendingList);
+      setApproved(approvedRes.donors || []);
+      setRejected(rejectedRes.donors || []);
+      // Debug: log counts so we can verify which lists were returned
+      // eslint-disable-next-line no-console
+      console.log('Donor fetch:', { pending: pendingList.length, approved: (approvedRes.donors || []).length, rejected: (rejectedRes.donors || []).length });
     } catch (e) {
       // handle error
-    } finally {
-      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchDonors();
-  }, []);
+  React.useEffect(() => { fetchDonors(); }, []);
 
-  const viewDetails = (id: string) => {
-    const donor = [...pending, ...approved, ...rejected].find((d) => d.id === id);
-    setDetailModal(donor || null);
+
+  const viewDetails = (id: string, _source?: 'applications'|'official'|'rejected') => {
+    (async () => {
+      try {
+        // best-effort touch to update updatedAt when admin views
+        await adminService.touchDonor(id);
+      } catch (e) {
+        // ignore
+      }
+      try {
+        const details = await adminService.getDonorDetails(id);
+        (details as any).viewContext = _source || 'applications';
+        setDetailModal(details as any);
+        fetchDonors();
+      } catch (err) {
+        showNotification({ title: 'Failed to load', message: 'Failed to load donor details', type: 'error' });
+      }
+    })();
   };
 
   const handleApprove = async (id: string) => {
-    try {
-      await adminService.approveDonor(id);
-      fetchDonors();
-    } catch (e) {
-      showNotification({ title: 'Action failed', message: 'Failed to approve donor', type: 'error' });
-    }
+    // Open reason modal for approve
+    setReasonText('');
+    setReasonModal({ type: 'approve', id });
   };
 
   const handleReject = async (id: string) => {
+    // Open reason modal for reject
+    setReasonText('');
+    setReasonModal({ type: 'reject', id });
+  };
+
+  const cancelReason = () => {
+    setReasonModal(null);
+    setReasonText('');
+  };
+
+  const confirmReason = async () => {
+    if (!reasonModal) return;
+    setReasonSubmitting(true);
     try {
-      await adminService.rejectDonor(id);
+      if (reasonModal.type === 'approve') {
+        await adminService.approveDonor(reasonModal.id, reasonText || undefined);
+        showNotification({ title: 'Approved', message: 'Donor approved successfully', type: 'success' });
+      } else {
+        await adminService.rejectDonor(reasonModal.id, reasonText || undefined);
+        showNotification({ title: 'Rejected', message: 'Donor rejected successfully', type: 'success' });
+      }
+      setReasonModal(null);
+      setReasonText('');
       fetchDonors();
     } catch (e) {
-      showNotification({ title: 'Action failed', message: 'Failed to reject donor', type: 'error' });
+      showNotification({ title: 'Action failed', message: 'Failed to perform action', type: 'error' });
+    } finally {
+      setReasonSubmitting(false);
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="bg-[#004225]/80 p-6 rounded-lg shadow-md border border-gray-700">
+    <div className="p-6" style={{ background: 'var(--dashboard-bg)' }}>
+      <div className="bg-white dark:bg-[#004225]/80 p-6 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 transition-colors">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h3 className="text-2xl font-semibold text-[#FFB000] font-display">Donor Management</h3>
-            <p className="text-gray-400 text-sm">Evaluate donor applications, manage partners, and monitor drop-offs.</p>
-          </div>
-          <div className="flex gap-2">
-            {[{ key: "applications", label: "Application Review" }, { key: "official", label: "Official Donors" }, { key: "rejected", label: "Rejected" }].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setSubtab(tab.key as typeof subtab)}
-                className={`px-4 py-2 rounded-md text-sm font-semibold transition ${
-                  subtab === tab.key ? "bg-goldenyellow text-gray-900" : "bg-white/10 text-white hover:bg-white/20"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            <h3 className="text-2xl font-semibold text-[#004225] dark:text-[#FFB000] font-heading">Donor Management</h3>
+            <p className="text-gray-700 dark:text-gray-300 text-sm">Evaluate donor applications, manage partners, and monitor drop-offs.</p>
           </div>
         </div>
 
-        {/* Applications Tab */}
-        {subtab === "applications" && (
-          <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
-            <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
-              <span>Donor</span>
-              <span>Date Applied</span>
-              <span className="text-right">Actions</span>
-            </div>
-            {pending.length === 0 ? (
-              <div className="px-4 py-8 text-center text-gray-400">No pending applications</div>
-            ) : (
-              pending.map((d) => (
-                <div key={d.id} className="grid grid-cols-3 items-center px-4 py-3 text-sm text-gray-200 border-b border-gray-800 last:border-b-0">
-                  <span className="flex items-center gap-2 text-goldenyellow font-semibold">
-                    {d.displayName}
-                  </span>
-                  <span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'N/A'}</span>
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => viewDetails(d.id)}
-                      className="px-3 py-1 rounded-md bg-[#FFB000] text-[#004225] text-xs font-semibold hover:bg-yellow-300 flex items-center gap-1"
-                    >
-                      View
-                    </button>
-                    <button
-                      className="px-3 py-1 rounded-md bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600"
-                      onClick={() => handleApprove(d.id)}
-                    >
-                      Accept
-                    </button>
-                    <button
-                      className="px-3 py-1 rounded-md bg-red-500 text-white text-xs font-semibold hover:bg-red-600"
-                      onClick={() => handleReject(d.id)}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
 
-        {/* Official Donors Tab */}
-        {subtab === "official" && (
-          <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
-            <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
-              <span>Donor</span>
-              <span>Date Approved</span>
-              <span className="text-right">Actions</span>
-            </div>
-            {approved.length === 0 ? (
-              <div className="px-4 py-8 text-center text-gray-400">No official donors</div>
-            ) : (
-              approved.map((d) => (
-                <div key={d.id} className="grid grid-cols-3 items-center px-4 py-3 text-sm text-gray-200 border-b border-gray-800 last:border-b-0">
-                  <span className="flex items-center gap-2 text-goldenyellow font-semibold">
-                    {d.displayName}
-                  </span>
-                  <span>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : (d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'N/A')}</span>
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => viewDetails(d.id)}
-                      className="px-3 py-1 rounded-md bg-[#FFB000] text-[#004225] text-xs font-semibold hover:bg-yellow-300 flex items-center gap-1"
-                    >
-                      View
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+        <AdminTabs
+          title="Donor"
+          pending={pending}
+          approved={approved}
+          rejected={rejected}
+          renderName={(d: any) => (<>{d.displayName}</>)}
+          getDate={(d: any, subtab?: 'applications'|'official'|'rejected') => {
+            // Date applied should be applicant's registration date (user.createdAt or createdAt)
+            if (subtab === 'applications') {
+              const applied = d.user?.createdAt || d.createdAt;
+              return applied ? new Date(applied).toLocaleDateString() : 'N/A';
+            }
 
-        {/* Rejected Donors Tab */}
-        {subtab === "rejected" && (
-          <div className="overflow-hidden rounded-lg border border-gray-700 bg-white/5">
-            <div className="grid grid-cols-3 text-sm font-semibold text-white border-b border-gray-700 px-4 py-3">
-              <span>Donor</span>
-              <span>Date Rejected</span>
-              <span className="text-right">Actions</span>
-            </div>
-            {rejected.length === 0 ? (
-              <div className="px-4 py-8 text-center text-gray-400">No rejected donors</div>
-            ) : (
-              rejected.map((d) => (
-                <div key={d.id} className="grid grid-cols-3 items-center px-4 py-3 text-sm text-gray-200 border-b border-gray-800 last:border-b-0">
-                  <span className="flex items-center gap-2 text-goldenyellow font-semibold">
-                    {d.displayName}
-                  </span>
-                  <span>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : (d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'N/A')}</span>
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => viewDetails(d.id)}
-                      className="px-3 py-1 rounded-md bg-[#FFB000] text-[#004225] text-xs font-semibold hover:bg-yellow-300 flex items-center gap-1"
-                    >
-                      View
-                    </button>
-                    <button
-                      className="px-3 py-1 rounded-md bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600"
-                      onClick={() => handleApprove(d.id)}
-                    >
-                      Approve
-                    </button>
-                  </div>
+              // For official/rejected, prefer donor.reviewedAt, then donor.updatedAt, then user.updatedAt
+              if (subtab === 'official') {
+                const approved = d.reviewedAt || d.updatedAt || d.user?.updatedAt || d.dateApproved || d.dateDecision || d.approvedAt;
+                return approved ? new Date(approved).toLocaleDateString() : 'N/A';
+              }
+
+              if (subtab === 'rejected') {
+                const rejectedDate = d.reviewedAt || d.updatedAt || d.user?.updatedAt || d.dateRejected || d.dateDecision;
+                return rejectedDate ? new Date(rejectedDate).toLocaleDateString() : 'N/A';
+              }
+
+            return 'N/A';
+          }}
+          onView={viewDetails}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          renderRightColumn={(d: any, subtab) => {
+            if (subtab === 'applications') {
+              return (
+                <div className="flex gap-2 mt-2">
+                    <ActionButton onClick={() => viewDetails(d.id)} variant="secondary">View</ActionButton>
+                    <ActionButton onClick={() => handleApprove(d.id)} variant="primary">Approve</ActionButton>
+                    <ActionButton onClick={() => handleReject(d.id)} variant="danger">Reject</ActionButton>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              );
+            }
+            if (subtab === 'official') {
+              return (
+                <div className="flex gap-2 mt-2">
+                  <ActionButton onClick={() => viewDetails(d.id)} variant="secondary">View</ActionButton>
+                </div>
+              );
+            }
+            // rejected tab: show view + approve (no reject)
+            return (
+              <div className="flex gap-2 mt-2">
+                <ActionButton onClick={() => viewDetails(d.id, 'rejected')} variant="secondary">View</ActionButton>
+                <ActionButton onClick={() => handleApprove(d.id)} variant="primary">Approve</ActionButton>
+              </div>
+            );
+          }}
+        />
 
         {/* Donor Details Modal */}
         {detailModal && (
           <DonorDetailsModal donor={detailModal} onClose={() => setDetailModal(null)} />
         )}
+
+        {/* Reason Modal for Approve/Reject */}
+        {reasonModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div style={{ background: 'var(--card-bg)', color: 'var(--card-fg)' }} className="rounded-2xl shadow-2xl w-full max-w-md p-6 relative">
+              <button onClick={cancelReason} className="absolute top-3 right-3 text-gray-200 hover:text-white bg-transparent dark:bg-transparent text-2xl">&times;</button>
+              <h3 className="text-lg font-semibold mb-2">{reasonModal.type === 'approve' ? 'Approve' : 'Reject'} Donor</h3>
+              <p className="text-sm mb-4">Provide a reason (optional) that will be saved with the review.</p>
+              <textarea value={reasonText} onChange={(e) => setReasonText(e.target.value)} className="w-full p-2 border rounded mb-4" rows={4} />
+              <div className="flex justify-end gap-2">
+                <button onClick={cancelReason} className="px-4 py-2 rounded" style={{ background: 'var(--muted)', color: 'var(--foreground)' }}>Cancel</button>
+                <button onClick={confirmReason} disabled={reasonSubmitting} className="px-4 py-2 rounded" style={{ background: 'var(--secondary)', color: 'var(--secondary-fg)' }}>{reasonSubmitting ? 'Processing...' : 'Confirm'}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+export default DonorManagement;
+

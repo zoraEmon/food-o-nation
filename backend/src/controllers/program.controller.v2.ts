@@ -149,10 +149,11 @@ export const publishProgram = async (req: Request, res: Response) => {
 export const cancelProgram = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
-    
+    // Defensive: req.body may be undefined if client didn't send a JSON body
+    const reason = (req.body && typeof req.body === 'object') ? (req.body as any).reason || '' : '';
+
     const result = await cancelProgramService(id, reason);
-    
+
     if (!result.success) {
       const statusCode = result.code === 'NOT_FOUND' ? 404 : 400;
       return res.status(statusCode).json({

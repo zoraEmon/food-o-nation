@@ -146,8 +146,16 @@ async function testScanDonationQr(produceDonation) {
   });
 
   if (result.data?.success) {
-    console.log('✅ Donation QR scanned and marked completed');
-    return true;
+    console.log('✅ Donation QR scanned - donation returned (no status change expected)');
+    // Verify donation status remains SCHEDULED by fetching it
+    const check = await makeRequest('GET', `/donations/${produceDonation.id}`);
+    if (check.data?.success && check.data.data.donation && check.data.data.donation.status === 'SCHEDULED') {
+      console.log('✅ Donation status remains SCHEDULED after scan');
+      return true;
+    } else {
+      console.log('❌ Donation status changed unexpectedly after scan');
+      return false;
+    }
   } else {
     console.log('❌ Failed to scan donation QR');
     return false;

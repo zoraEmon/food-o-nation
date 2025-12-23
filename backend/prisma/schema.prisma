@@ -149,6 +149,7 @@ model Answer {
 
 model Donor {
   displayName   String
+  primaryPhone  String?
   donorType     DonorType
   userId        String     @unique
   id            String     @id @default(uuid())
@@ -175,6 +176,7 @@ model Place {
 
 model DonationCenter {
   contactInfo String
+  contactNumber String?
   id          String     @id @default(uuid())
   placeId     String     @unique
   donations   Donation[]
@@ -192,7 +194,6 @@ model Program {
   placeId             String
   status              ProgramStatus         @default(SCHEDULED)
   updatedAt           DateTime              @default(now()) @updatedAt
-  donations           Donation[]
   place               Place                 @relation(fields: [placeId], references: [id])
   registrations       ProgramRegistration[]
   // Stall reservation capacity for donor stalls
@@ -207,14 +208,17 @@ model Donation {
   scheduledDate     DateTime
   donorId           String?
   createdAt         DateTime        @default(now())
-  programId         String?
+  // programId removed per schema change: donations are no longer directly linked to programs
   donationCenterId  String?
   guestEmail        String?
+  guestMobileNumber String?
   guestName         String?
   paymentMethod     String?
   paymentReference  String?
   imageUrls         String[]
   qrCodeRef         String?
+  approvalVerdict   ApprovalVerdict?
+
   monetaryAmount    Float?
   paymentProvider   String?
   paymentReceiptUrl String?
@@ -222,7 +226,6 @@ model Donation {
   paymentVerifiedAt DateTime?
   donationCenter    DonationCenter? @relation(fields: [donationCenterId], references: [id])
   donor             Donor?          @relation(fields: [donorId], references: [id])
-  program           Program?        @relation(fields: [programId], references: [id])
   items             DonationItem[]
 }
 
@@ -234,12 +237,27 @@ model DonationItem {
   unit       String
   donationId String
   donation   Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  imageUrl   String?
+  status     DonationItemStatus @default(PENDING)
 }
 
 model AppMetric {
   id             String   @id @default("app-metrics")
   totalMonetary  Float    @default(0)
   updatedAt      DateTime @updatedAt
+}
+
+// PageVisit model mirrors the analytics page_visits table used by the analytics service.
+model PageVisit {
+  id        BigInt   @id @default(autoincrement())
+  clientId  String?  @unique
+  path      String
+  referrer  String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
 }
 
 model ProgramRegistration {
@@ -397,6 +415,20 @@ enum ProgramStatus {
   CANCELED
   REJECTED
   SCHEDULED
+}
+
+enum ApprovalVerdict {
+  BARELY_APPROVED
+  FAIRLY_APPROVED
+  EXTREMELY_APPROVED
+  COMPLETELY_APPROVED
+  REJECTED
+}
+
+enum DonationItemStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum ApplicationStatus {

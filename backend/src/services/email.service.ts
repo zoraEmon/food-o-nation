@@ -1,18 +1,30 @@
 import nodemailer from 'nodemailer';
+import { QRCodeService } from './qrcode.service.js';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'foodonation.org@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your_email_password_here', // Consider using environment variable for password
-  },
-});
+let transporter: any = null;
 
 // Admin email list (consider moving to environment variables or database)
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@foodonation.org').split(',');
 
 export class EmailService {
+  private qrService = new QRCodeService();
   async sendEmail(to: string, subject: string, htmlContent: string, attachments?: any[]): Promise<void> {
+    // In test/in-memory mode, avoid sending real emails — just log and return.
+    if (process.env.TEST_USE_MEMORY === 'true' || process.env.NODE_ENV === 'test') {
+      console.debug('[Test Mode] EmailService.sendEmail skipped:', { to, subject });
+      return;
+    }
+    // Lazy-create transporter to avoid creating SMTP connections during test startup
+    if (!transporter) {
+      transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER || 'foodonation.org@gmail.com',
+          pass: process.env.EMAIL_PASS || 'your_email_password_here',
+        },
+      });
+    }
+
     const mailOptions: any = {
       from: '"Food-O-Nation" <foodonation.org@gmail.com>',
       to: to,
@@ -102,7 +114,36 @@ export class EmailService {
         <p style="font-size: 0.8em; color: #666;">Best regards,<br/>The Food-O-Nation Team</p>
       </div>
     `;
-    await this.sendEmail(donorEmail, subject, htmlContent);
+    // Prepare attachment (PNG) for the QR code for better email client compatibility.
+    const attachments: any[] = [];
+    try {
+      let qrBuffer: Buffer | null = null;
+      // If a data URL was passed, decode it. Otherwise, attempt to generate from raw QR payload if caller provides it.
+      if (qrCodeDataUrl && qrCodeDataUrl.startsWith('data:')) {
+        const base64 = qrCodeDataUrl.split(',')[1];
+        if (base64) qrBuffer = Buffer.from(base64, 'base64');
+      }
+      // If caller provided raw QR payload via donationId or items are not sufficient, try generating from provided donationId payload
+      // (donation service may pass the original QR payload as qrCodeDataUrl in some cases; we handle best-effort here.)
+      if (!qrBuffer && typeof (this.qrService.generateQRCodeBuffer) === 'function') {
+        try {
+          // best-effort: attempt to generate from the donationId string if it looks like JSON
+          if (donationId && donationId.startsWith('{')) {
+            qrBuffer = await this.qrService.generateQRCodeBuffer(donationId as unknown as string);
+          }
+        } catch (err) {
+          // ignore generation failures, we already fallback to embedding the data URI
+        }
+      }
+
+      if (qrBuffer) {
+        attachments.push({ filename: `donation-${donationId || 'qr'}.png`, content: qrBuffer, contentType: 'image/png' });
+      }
+    } catch (err:any) {
+      console.warn('Failed to attach QR PNG to email:', err?.message || err);
+    }
+
+    await this.sendEmail(donorEmail, subject, htmlContent, attachments.length ? attachments : undefined);
   }
 
   /**
@@ -118,8 +159,15 @@ export class EmailService {
     donationId: string,
     items: Array<{ name: string; quantity: number; unit: string }>
   ): Promise<void> {
-    const itemsList = items
-      .map(item => `<li>${item.name} - ${item.quantity} ${item.unit}</li>`)
+    // Normalize items to an array in case callers pass a non-array (defensive)
+    let itemsArr: any[] = [];
+    if (Array.isArray(items)) itemsArr = items;
+    else if (typeof items === 'string') {
+      try { itemsArr = JSON.parse(items); } catch (e) { itemsArr = []; }
+    } else if (items && typeof items === 'object') itemsArr = [items];
+
+    const itemsList = itemsArr
+      .map(item => `<li>${item?.name || 'Item'} - ${item?.quantity ?? ''} ${item?.unit ?? ''}</li>`)
       .join('');
     
     const subject = '📦 Produce Donation Scheduled - Drop-off Details';
@@ -208,8 +256,15 @@ export class EmailService {
     donationId: string,
     items: Array<{ name: string; quantity: number; unit: string }>
   ): Promise<void> {
-    const itemsList = items
-      .map(item => `<li>${item.name} - ${item.quantity} ${item.unit}</li>`)
+    // Defensive normalization of items
+    let itemsArr: any[] = [];
+    if (Array.isArray(items)) itemsArr = items;
+    else if (typeof items === 'string') {
+      try { itemsArr = JSON.parse(items); } catch (e) { itemsArr = []; }
+    } else if (items && typeof items === 'object') itemsArr = [items];
+
+    const itemsList = itemsArr
+      .map(item => `<li>${item?.name || 'Item'} - ${item?.quantity ?? ''} ${item?.unit ?? ''}</li>`)
       .join('');
     
     const subject = `📦 New Produce Donation Scheduled - ${donationCenterName}`;

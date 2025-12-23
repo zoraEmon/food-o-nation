@@ -171,7 +171,8 @@ export default function MonetaryDonationPage() {
           donorId,
           parseFloat(amount),
           `Donation - ${frequency}`,
-          email || user?.email || undefined
+          email || user?.email || undefined,
+          phone || undefined
         );
         // Redirect to Maya payment page
         window.location.href = data.redirectUrl!;
@@ -189,7 +190,8 @@ export default function MonetaryDonationPage() {
           donorId,
           parseFloat(amount),
           `Donation - ${frequency}`,
-          email || user?.email || undefined
+          email || user?.email || undefined,
+          phone || undefined
         );
         // Redirect to PayPal payment page
         window.location.href = data.redirectUrl!;
@@ -220,7 +222,7 @@ export default function MonetaryDonationPage() {
   const labelClass = "text-xs font-bold text-[#004225] mb-2 block uppercase tracking-wider";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF7F0]">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       
       {/* Success Modal Overlay */}

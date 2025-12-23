@@ -19,7 +19,7 @@ export default function AboutPage() {
   }, [loading, isLoggedIn, logout]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF7F0]">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
 
       {showLogoutScreen ? (

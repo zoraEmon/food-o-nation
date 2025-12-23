@@ -1,17 +1,58 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="4" failures="0" errors="0" time="2.233">
-    <testsuite name="tests/question.service.api.test.ts" timestamp="2025-12-20T00:51:02.026Z" hostname="DESKTOP-94RTQHM" tests="1" failures="0" errors="0" skipped="0" time="1.215">
-        <testcase classname="tests/question.service.api.test.ts" name="getAllSurveyQuestionsService &gt; returns questions with options that match SURVEY_OPTIONS" time="1.213">
+<testsuites name="vitest tests" tests="14" failures="0" errors="0" time="2.146">
+    <testsuite name="tests/question.service.api.test.ts" timestamp="2025-12-22T01:17:32.497Z" hostname="DESKTOP-94RTQHM" tests="1" failures="0" errors="0" skipped="0" time="0.009">
+        <testcase classname="tests/question.service.api.test.ts" name="getAllSurveyQuestionsService &gt; returns questions with options that match SURVEY_OPTIONS" time="0.006">
         </testcase>
     </testsuite>
-    <testsuite name="tests/question.service.test.ts" timestamp="2025-12-20T00:51:02.029Z" hostname="DESKTOP-94RTQHM" tests="2" failures="0" errors="0" skipped="0" time="0.006">
-        <testcase classname="tests/question.service.test.ts" name="SURVEY_OPTIONS mapping &gt; has options for FOOD_FREQUENCY" time="0.003">
+    <testsuite name="tests/question.service.test.ts" timestamp="2025-12-22T01:17:32.500Z" hostname="DESKTOP-94RTQHM" tests="2" failures="0" errors="0" skipped="0" time="0.006">
+        <testcase classname="tests/question.service.test.ts" name="SURVEY_OPTIONS mapping &gt; has options for FOOD_FREQUENCY" time="0.004">
         </testcase>
-        <testcase classname="tests/question.service.test.ts" name="SURVEY_OPTIONS mapping &gt; has severity options for FOOD_SECURITY_SEVERITY" time="0.001">
+        <testcase classname="tests/question.service.test.ts" name="SURVEY_OPTIONS mapping &gt; has severity options for FOOD_SECURITY_SEVERITY" time="0">
         </testcase>
     </testsuite>
-    <testsuite name="tests/surveyQuestions.api.test.ts" timestamp="2025-12-20T00:51:02.031Z" hostname="DESKTOP-94RTQHM" tests="1" failures="0" errors="0" skipped="0" time="0.834">
-        <testcase classname="tests/surveyQuestions.api.test.ts" name="GET /api/survey-questions (integration) &gt; returns questions with options matching SURVEY_OPTIONS" time="0.832">
+    <testsuite name="tests/surveyQuestions.api.test.ts" timestamp="2025-12-22T01:17:32.501Z" hostname="DESKTOP-94RTQHM" tests="1" failures="0" errors="0" skipped="0" time="0.053">
+        <testcase classname="tests/surveyQuestions.api.test.ts" name="GET /api/survey-questions (integration) &gt; returns questions with options matching SURVEY_OPTIONS" time="0.05">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/validation.test.ts" timestamp="2025-12-22T01:17:32.502Z" hostname="DESKTOP-94RTQHM" tests="9" failures="0" errors="0" skipped="0" time="0.025">
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; rejects short passwords" time="0.008">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; rejects passwords without uppercase" time="0.002">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; rejects passwords without number" time="0">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; rejects passwords without lowercase" time="0.001">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; rejects passwords without special char" time="0.001">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; accepts valid password for login" time="0">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; registerBeneficiary accepts valid password and zip" time="0.005">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; rejects invalid zip code (not 4 digits)" time="0.002">
+        </testcase>
+        <testcase classname="tests/validation.test.ts" name="Validators: password &amp; zip code rules &gt; registerDonor enforces password rules" time="0.002">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/donations/produce.api.test.ts" timestamp="2025-12-22T01:17:32.508Z" hostname="DESKTOP-94RTQHM" tests="1" failures="0" errors="0" skipped="0" time="0.125">
+        <testcase classname="tests/donations/produce.api.test.ts" name="POST /api/donations/produce (multipart integration) &gt; accepts multipart with files, fileIndexMap and fileMeta and stores imageUrls" time="0.12">
+            <system-out>
+[CreateProduceDonation] raw body keys: [
+  [32m&apos;donationCenterId&apos;[39m,
+  [32m&apos;scheduledDate&apos;[39m,
+  [32m&apos;items&apos;[39m,
+  [32m&apos;fileIndexMap&apos;[39m,
+  [32m&apos;fileMeta&apos;[39m
+]
+[CreateProduceDonation] donationCenterId: 11111111-1111-4111-8111-111111111111
+[CreateProduceDonation] scheduledDate: 2025-12-25T01:17:32.324Z
+[CreateProduceDonation] items (raw): [{&quot;name&quot;:&quot;Rice&quot;,&quot;category&quot;:&quot;Grains&quot;,&quot;quantity&quot;:10,&quot;unit&quot;:&quot;kg&quot;},{&quot;name&quot;:&quot;Canned Tuna&quot;,&quot;category&quot;:&quot;Canned Goods&quot;,&quot;quantity&quot;:20,&quot;unit&quot;:&quot;cans&quot;}]
+[Test Mode] EmailService.sendEmail skipped: {
+  to: [32m&apos;admin@foodonation.org&apos;[39m,
+  subject: [32m&apos;📦 New Produce Donation Scheduled - Test Center&apos;[39m
+}
+
+            </system-out>
         </testcase>
     </testsuite>
 </testsuites>
