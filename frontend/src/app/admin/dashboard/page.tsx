@@ -8,6 +8,7 @@ import { BeneficiaryManagement } from "./components/BeneficiaryManagement";
 import { DonorManagement } from "./components/DonorManagement";
 import { ProgramManagement } from "./components/ProgramManagement";
 import { AnalyticsTrends } from "./components/AnalyticsTrends";
+import AnalyticsCharts from "@/components/admin/AnalyticsCharts";
 import { ContentManagement } from "./components/ContentManagement";
 import DropoffManagement from "./components/DropoffManagement";
 import { DashboardStatsCard } from "./components/DashboardStatsCard";
@@ -22,7 +23,7 @@ const sidebarTabs = [
 	{ key: "beneficiary", label: "Beneficiary Management" },
 	{ key: "donor", label: "Donor Management" },
 	{ key: "program", label: "Program Management" },
-	{ key: "analytics", label: "Analytics & Trends" },
+	{ key: "analytics", label: "Resource & Trend Analytics" },
 	{ key: "content", label: "Content Management" },
 ];
 
@@ -33,6 +34,8 @@ function AdminDashboardPage() {
 	const searchParams = useSearchParams();
 	const [activeTab, setActiveTab] = useState("beneficiary");
 	const [donorAccordionOpen, setDonorAccordionOpen] = useState(false);
+	const [analyticsAccordionOpen, setAnalyticsAccordionOpen] = useState(false);
+	const [analyticsView, setAnalyticsView] = useState<'beneficiary'|'flow'|'donor'|'visits'>('beneficiary');
 	const [siteContent, setSiteContent] = useState({ aboutHeading: "", aboutBody: "", aboutImage: "" });
 	const [programEntries, setProgramEntries] = useState<any[]>([]);
 	const [programModal, setProgramModal] = useState<any | null>(null);
@@ -109,7 +112,12 @@ function AdminDashboardPage() {
 			case "program":
 				return <ProgramManagement programEntries={programEntries} setProgramModal={(p: any) => setProgramModal(p || {})} />;
 			case "analytics":
-				return <AnalyticsTrends resourceSummary={[]} trendHighlights={[]} />;
+				return (
+					<>
+						<AnalyticsTrends resourceSummary={[]} trendHighlights={[]} />
+						<div className="mt-6"><AnalyticsCharts view={analyticsView} /></div>
+					</>
+				);
 			case "content":
 				return <ContentManagement siteContent={siteContent} setSiteContent={setSiteContent} />;
 			case "dropoffs":
@@ -159,6 +167,31 @@ function AdminDashboardPage() {
 												<div className="mt-2 ml-2 space-y-2">
 												<button onClick={() => { setActiveTab('donor'); }} className={`w-full text-left px-3 py-2 rounded-md text-sm ${activeTab==='donor' ? (darkMode ? 'bg-yellow-900 text-yellow-300 font-bold' : 'bg-yellow-100 text-yellow-900 font-bold') : (darkMode ? 'text-gray-300 hover:bg-[#1a2a2a]' : 'text-gray-700 hover:bg-yellow-50')}`}>Manage Donors</button>
 												<button onClick={() => { setActiveTab('dropoffs'); }} className={`w-full text-left px-3 py-2 rounded-md text-sm ${activeTab==='dropoffs' ? (darkMode ? 'bg-yellow-900 text-yellow-300 font-bold' : 'bg-yellow-100 text-yellow-900 font-bold') : (darkMode ? 'text-gray-300 hover:bg-[#1a2a2a]' : 'text-gray-700 hover:bg-yellow-50')}`}>Drop-off Appointments</button>
+												</div>
+											)}
+										</div>
+									</li>
+								);
+							}
+
+							if (tab.key === 'analytics') {
+								return (
+									<li key={tab.key} className="mb-3">
+										<div>
+											<button
+												onClick={() => { setAnalyticsAccordionOpen((o) => !o); if (!analyticsAccordionOpen) { setActiveTab('analytics'); setAnalyticsView('beneficiary'); } }}
+												aria-expanded={analyticsAccordionOpen}
+												className={`w-full flex items-center justify-between px-3 py-2 rounded-md font-semibold transition-colors ${analyticsAccordionOpen || activeTab === 'analytics' ? (darkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-900') : (darkMode ? 'hover:bg-[#1a2a2a]' : 'hover:bg-yellow-50')}`}
+											>
+												<span>Resource & Trend Analytics</span>
+												<span className={`transform transition-transform ${analyticsAccordionOpen ? 'rotate-180' : ''}`}>▾</span>
+											</button>
+											{analyticsAccordionOpen && (
+												<div className="mt-2 ml-2 space-y-2">
+													<button onClick={() => { setActiveTab('analytics'); setAnalyticsView('beneficiary'); setAnalyticsAccordionOpen(true); }} className={`w-full text-left px-3 py-2 rounded-md text-sm ${activeTab==='analytics' && analyticsView==='beneficiary' ? (darkMode ? 'bg-yellow-900 text-yellow-300 font-bold' : 'bg-yellow-100 text-yellow-900 font-bold') : (darkMode ? 'text-gray-300 hover:bg-[#1a2a2a]' : 'text-gray-700 hover:bg-yellow-50')}`}>Beneficiary Demographics</button>
+													<button onClick={() => { setActiveTab('analytics'); setAnalyticsView('flow'); setAnalyticsAccordionOpen(true); }} className={`w-full text-left px-3 py-2 rounded-md text-sm ${activeTab==='analytics' && analyticsView==='flow' ? (darkMode ? 'bg-yellow-900 text-yellow-300 font-bold' : 'bg-yellow-100 text-yellow-900 font-bold') : (darkMode ? 'text-gray-300 hover:bg-[#1a2a2a]' : 'text-gray-700 hover:bg-yellow-50')}`}>Donation Flow</button>
+													<button onClick={() => { setActiveTab('analytics'); setAnalyticsView('donor'); setAnalyticsAccordionOpen(true); }} className={`w-full text-left px-3 py-2 rounded-md text-sm ${activeTab==='analytics' && analyticsView==='donor' ? (darkMode ? 'bg-yellow-900 text-yellow-300 font-bold' : 'bg-yellow-100 text-yellow-900 font-bold') : (darkMode ? 'text-gray-300 hover:bg-[#1a2a2a]' : 'text-gray-700 hover:bg-yellow-50')}`}>Donor Activity</button>
+													<button onClick={() => { setActiveTab('analytics'); setAnalyticsView('visits'); setAnalyticsAccordionOpen(true); }} className={`w-full text-left px-3 py-2 rounded-md text-sm ${activeTab==='analytics' && analyticsView==='visits' ? (darkMode ? 'bg-yellow-900 text-yellow-300 font-bold' : 'bg-yellow-100 text-yellow-900 font-bold') : (darkMode ? 'text-gray-300 hover:bg-[#1a2a2a]' : 'text-gray-700 hover:bg-yellow-50')}`}>Total Page Visits</button>
 												</div>
 											)}
 										</div>
