@@ -247,6 +247,19 @@ model AppMetric {
   updatedAt      DateTime @updatedAt
 }
 
+// PageVisit model mirrors the analytics page_visits table used by the analytics service.
+model PageVisit {
+  id        BigInt   @id @default(autoincrement())
+  clientId  String?  @unique
+  path      String
+  referrer  String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+}
+
 model ProgramRegistration {
   id            String               @id @default(uuid())
   programId     String
