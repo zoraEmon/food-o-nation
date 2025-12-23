@@ -257,6 +257,20 @@ export const scanApplicationQRCodeService = async (
       throw new Error('Invalid QR code - Application not found');
     }
 
+    // If the application is already scanned/completed, avoid creating a duplicate scan
+    if (application.applicationStatus === 'COMPLETED') {
+      const lastScan = await prisma.programApplicationScan.findFirst({
+        where: { applicationId: application.id },
+        include: { admin: true },
+        orderBy: { scannedAt: 'desc' },
+      });
+      const timePart = lastScan?.scannedAt ? ` at ${lastScan.scannedAt.toISOString()}` : '';
+      const err = new Error(`QR code already scanned${timePart}`);
+      (err as any).scan = lastScan;
+      (err as any).application = application;
+      throw err;
+    }
+
     // Get current date for comparison
     const now = new Date();
     const deliveryDate = new Date(application.scheduledDeliveryDate);

@@ -285,8 +285,34 @@ class AdminService {
       const response = await api.post('/programs', data);
       return response.data?.data || response.data;
     } catch (error: any) {
-      console.error('Error creating program:', error?.response?.data || error.message || error);
-      throw new Error(error.response?.data?.message || 'Failed to create program');
+      const status = error?.response?.status;
+      const respData = error?.response?.data;
+      try {
+        console.error('Error creating program:', {
+          message: error?.message,
+          status,
+          responseData: respData !== undefined ? (typeof respData === 'object' ? JSON.parse(JSON.stringify(respData)) : respData) : undefined,
+          stack: error?.stack,
+        });
+      } catch (e) {
+        console.error('Error creating program (failed to stringify response):', error);
+      }
+
+      // Prefer structured validation errors when available
+      let serverMessage: string | undefined = undefined;
+      if (respData) {
+        if (Array.isArray(respData.errors) && respData.errors.length > 0) {
+          serverMessage = respData.errors.join('; ');
+        } else if (typeof respData.message === 'string') {
+          serverMessage = respData.message;
+        } else if (typeof respData.error === 'string') {
+          serverMessage = respData.error;
+        }
+      }
+
+      const fallback = error?.message || 'Failed to create program';
+      const msg = serverMessage || (status ? `Server responded with status ${status}: ${JSON.stringify(respData || {})}` : fallback);
+      throw new Error(msg);
     }
   }
 
@@ -295,8 +321,34 @@ class AdminService {
       const response = await api.patch(`/programs/${id}`, data);
       return response.data?.data || response.data;
     } catch (error: any) {
-      console.error('Error updating program:', error?.response?.data || error.message || error);
-      throw new Error(error.response?.data?.message || 'Failed to update program');
+      const status = error?.response?.status;
+      const respData = error?.response?.data;
+      try {
+        console.error('Error updating program:', {
+          message: error?.message,
+          status,
+          responseData: respData !== undefined ? (typeof respData === 'object' ? JSON.parse(JSON.stringify(respData)) : respData) : undefined,
+          stack: error?.stack,
+        });
+      } catch (e) {
+        console.error('Error updating program (failed to stringify response):', error);
+      }
+
+      // Prefer structured validation errors when available
+      let serverMessage: string | undefined = undefined;
+      if (respData) {
+        if (Array.isArray(respData.errors) && respData.errors.length > 0) {
+          serverMessage = respData.errors.join('; ');
+        } else if (typeof respData.message === 'string') {
+          serverMessage = respData.message;
+        } else if (typeof respData.error === 'string') {
+          serverMessage = respData.error;
+        }
+      }
+
+      const fallback = error?.message || 'Failed to update program';
+      const msg = serverMessage || (status ? `Server responded with status ${status}: ${JSON.stringify(respData || {})}` : fallback);
+      throw new Error(msg);
     }
   }
 
@@ -312,11 +364,37 @@ class AdminService {
 
   async cancelProgram(id: string): Promise<any> {
     try {
-      const response = await api.post(`/programs/${id}/cancel`);
+      // Send an explicit empty body so req.body is not undefined on the server
+      const response = await api.post(`/programs/${id}/cancel`, {});
       return response.data?.data || response.data;
     } catch (error: any) {
-      console.error('Error cancelling program:', error?.response?.data || error.message || error);
-      throw new Error(error.response?.data?.message || 'Failed to cancel program');
+      const status = error?.response?.status;
+      const respData = error?.response?.data;
+      try {
+        console.error('Error cancelling program:', {
+          message: error?.message,
+          status,
+          responseData: respData !== undefined ? (typeof respData === 'object' ? JSON.parse(JSON.stringify(respData)) : respData) : undefined,
+          stack: error?.stack,
+        });
+      } catch (e) {
+        console.error('Error cancelling program (failed to stringify response):', error);
+      }
+
+      let serverMessage: string | undefined = undefined;
+      if (respData) {
+        if (Array.isArray(respData.errors) && respData.errors.length > 0) {
+          serverMessage = respData.errors.join('; ');
+        } else if (typeof respData.message === 'string') {
+          serverMessage = respData.message;
+        } else if (typeof respData.error === 'string') {
+          serverMessage = respData.error;
+        }
+      }
+
+      const fallback = error?.message || 'Failed to cancel program';
+      const msg = serverMessage || (status ? `Server responded with status ${status}: ${JSON.stringify(respData || {})}` : fallback);
+      throw new Error(msg);
     }
   }
 
@@ -331,6 +409,42 @@ class AdminService {
     }
   }
 
+  /** Places (map) */
+  async getPlaces(): Promise<any[]> {
+    try {
+      const response = await api.get('/places');
+      return response.data?.data || [];
+    } catch (error: any) {
+      console.error('Error fetching places:', error?.response?.data || error.message || error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch places');
+    }
+  }
+
+  async createPlace(data: any): Promise<any> {
+    try {
+      const response = await api.post('/places/addplace', data);
+      return response.data?.data || response.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const respData = error?.response?.data;
+      try {
+        console.error('Error creating place:', {
+          message: error?.message,
+          status,
+          responseData: respData !== undefined ? (typeof respData === 'object' ? JSON.parse(JSON.stringify(respData)) : respData) : undefined,
+          stack: error?.stack,
+        });
+      } catch (e) {
+        console.error('Error creating place (failed to stringify response):', error);
+      }
+
+      const serverMessage = respData?.message || respData?.error;
+      const fallback = error?.message || 'Failed to create place';
+      const msg = serverMessage || (status ? `Server responded with status ${status}: ${JSON.stringify(respData || {})}` : fallback);
+      throw new Error(msg);
+    }
+  }
+
   /** Update a donation item (approve/reject/quantity)
    * POST /donation-items/updateDonationItem/:id
    */
@@ -341,6 +455,17 @@ class AdminService {
     } catch (error: any) {
       console.error('Error updating donation item:', error?.response?.data || error.message || error);
       throw new Error(error.response?.data?.message || 'Failed to update donation item');
+    }
+  }
+
+  // Update program registration status (approve/reject)
+  async updateProgramRegistrationStatus(id: string, status: string): Promise<any> {
+    try {
+      const response = await api.post(`/programRegistration/updateProgramRegistration/${id}`, { status });
+      return response.data?.data || response.data;
+    } catch (error: any) {
+      console.error('Error updating program registration status:', error?.response?.data || error.message || error);
+      throw new Error(error.response?.data?.message || 'Failed to update program registration');
     }
   }
 

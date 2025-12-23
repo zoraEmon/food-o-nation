@@ -174,7 +174,7 @@ export default function ProduceDonationPage() {
   const arrowClass = "absolute right-4 top-9 text-gray-500 pointer-events-none w-5 h-5";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF7F0]">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       
       <SuccessModal 

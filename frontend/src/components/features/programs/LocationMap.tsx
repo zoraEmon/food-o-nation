@@ -35,7 +35,7 @@ export function LocationMap({
       : null;
 
   return (
-    <div className={`relative w-full ${height} rounded-lg overflow-hidden border-2 border-[#004225]/20 bg-gradient-to-br from-[#FAF7F0] to-gray-100`}>
+    <div className={`relative w-full ${height} rounded-lg overflow-hidden border-2 border-[#004225]/20 bg-gradient-to-br from-background to-gray-100`}>
       {mapEmbedUrl ? (
         <iframe
           title={placeName || location || "Program map"}

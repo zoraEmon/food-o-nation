@@ -6,11 +6,23 @@ const prisma: any = process.env.TEST_USE_MEMORY === 'true' ? new PrismaMock() : 
 
 // Service to get all programs
 export const getAllPlacesService = async () => {
-    return await prisma.place.findMany({
+    const places = await prisma.place.findMany({
         include: {
             donationCenter: true, // Include related donationCenter data
             programs: true, // Include related programs
         },
+    });
+
+    // sanitize suspiciously short names/addresses
+    return places.map((p:any) => {
+        try {
+            if (!p.name || typeof p.name !== 'string' || p.name.trim().length < 3) p.name = '';
+            if (!p.address || typeof p.address !== 'string' || p.address.trim().length < 3) p.address = '';
+        } catch (e) {
+            p.name = p.name || '';
+            p.address = p.address || '';
+        }
+        return p;
     });
 };
 
@@ -26,10 +38,16 @@ export const getPlaceByIdService = async (id: string) => {
 };
 export const createPlaceService  = async (data:PlaceData)=>{
     try{
+        // sanitize inputs
+        const name = String(data.name || '').trim();
+        const address = String(data.address || '').trim();
+        if (!name || name.length < 3) throw new Error('Invalid place name: must be at least 3 characters');
+        if (!address || address.length < 3) throw new Error('Invalid place address: must be at least 3 characters');
+
         const newPlace = await prisma.place.create({
             data:{
-                name: data.name,
-                address: data.address,
+                name,
+                address,
                 latitude: parseFloat(data.latitude.toString()),
                 longitude: parseFloat(data.longitude.toString()),
                 programs: data.programs
@@ -77,6 +95,12 @@ export const updatePlaceService = async (
           safeData.latitude = validateLatitude(updateData.latitude!);
         } else if (key === 'longitude') {
           safeData.longitude = validateLongitude(updateData.longitude!);
+        } else if ((key === 'name' || key === 'address')) {
+          const val = String(updateData[key] || '').trim();
+          if (val.length < 3) {
+            throw new Error(`${key} must be at least 3 characters long`);
+          }
+          (safeData as any)[key] = val;
         } else {
           safeData[key] = updateData[key]!;
         }

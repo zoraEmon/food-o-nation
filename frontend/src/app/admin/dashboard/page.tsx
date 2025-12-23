@@ -12,7 +12,7 @@ import { ContentManagement } from "./components/ContentManagement";
 import DropoffManagement from "./components/DropoffManagement";
 import { DashboardStatsCard } from "./components/DashboardStatsCard";
 import Modal from "@/components/ui/Modal";
-import ProgramModal from "./components/ProgramModal";
+import ProgramModalV2 from "./components/ProgramModalV2";
 import { ActivityLogList } from "./components/ActivityLogList";
 import type { DashboardStats, ActivityLog } from "@/services/adminService";
 import { adminService } from "@/services/adminService";
@@ -200,7 +200,7 @@ function AdminDashboardPage() {
 
 				{/* Program edit/create modal */}
 				{programModal !== null && (
-					<ProgramModal
+						<ProgramModalV2
 						isOpen={!!programModal}
 						program={Object.keys(programModal).length === 0 ? null : programModal}
 						onClose={() => setProgramModal(null)}

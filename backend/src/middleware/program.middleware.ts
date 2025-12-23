@@ -38,6 +38,10 @@ const updateProgramSchema = Joi.object({
         'number.base': 'Max participants must be a number',
         'number.positive': 'Max participants must be greater than 0',
     }),
+    stallCapacity: Joi.number().integer().min(0).optional().messages({
+        'number.base': 'Stall capacity must be a number',
+        'number.min': 'Stall capacity must be 0 or greater',
+    }),
     placeId: Joi.string().optional().messages({
         'string.empty': 'Place ID cannot be empty',
     }),

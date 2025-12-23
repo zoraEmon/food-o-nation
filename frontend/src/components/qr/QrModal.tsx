@@ -53,7 +53,7 @@ export default function QrModal({
           {subtitle && <p className="text-gray-600">{subtitle}</p>}
         </div>
 
-        <div className="bg-[#FAF7F0] rounded-xl p-4 mb-4">
+        <div className="bg-background rounded-xl p-4 mb-4">
           <p className="text-sm font-bold text-[#004225] uppercase tracking-wide mb-3">Your QR Code</p>
           <div className="bg-white p-3 rounded-lg inline-block">
             {qrImage ? (

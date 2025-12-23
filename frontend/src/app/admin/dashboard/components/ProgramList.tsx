@@ -6,8 +6,8 @@ interface ProgramListProps {
 }
 
 export const ProgramList: React.FC<ProgramListProps> = ({ programs, onView }) => (
-  <div className="overflow-hidden rounded-lg border bg-white/3">
-    <div className="hidden sm:grid grid-cols-5 text-xs font-semibold text-gray-400 border-b border-gray-700 px-4 py-3">
+  <div className="overflow-hidden rounded-lg border" style={{ background: 'var(--card-bg)', color: 'var(--card-fg)' }}>
+    <div className="hidden sm:grid grid-cols-5 text-xs font-semibold border-b px-4 py-3" style={{ color: 'var(--muted-text)', borderColor: 'var(--muted)' }}>
       <span className="col-span-2">Program</span>
       <span>Summary</span>
       <span>Date</span>
@@ -20,18 +20,19 @@ export const ProgramList: React.FC<ProgramListProps> = ({ programs, onView }) =>
       programs.map((program) => (
         <div
           key={program.id}
-          className="grid grid-cols-1 sm:grid-cols-5 gap-2 sm:gap-0 items-center px-4 py-3 text-sm text-gray-200 border-b border-gray-800 last:border-b-0"
+          className="grid grid-cols-1 sm:grid-cols-5 gap-2 sm:gap-0 items-center px-4 py-3 text-sm border-b last:border-b-0"
+          style={{ borderColor: 'var(--muted)' }}
         >
           <div className="col-span-2 flex flex-col">
-            <button onClick={() => onView(program.id)} className="text-[#004225] font-semibold hover:underline text-left text-sm">
+            <button onClick={() => onView(program.id)} className="font-semibold hover:underline text-left text-sm" style={{ color: 'var(--primary)' }}>
               {program.title || program.name}
             </button>
-            <span className="text-xs text-gray-400">{program.place?.name || program.location || "—"}</span>
+            <span className="text-xs" style={{ color: 'var(--muted-text)' }}>{program.place?.name || program.location || "—"}</span>
           </div>
 
-          <div className="text-gray-300 text-sm truncate">{program.summary || program.description || "No description"}</div>
+          <div className="text-sm truncate" style={{ color: 'var(--foreground)' }}>{program.summary || program.description || "No description"}</div>
 
-          <div className="text-xs text-gray-300">
+          <div className="text-xs" style={{ color: 'var(--muted-text)' }}>
             {program.date ? new Date(program.date).toLocaleString() : program.startDate ? new Date(program.startDate).toLocaleString() : "—"}
           </div>
 
@@ -42,7 +43,7 @@ export const ProgramList: React.FC<ProgramListProps> = ({ programs, onView }) =>
               </span>
             )}
 
-            <button onClick={() => onView(program.id)} className="px-3 py-1 rounded-md bg-white/10 text-white text-xs font-semibold hover:bg-white/20">
+            <button onClick={() => onView(program.id)} className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'var(--muted)', color: 'var(--card-fg)' }}>
               View
             </button>
           </div>

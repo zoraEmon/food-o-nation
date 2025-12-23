@@ -99,7 +99,7 @@ const PendingView = ({ userData, onShowForm }: { userData: any, onShowForm: () =
             <p className="text-gray-600 text-lg font-medium mb-8">
                 Your application is currently being processed
             </p>
-            <div className="bg-[#FAF7F0] border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner min-h-[120px] flex flex-col">
+            <div className="bg-background border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner min-h-[120px] flex flex-col">
                 <span className="font-bold text-[#004225] text-sm uppercase tracking-wide mb-2 block border-b border-gray-300 pb-2">
                     What to expect:
                 </span>

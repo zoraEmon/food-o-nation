@@ -65,21 +65,34 @@ const ProgramRegistrationsModal: React.FC<Props> = ({ programId, programTitle, i
           {activeTab === 'program' && applications.map((app) => {
             const reg = app.programRegistration || {};
             const ben = reg.beneficiary || {};
-            const stallInfo = reg.stallReservation || reg.donorReservation || reg.stall || null;
+            const user = ben.user || {};
+
+            const avatar = user.profileImage || ben.profileImage || null;
+            const name = ben.firstName ? `${ben.firstName} ${ben.lastName || ''}` : (user.fullName || app.applicantName || app.applicantEmail || reg.id || app.id);
+            const role = 'Beneficiary';
+
             return (
-              <div key={app.id} className="p-3 rounded border bg-white/3 flex items-start justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-gray-100">{ben.firstName ? `${ben.firstName} ${ben.lastName || ''}` : (reg.id || app.id)}</div>
-                  <div className="text-xs text-gray-400">Status: {app.applicationStatus || 'N/A'}</div>
-                  {app.scheduledDeliveryDate && <div className="text-xs text-gray-400">Scheduled: {new Date(app.scheduledDeliveryDate).toLocaleString()}</div>}
-                  {app.qrCodeScannedAt && <div className="text-xs text-gray-400">Scanned: {new Date(app.qrCodeScannedAt).toLocaleString()}</div>}
+              <div key={app.id} className="p-3 rounded border bg-white/3 flex items-start gap-4">
+                <div className="w-14 h-14 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center">
+                  {avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-semibold text-white">{(name || 'U').split(' ').map(n=>n[0]).slice(0,2).join('')}</span>
+                  )}
                 </div>
 
-                <div className="text-right text-xs">
-                  {stallInfo ? (
+                <div className="flex-1">
+                  <div className="font-semibold text-sm text-gray-100">{name}</div>
+                  <div className="text-xs text-gray-400">{role} • Status: {app.applicationStatus || 'N/A'}</div>
+                  {app.scheduledDeliveryDate && <div className="text-xs text-gray-400">Scheduled: {new Date(app.scheduledDeliveryDate).toLocaleString()}</div>}
+                </div>
+
+                <div className="text-right text-xs min-w-[8rem]">
+                  {reg.stallReservation || reg.donorReservation ? (
                     <div>
                       <div className="font-semibold">Stall</div>
-                      <div className="text-gray-300">{stallInfo.number || stallInfo.id || 'Reserved'}</div>
+                      <div className="text-gray-300">{(reg.stallReservation && reg.stallReservation.slotNumber) || (reg.donorReservation && reg.donorReservation.slotNumber) || 'Reserved'}</div>
                     </div>
                   ) : (
                     <div className="text-gray-400">No stall</div>
@@ -89,16 +102,33 @@ const ProgramRegistrationsModal: React.FC<Props> = ({ programId, programTitle, i
             );
           })}
 
-          {activeTab === 'stall' && stallReservations.map((s: any) => (
-            <div key={s.id} className="p-3 rounded border bg-white/3 flex items-start justify-between">
-              <div>
-                <div className="font-semibold text-sm text-gray-100">{s.donor?.displayName || s.donor?.user?.email || s.donorId}</div>
-                <div className="text-xs text-gray-400">Slot: {s.slotNumber}</div>
-                <div className="text-xs text-gray-400">Status: {s.status}</div>
+          {activeTab === 'stall' && stallReservations.map((s: any) => {
+            const donor = s.donor || s.user || {};
+            const avatar = donor.profileImage || donor.user?.profileImage || null;
+            const name = donor.displayName || donor.fullName || donor.user?.email || s.donorId;
+            const role = 'Donor';
+
+            return (
+              <div key={s.id} className="p-3 rounded border bg-white/3 flex items-start gap-4">
+                <div className="w-14 h-14 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center">
+                  {avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-semibold text-white">{(name || 'U').split(' ').map(n=>n[0]).slice(0,2).join('')}</span>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <div className="font-semibold text-sm text-gray-100">{name}</div>
+                  <div className="text-xs text-gray-400">{role} • Slot: {s.slotNumber}</div>
+                  <div className="text-xs text-gray-400">Status: {s.status}</div>
+                </div>
+
+                <div className="text-xs text-gray-300">{s.reservedAt ? new Date(s.reservedAt).toLocaleString() : ''}</div>
               </div>
-              <div className="text-xs text-gray-300">{s.reservedAt ? new Date(s.reservedAt).toLocaleString() : ''}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="flex justify-end">

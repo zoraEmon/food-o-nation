@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  analytics:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    # If you want to include a Postgres service for local dev, uncomment below and configure
+    # depends_on:
+    #   - db
+
+# Optional local Postgres for dev (commented out by default)
+#  db:
+#    image: postgres:15
+#    environment:
+#      POSTGRES_DB: food_o_nation
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: postgres
+#    ports:
+#      - "5432:5432"

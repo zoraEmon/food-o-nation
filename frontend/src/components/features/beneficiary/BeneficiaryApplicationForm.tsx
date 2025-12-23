@@ -1040,7 +1040,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                 calculateAge={calculateAge}
               />
               {/* Special Diet checkbox + description */}
-              <div className="mt-2 p-3 border rounded-lg bg-[#FAF7F0] dark:bg-[#07311e] border-[#004225] dark:border-[#05402a]">
+              <div className="mt-2 p-3 border rounded-lg bg-background dark:bg-[#07311e] border-[#004225] dark:border-[#05402a]">
                 <label className="flex items-center gap-3">
                   <input type="checkbox" checked={formData.hasSpecialDiet} onChange={(e) => handleInputChange('hasSpecialDiet', e.target.checked)} className="w-5 h-5 accent-[#FFB000]" />
                   <span className="text-current">Special diet required</span>
@@ -1098,7 +1098,7 @@ export default function BeneficiaryApplicationForm({ userData, onSubmit }: { use
                 </label>
                 <div className="space-y-2">
                   {['Formal/Salaried Employment', 'Informal/Gig Work', 'Government Assistance/Benefits', 'Remittances/Financial Help from Family/Friends', 'None (Unemployed and not receiving benefits)'].map((source) => (
-                    <label key={source} className="flex items-center gap-2 p-2 hover:bg-[#FAF7F0] rounded">
+                    <label key={source} className="flex items-center gap-2 p-2 hover:bg-background/95 rounded">
                       <input
                         type="checkbox"
                         checked={formData.incomeSources.includes(source)}

@@ -24,10 +24,24 @@ export const getAllProgramsService = async (filters = {}) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    // Sanitize place fields: do not return suspiciously short name/address values to clients
+    const sanitized = programs.map((p:any) => {
+      if (p.place) {
+        try {
+          if (!p.place.name || typeof p.place.name !== 'string' || p.place.name.trim().length < 3) p.place.name = '';
+          if (!p.place.address || typeof p.place.address !== 'string' || p.place.address.trim().length < 3) p.place.address = '';
+        } catch (e) {
+          p.place.name = p.place.name || '';
+          p.place.address = p.place.address || '';
+        }
+      }
+      return p;
+    });
+
     return {
       success: true,
-      data: programs,
-      count: programs.length
+      data: sanitized,
+      count: sanitized.length
     };
   } catch (error:any) {
     return {
@@ -71,6 +85,17 @@ export const getProgramByIdService = async (id:any) => {
         error: `Program with ID ${id} not found`,
         code: 'NOT_FOUND'
       };
+    }
+
+    // Sanitize place fields to avoid returning tiny/invalid values
+    if (program.place) {
+      try {
+        if (!program.place.name || typeof program.place.name !== 'string' || program.place.name.trim().length < 3) program.place.name = '';
+        if (!program.place.address || typeof program.place.address !== 'string' || program.place.address.trim().length < 3) program.place.address = '';
+      } catch (e) {
+        program.place.name = program.place.name || '';
+        program.place.address = program.place.address || '';
+      }
     }
 
     return {
@@ -475,47 +500,46 @@ export const publishProgramService = async (id:any) => {
   }
 };
 
-// Cancel program
+// Cancel program — delete program and related data
 export const cancelProgramService = async (id:any, reason = '') => {
   try {
-    const program = await prisma.program.findUnique({
-      where: { id }
-    });
+    const program = await prisma.program.findUnique({ where: { id } });
 
     if (!program) {
-      return {
-        success: false,
-        error: 'Program not found',
-        code: 'NOT_FOUND'
-      };
+      return { success: false, error: 'Program not found', code: 'NOT_FOUND' };
     }
 
     if (program.status === 'CLAIMED') {
-      return {
-        success: false,
-        error: 'Cannot cancel a program that has already been completed'
-      };
+      return { success: false, error: 'Cannot delete a program that has already been completed' };
     }
 
-    const updated = await prisma.program.update({
-      where: { id },
-      data: { status: 'CANCELED' },
-      include: {
-        place: true,
-        registrations: true,
-        donations: true
-      }
-    });
+    // Collect related registrations and stall reservations
+    const registrations = await prisma.programRegistration.findMany({ where: { programId: id } });
+    const registrationIds = registrations.map((r:any) => r.id);
+
+    const stallReservations = await prisma.stallReservation.findMany({ where: { programId: id } });
+    const stallIds = stallReservations.map((s:any) => s.id);
+
+    // Perform deletions in a transaction for safety
+    await prisma.$transaction([
+      // delete program applications tied to registrations
+      prisma.programApplication.deleteMany({ where: { registrationId: { in: registrationIds.length ? registrationIds : ['__none__'] } } }),
+      // delete registrations
+      prisma.programRegistration.deleteMany({ where: { id: { in: registrationIds.length ? registrationIds : ['__none__'] } } }),
+      // delete stall applications tied to stall reservations
+      prisma.stallApplication.deleteMany({ where: { stallReservationId: { in: stallIds.length ? stallIds : ['__none__'] } } }),
+      // delete stall reservations
+      prisma.stallReservation.deleteMany({ where: { id: { in: stallIds.length ? stallIds : ['__none__'] } } }),
+      // finally delete the program itself
+      prisma.program.delete({ where: { id } })
+    ]);
 
     return {
       success: true,
-      data: updated,
-      message: `Program canceled successfully${reason ? ': ' + reason : ''}`
+      data: { id },
+      message: `Program deleted successfully${reason ? ': ' + reason : ''}`
     };
   } catch (error:any) {
-    return {
-      success: false,
-      error: `Failed to cancel program: ${error.message}`
-    };
+    return { success: false, error: `Failed to delete program: ${error.message}` };
   }
 };

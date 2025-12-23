@@ -81,7 +81,7 @@ const PendingView = ({ userData, onShowForm }: { userData: any; onShowForm: () =
       <p className="text-gray-600 text-lg font-medium mb-8">
         Your application is currently being processed
       </p>
-      <div className="bg-[#FAF7F0] border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner min-h-[120px] flex flex-col">
+      <div className="bg-background border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner min-h-[120px] flex flex-col">
         <span className="font-bold text-[#004225] text-sm uppercase tracking-wide mb-2 block border-b border-gray-300 pb-2">
           What to expect:
         </span>
@@ -125,7 +125,7 @@ const RejectedView = ({ reason, actionCode }: { reason: string; actionCode: stri
           Status: <span className="text-red-600">Rejected</span>
         </h2>
         <p className="text-gray-600 text-lg font-medium mb-8">Your application was not approved</p>
-        <div className="bg-[#FAF7F0] border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner">
+        <div className="bg-background border-2 border-gray-300 rounded-xl p-6 mb-8 text-left shadow-inner">
           <span className="font-bold text-[#004225] text-sm uppercase tracking-wide mb-2 block border-b border-gray-300 pb-2">
             Reason:
           </span>
@@ -226,7 +226,7 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole, userStatus
         </div>
 
         {/* Body */}
-        <div className="p-6 lg:p-8 space-y-8 flex-grow bg-[#FAF7F0]">
+        <div className="p-6 lg:p-8 space-y-8 flex-grow bg-background">
           {isCompleted && (
             <div className="bg-gray-200 border-l-4 border-gray-600 p-4 rounded-r-lg flex items-center gap-3">
               <History className="w-6 h-6 text-gray-600" />
@@ -282,7 +282,7 @@ const ProgramDetailsModal = ({ program, onClose, onConfirm, userRole, userStatus
             </div>
 
             {/* Slots Information */}
-            <div className="bg-[#FAF7F0] p-4 rounded-lg border-l-4 border-[#FFB000]">
+            <div className="bg-background p-4 rounded-lg border-l-4 border-[#FFB000]">
               <p className="font-bold text-[#004225] mb-2">
                 {isDonor ? "Stall Availability" : "Participant Slots"}
               </p>
@@ -488,7 +488,7 @@ const PublicProgramsView = ({ scheduledPrograms, pastPrograms, isLoading }: { sc
                       </div>
 
                       {/* Post Footer - Action Button */}
-                      <div className="px-6 py-4 bg-[#FAF7F0] border-t-2 border-[#004225]/10">
+                      <div className="px-6 py-4 bg-background border-t-2 border-[#004225]/10">
                         <button
                           onClick={() => setSelectedProgram(program)}
                           className="w-full bg-gradient-to-r from-[#004225] to-[#005a33] text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
@@ -932,7 +932,7 @@ function ProgramsPage() {
                               </div>
 
                               {/* Right: Date/Time */}
-                              <div className="rounded-xl border border-[#004225]/15 bg-[#FAF7F0] p-4">
+                              <div className="rounded-xl border border-[#004225]/15 bg-background p-4">
                                 <div className="flex items-center gap-2 text-[#004225]">
                                   <Calendar className="w-5 h-5 text-[#FFB000]" />
                                   <span className="font-bold">{startDate}</span>
