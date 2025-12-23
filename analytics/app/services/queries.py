@@ -130,8 +130,72 @@ async def beneficiary_demographics(year: Optional[int] = None, donation_center_i
 
     return {"household_numbers": household, "locations": locations, "income_buckets": income_buckets}
 
-async def page_visits(start: Optional[str] = None, end: Optional[str] = None) -> Dict:
-    # For now keep mock implementation; analytics team can replace with real page visit table queries
-    days = ['Nov 01','Nov 02','Nov 03','Nov 04','Nov 05','Nov 06','Nov 07','Nov 08','Nov 09','Nov 10']
-    counts = [3,4,31,16,13,23,9,3,7,37]
-    return {"labels": days, "values": counts}
+async def record_page_visit(client_id: Optional[str], path: str, referrer: Optional[str], user_id: Optional[str]) -> Dict:
+    """Insert a page visit. If client_id is provided, this is idempotent (unique client_id)."""
+    sql = '''
+    INSERT INTO page_visits (client_id, path, referrer, user_id)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (client_id) DO NOTHING
+    RETURNING id, client_id, path, referrer, user_id, created_at
+    '''
+    row = await db.fetchrow(sql, client_id, path, referrer, user_id)
+    if row:
+        return {"id": row['id'], "client_id": row['client_id'], "path": row['path'], "referrer": row['referrer'], "user_id": row['user_id'], "created_at": row['created_at']}
+    return {"skipped": True}
+
+
+async def page_visits(start: Optional[str] = None, end: Optional[str] = None, days: int = 14) -> Dict:
+    """Aggregate page visits by day over the given range (defaults to last `days`).
+    Returns: { labels: [date strings], totals: [counts], by_path: {path: [counts...] } }
+    """
+    from datetime import datetime, timedelta
+    if start:
+        start_dt = datetime.fromisoformat(start)
+    else:
+        start_dt = datetime.utcnow() - timedelta(days=days)
+    if end:
+        end_dt = datetime.fromisoformat(end)
+    else:
+        end_dt = datetime.utcnow()
+
+    sql_totals = '''
+    SELECT date_trunc('day', created_at) AS day, COUNT(*) AS cnt
+    FROM page_visits
+    WHERE created_at >= $1 AND created_at <= $2
+    GROUP BY 1 ORDER BY 1
+    '''
+    rows = await db.fetch(sql_totals, start_dt, end_dt)
+    # labels from rows (ensure continuous dates)
+    label_map = {r['day'].date(): int(r['cnt']) for r in rows}
+
+    # build continuous date list
+    dates = []
+    totals = []
+    cur = start_dt.date()
+    end_date = end_dt.date()
+    while cur <= end_date:
+        dates.append(cur.strftime('%Y-%m-%d'))
+        totals.append(label_map.get(cur, 0))
+        from datetime import timedelta as _td
+        cur = cur + _td(days=1)
+
+    # breakdown by path
+    sql_by_path = '''
+    SELECT path, date_trunc('day', created_at) AS day, COUNT(*) AS cnt
+    FROM page_visits
+    WHERE created_at >= $1 AND created_at <= $2
+    GROUP BY path, day
+    '''
+    rows2 = await db.fetch(sql_by_path, start_dt, end_dt)
+    by_path_map = {}
+    for r in rows2:
+        path = r['path']
+        day = r['day'].date().strftime('%Y-%m-%d')
+        by_path_map.setdefault(path, {})[day] = int(r['cnt'])
+
+    by_path = {}
+    for path, day_map in by_path_map.items():
+        # align with dates list
+        by_path[path] = [day_map.get(d, 0) for d in dates]
+
+    return {"labels": dates, "totals": totals, "byPath": by_path}

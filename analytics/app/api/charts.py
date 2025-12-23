@@ -62,21 +62,41 @@ async def beneficiary_demographics(year: int = None, donationCenterId: Optional[
     return {"figure": to_json(fig), "data": data}
 
 
-@router.get("/donor-activity")
-async def donor_activity(limit: int = Query(6)):
-    # Demo top donors pie
-    labels = [f"Donor {i}" for i in range(1, limit+1)]
-    values = [45, 25, 15, 8, 4, 3][:limit]
-    fig = go.Figure(data=go.Pie(labels=labels, values=values))
-    fig.update_layout(title="Top Contributing Donors")
-    return {"figure": to_json(fig), "data": {"labels": labels, "values": values}}
+# Demo donor-activity route removed (duplicate) — the main implementation above uses DB queries.
+# If you need a demo fallback, reintroduce a simple handler here that returns static data.
 
 
 @router.get("/page-visits")
-async def page_visits(start: Optional[str] = None, end: Optional[str] = None):
-    # Demo bar chart (use real page visit data via queries)
-    days = ['Nov 01','Nov 02','Nov 03','Nov 04','Nov 05','Nov 06','Nov 07','Nov 08','Nov 09','Nov 10']
-    counts = [3,4,31,16,13,23,9,3,7,37]
-    fig = go.Figure(data=go.Bar(x=days, y=counts))
-    fig.update_layout(title="Page Visits", xaxis_title="Date", yaxis_title="Visits")
-    return {"figure": to_json(fig), "data": {"labels": days, "values": counts}}
+async def page_visits(start: Optional[str] = None, end: Optional[str] = None, days: int = Query(14)):
+    # Use DB-backed page visits if available, otherwise fall back to demo data
+    try:
+        from app.services import queries
+        data = await queries.page_visits(start, end, days)
+        # Build a simple bar chart from totals
+        fig = go.Figure(data=go.Bar(x=data['labels'], y=data['totals']))
+        fig.update_layout(title="Page Visits", xaxis_title="Date", yaxis_title="Visits")
+        return {"figure": to_json(fig), "data": data}
+    except Exception as e:
+        # In case DB is not configured or query fails, return demo series
+        days_demo = ['Nov 01','Nov 02','Nov 03','Nov 04','Nov 05','Nov 06','Nov 07','Nov 08','Nov 09','Nov 10']
+        counts = [3,4,31,16,13,23,9,3,7,37]
+        fig = go.Figure(data=go.Bar(x=days_demo, y=counts))
+        fig.update_layout(title="Page Visits (demo)", xaxis_title="Date", yaxis_title="Visits")
+        return {"figure": to_json(fig), "data": {"labels": days_demo, "totals": counts, "byPath": {}}}
+
+
+@router.post('/collect')
+async def collect_visit(payload: dict):
+    """Collect a page visit. Payload: { clientId?: string, path: string, referrer?: string, userId?: string }"""
+    try:
+        client_id = payload.get('clientId')
+        path = payload.get('path')
+        referrer = payload.get('referrer')
+        user_id = payload.get('userId')
+        if not path:
+            return {"error": "path is required"}
+        from app.services import queries
+        res = await queries.record_page_visit(client_id, path, referrer, user_id)
+        return {"status": "ok", "result": res}
+    except Exception as e:
+        return {"error": str(e)}
